@@ -17,3 +17,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [Workspace sources and materialization](workspace-sources.md)
 - [Checkpoint format and integrity](checkpoint.md) ([JSON Schema](checkpoint-manifest.schema.json))
 - [Suspend and resume](suspend-resume.md)
+- [Network profiles](network-profiles.md) ([JSON Schema](network-profile.schema.json))
