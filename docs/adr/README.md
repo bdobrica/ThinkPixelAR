@@ -15,3 +15,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 ## Index
 
 - [ADR-0001: Bind each Session to one immutable agent runtime](0001-immutable-session-runtime-binding.md) — Accepted
+- [ADR-0002: Use outbound mTLS gRPC for the initial agentd transport](0002-agentd-outbound-mtls-grpc-transport.md) — Accepted
