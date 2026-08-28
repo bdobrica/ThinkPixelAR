@@ -19,3 +19,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [Suspend and resume](suspend-resume.md)
 - [Network profiles](network-profiles.md) ([JSON Schema](network-profile.schema.json))
 - [Local permission versus enterprise tool authorization](permission-vs-tool-authorization.md)
+- [Runtime events](runtime-events.md) ([JSON Schema](runtime-event.schema.json))

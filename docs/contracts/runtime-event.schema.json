@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thinkpixel.dev/schemas/runtime-event-v1.json",
+  "title": "ThinkPixel RuntimeEvent v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "tenant_id", "session_id", "sequence", "aggregate_version", "type", "occurred_at", "recorded_at", "source", "classification", "payload", "correlation"],
+  "properties": {
+    "schema_version": { "const": "thinkpixel.runtime-event/v1" },
+    "event_id": { "$ref": "#/$defs/id" }, "tenant_id": { "$ref": "#/$defs/id" }, "session_id": { "$ref": "#/$defs/id" },
+    "execution_id": { "$ref": "#/$defs/id" }, "attempt_id": { "$ref": "#/$defs/id" },
+    "sequence": { "type": "integer", "minimum": 1 }, "aggregate_version": { "type": "integer", "minimum": 1 },
+    "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$", "maxLength": 80 },
+    "occurred_at": { "$ref": "#/$defs/time" }, "recorded_at": { "$ref": "#/$defs/time" },
+    "source": { "enum": ["agent-runtime", "agentd", "harness-adapter", "sandbox-provider", "workspace-provider", "run-authority", "gateway"] },
+    "classification": { "enum": ["Public", "Internal", "Confidential"] },
+    "payload": { "type": "object", "maxProperties": 64 },
+    "correlation": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "request_id": { "$ref": "#/$defs/id" },
+        "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "time": { "type": "string", "format": "date-time", "maxLength": 64 }
+  }
+}
