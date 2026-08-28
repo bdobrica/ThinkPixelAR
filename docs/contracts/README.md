@@ -12,3 +12,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [SandboxProvider](sandbox-provider.md)
 - [Runtime Profiles](runtime-profiles.md) ([JSON Schema](runtime-profile.schema.json))
 - [HarnessAdapter](harness-adapter.md)
+- [`thinkpixel-agentd`](agentd.md)
