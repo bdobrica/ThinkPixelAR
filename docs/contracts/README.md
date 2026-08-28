@@ -14,3 +14,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [HarnessAdapter](harness-adapter.md)
 - [`thinkpixel-agentd`](agentd.md)
 - [Workspace, generations, and WorkspaceProvider](workspace.md)
+- [Workspace sources and materialization](workspace-sources.md)
