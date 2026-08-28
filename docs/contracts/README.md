@@ -15,3 +15,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [`thinkpixel-agentd`](agentd.md)
 - [Workspace, generations, and WorkspaceProvider](workspace.md)
 - [Workspace sources and materialization](workspace-sources.md)
+- [Checkpoint format and integrity](checkpoint.md) ([JSON Schema](checkpoint-manifest.schema.json))

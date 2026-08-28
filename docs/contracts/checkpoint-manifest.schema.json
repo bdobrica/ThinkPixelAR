@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thinkpixel.dev/schemas/checkpoint-manifest-v1.json",
+  "title": "ThinkPixel Checkpoint Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "checkpoint_id", "tenant_id", "session_id", "operation_id", "created_at", "committed_at", "runtime", "workspace", "vendor_state", "lineage", "integrity", "exclusions"],
+  "properties": {
+    "schema_version": { "const": "thinkpixel.checkpoint/v1" },
+    "checkpoint_id": { "$ref": "#/$defs/id" },
+    "tenant_id": { "$ref": "#/$defs/id" },
+    "session_id": { "$ref": "#/$defs/id" },
+    "operation_id": { "$ref": "#/$defs/id" },
+    "created_at": { "$ref": "#/$defs/time" },
+    "committed_at": { "$ref": "#/$defs/time" },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "workspace": { "$ref": "#/$defs/workspace" },
+    "vendor_state": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/vendorState" } },
+    "lineage": {
+      "type": "object", "additionalProperties": false, "required": ["purpose"],
+      "properties": { "parent_checkpoint_id": { "$ref": "#/$defs/id" }, "purpose": { "enum": ["checkpoint", "suspend", "fork", "migration"] } }
+    },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "exclusions": {
+      "type": "array", "uniqueItems": true, "minItems": 7, "maxItems": 7,
+      "items": { "enum": ["execution_credentials", "bootstrap_credentials", "provider_credentials", "gateway_tokens", "scm_and_tool_credentials", "signing_private_keys", "sandbox_process_authority"] },
+      "allOf": [
+        { "contains": { "const": "execution_credentials" } }, { "contains": { "const": "bootstrap_credentials" } },
+        { "contains": { "const": "provider_credentials" } }, { "contains": { "const": "gateway_tokens" } },
+        { "contains": { "const": "scm_and_tool_credentials" } }, { "contains": { "const": "signing_private_keys" } },
+        { "contains": { "const": "sandbox_process_authority" } }
+      ]
+    },
+    "extensions": { "type": "object", "maxProperties": 32, "propertyNames": { "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$", "maxLength": 128 } }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    "digest": { "type": "string", "minLength": 32, "maxLength": 256, "pattern": "^[A-Za-z0-9_-]+$" },
+    "time": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["agent_runtime_spec_id", "agent_runtime_spec_digest", "adapter_kind", "adapter_version", "adapter_build_digest", "protocol", "state_format", "runtime_profile_digest"],
+      "properties": {
+        "agent_runtime_spec_id": { "$ref": "#/$defs/id" }, "agent_runtime_spec_digest": { "$ref": "#/$defs/digest" },
+        "adapter_kind": { "$ref": "#/$defs/id" }, "adapter_version": { "$ref": "#/$defs/id" }, "adapter_build_digest": { "$ref": "#/$defs/digest" },
+        "protocol": { "$ref": "#/$defs/versionedName" }, "state_format": { "$ref": "#/$defs/versionedName" }, "runtime_profile_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "versionedName": {
+      "type": "object", "additionalProperties": false, "required": ["name", "version"],
+      "properties": { "name": { "$ref": "#/$defs/id" }, "version": { "$ref": "#/$defs/id" } }
+    },
+    "workspace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace_id", "generation_id", "generation", "snapshot_ref", "manifest_root", "digest_algorithm", "storage_evidence_digest"],
+      "properties": {
+        "workspace_id": { "$ref": "#/$defs/id" }, "generation_id": { "$ref": "#/$defs/id" }, "generation": { "type": "integer", "minimum": 0 },
+        "snapshot_ref": { "$ref": "#/$defs/id" }, "manifest_root": { "$ref": "#/$defs/digest" }, "digest_algorithm": { "enum": ["sha-256", "sha-512"] },
+        "storage_evidence_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "vendorState": {
+      "type": "object", "additionalProperties": false,
+      "required": ["object_id", "object_ref", "media_type", "state_format", "digest_algorithm", "digest", "size_bytes", "classification", "role"],
+      "properties": {
+        "object_id": { "$ref": "#/$defs/id" }, "object_ref": { "$ref": "#/$defs/id" }, "media_type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "state_format": { "$ref": "#/$defs/versionedName" }, "digest_algorithm": { "enum": ["sha-256", "sha-512"] }, "digest": { "$ref": "#/$defs/digest" },
+        "size_bytes": { "type": "integer", "minimum": 0 }, "classification": { "enum": ["Confidential", "Restricted"] }, "role": { "enum": ["required", "optional"] }
+      }
+    },
+    "integrity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["canonicalization", "digest_algorithm", "payload_digest", "composite_root", "signature_algorithm", "signer", "key_id", "signature", "signed_at"],
+      "properties": {
+        "canonicalization": { "const": "RFC8785-JCS" }, "digest_algorithm": { "enum": ["sha-256", "sha-512"] },
+        "payload_digest": { "$ref": "#/$defs/digest" }, "composite_root": { "$ref": "#/$defs/digest" },
+        "signature_algorithm": { "type": "string", "minLength": 1, "maxLength": 64 }, "signer": { "$ref": "#/$defs/id" }, "key_id": { "$ref": "#/$defs/id" },
+        "signature": { "type": "string", "minLength": 32, "maxLength": 4096, "pattern": "^[A-Za-z0-9_-]+$" }, "signed_at": { "$ref": "#/$defs/time" }
+      }
+    }
+  }
+}
