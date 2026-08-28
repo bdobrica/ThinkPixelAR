@@ -12,3 +12,6 @@ Architecture Decision Records (ADRs) capture decisions that constrain ThinkPixel
 
 The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, and `Superseded`.
 
+## Index
+
+- [ADR-0001: Bind each Session to one immutable agent runtime](0001-immutable-session-runtime-binding.md) — Accepted
