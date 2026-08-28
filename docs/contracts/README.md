@@ -20,3 +20,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [Network profiles](network-profiles.md) ([JSON Schema](network-profile.schema.json))
 - [Local permission versus enterprise tool authorization](permission-vs-tool-authorization.md)
 - [Runtime events](runtime-events.md) ([JSON Schema](runtime-event.schema.json))
+- [Idempotency and replay safety](idempotency.md)
