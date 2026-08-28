@@ -21,7 +21,7 @@ Completion metadata format:
 
 ## Phase 0 — Decisions, threats, and contracts
 
-- [ ] ARC-001 Create `docs/` structure and ADR template covering status, context, decision, alternatives, consequences, security, operations, compatibility, and references.
+- [x] ARC-001 Create `docs/` structure and ADR template covering status, context, decision, alternatives, consequences, security, operations, compatibility, and references. — completed 2026-08-28, commit self (`ARC-001`), evidence: `find docs -type f`, ADR section validation
 - [ ] ARC-002 Write system-context and trust-boundary diagrams covering clients, AR control plane, PostgreSQL, Kubernetes Agent Sandbox, Kata runtime, `agentd`, harness, AG, LLMGW, TG, GR, registry, storage, and external providers.
 - [ ] ARC-003 Write the primary threat model assuming complete compromise of harness, generated code, repository code, dependencies, and `agentd`.
 - [ ] ARC-004 Define data-classification/redaction rules for prompts, model output, repository content, vendor state, Workspace contents, credentials, events, logs, traces, checkpoints, and artifacts.
@@ -424,3 +424,4 @@ Do not delete historical entries. Supersede incorrect or obsolete assumptions wi
 Date | TODO IDs | Commit | Verification evidence | Notes/deviations
 --- | --- | --- | --- | ---
 YYYY-MM-DD | `ARC-...` | `<sha>` | `<commands/artifacts>` | `<notes>`
+2026-08-28 | `ARC-001` | self (`ARC-001`) | `find docs -type f`; ADR required-section validation | Commit SHA is identified by the unique ARC ID in Git history because a commit cannot embed its own hash.
