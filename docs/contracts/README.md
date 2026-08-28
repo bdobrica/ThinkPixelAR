@@ -10,3 +10,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [ThinkPixelAGAuthority integration](thinkpixelag-authority-integration.md)
 - [AgentRuntimeSpec](agent-runtime-spec.md) ([JSON Schema](agent-runtime-spec.schema.json))
 - [SandboxProvider](sandbox-provider.md)
+- [Runtime Profiles](runtime-profiles.md) ([JSON Schema](runtime-profile.schema.json))

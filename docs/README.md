@@ -10,6 +10,7 @@ This directory contains the durable architecture and security contracts for Thin
 - `architecture/` — system context, trust boundaries, and component-level design;
 - `security/` — threat models, data handling, and security invariants;
 - `contracts/` — vendor-neutral domain and runtime contracts;
+- `profiles/` — reviewed example Runtime Profile instances;
 - `operations/` — deployment, recovery, capacity, and operational guidance;
 - `evidence/` — phase and release verification evidence.
 

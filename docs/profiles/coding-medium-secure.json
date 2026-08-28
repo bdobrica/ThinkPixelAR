@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "name": "coding-medium-secure",
+  "description": "Kata-backed bounded coding profile for hostile harness, repository, dependency, generated-code, and shell execution.",
+  "isolation_class": "microvm-strong",
+  "resources": {
+    "cpu_millis": {"request": 2000, "limit": 4000},
+    "memory_bytes": {"request": 4294967296, "limit": 8589934592},
+    "ephemeral_storage_bytes": {"request": 10737418240, "limit": 21474836480},
+    "max_processes": 1024,
+    "gpu": {"count": 0, "classes": []}
+  },
+  "storage": {
+    "workspace_bytes": 53687091200,
+    "workspace_mount": "/workspace",
+    "vendor_state_root": "/state",
+    "access_mode": "single-pod-writer",
+    "snapshot_class": "required",
+    "encryption_required": true
+  },
+  "network": {
+    "profile": "thinkpixel-only",
+    "default_deny_ingress": true,
+    "default_deny_egress": true,
+    "deny_cloud_metadata": true,
+    "deny_kubernetes_api": true,
+    "dns_policy": "trusted-only"
+  },
+  "platform": {
+    "os": "linux",
+    "architectures": ["amd64"],
+    "gpu_allowed": false,
+    "node_class": "kata-general"
+  },
+  "security": {
+    "privileged": false,
+    "run_as_non_root": true,
+    "read_only_root_filesystem": true,
+    "allow_privilege_escalation": false,
+    "service_account_token": false,
+    "host_network": false,
+    "host_pid": false,
+    "host_ipc": false,
+    "host_paths": false,
+    "runtime_sockets": false,
+    "linux_capabilities_add": [],
+    "seccomp_class": "runtime-default"
+  },
+  "lifecycle": {
+    "idle_suspend_seconds": 900,
+    "termination_grace_seconds": 30,
+    "warm_pool_eligible": false,
+    "suspend_mode": "release-and-restore"
+  },
+  "implementation": {
+    "provider_kind": "kubernetes-agent-sandbox",
+    "provider_profile_ref": "coding-medium-secure-v1",
+    "isolation_runtime_ref": "kata-qemu-3-31",
+    "storage_profile_ref": "workspace-snapshot-v1",
+    "network_policy_ref": "thinkpixel-only-v1"
+  }
+}

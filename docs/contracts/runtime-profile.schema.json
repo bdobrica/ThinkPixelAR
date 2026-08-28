@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thinkpixel.dev/schemas/thinkpixelar/runtime-profile-v1.json",
+  "title": "ThinkPixelAR Runtime Profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "isolation_class",
+    "resources",
+    "storage",
+    "network",
+    "platform",
+    "security",
+    "lifecycle",
+    "implementation"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"$ref": "#/$defs/identifier"},
+    "description": {"type": "string", "minLength": 1, "maxLength": 512},
+    "isolation_class": {
+      "type": "string",
+      "enum": ["container-standard", "microvm-strong", "confidential-strong"]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_millis", "memory_bytes", "ephemeral_storage_bytes", "max_processes"],
+      "properties": {
+        "cpu_millis": {"$ref": "#/$defs/requestLimit"},
+        "memory_bytes": {"$ref": "#/$defs/requestLimit"},
+        "ephemeral_storage_bytes": {"$ref": "#/$defs/requestLimit"},
+        "max_processes": {"type": "integer", "minimum": 1, "maximum": 1048576},
+        "gpu": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "classes"],
+          "properties": {
+            "count": {"type": "integer", "minimum": 0, "maximum": 64},
+            "classes": {
+              "type": "array",
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {"$ref": "#/$defs/identifier"}
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_bytes", "workspace_mount", "vendor_state_root", "snapshot_class"],
+      "properties": {
+        "workspace_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 17592186044416},
+        "workspace_mount": {"const": "/workspace"},
+        "vendor_state_root": {"const": "/state"},
+        "access_mode": {"type": "string", "enum": ["single-writer", "single-pod-writer"]},
+        "snapshot_class": {"type": "string", "enum": ["required", "optional", "disabled"]},
+        "encryption_required": {"type": "boolean"}
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "default_deny_ingress", "default_deny_egress", "deny_cloud_metadata", "deny_kubernetes_api"],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["none", "thinkpixel-only", "restricted-development", "package-mirrors", "unrestricted-standalone"]
+        },
+        "default_deny_ingress": {"type": "boolean"},
+        "default_deny_egress": {"type": "boolean"},
+        "deny_cloud_metadata": {"type": "boolean"},
+        "deny_kubernetes_api": {"type": "boolean"},
+        "dns_policy": {"type": "string", "enum": ["disabled", "trusted-only"]}
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architectures", "gpu_allowed"],
+      "properties": {
+        "os": {"const": "linux"},
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"type": "string", "enum": ["amd64", "arm64"]}
+        },
+        "gpu_allowed": {"type": "boolean"},
+        "node_class": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privileged",
+        "run_as_non_root",
+        "read_only_root_filesystem",
+        "allow_privilege_escalation",
+        "service_account_token",
+        "host_network",
+        "host_pid",
+        "host_ipc",
+        "host_paths",
+        "runtime_sockets",
+        "linux_capabilities_add",
+        "seccomp_class"
+      ],
+      "properties": {
+        "privileged": {"type": "boolean"},
+        "run_as_non_root": {"type": "boolean"},
+        "read_only_root_filesystem": {"type": "boolean"},
+        "allow_privilege_escalation": {"type": "boolean"},
+        "service_account_token": {"type": "boolean"},
+        "host_network": {"type": "boolean"},
+        "host_pid": {"type": "boolean"},
+        "host_ipc": {"type": "boolean"},
+        "host_paths": {"type": "boolean"},
+        "runtime_sockets": {"type": "boolean"},
+        "linux_capabilities_add": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "maxLength": 64}
+        },
+        "seccomp_class": {"type": "string", "enum": ["runtime-default", "operator-profile"]}
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idle_suspend_seconds", "termination_grace_seconds", "warm_pool_eligible"],
+      "properties": {
+        "idle_suspend_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+        "termination_grace_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+        "warm_pool_eligible": {"type": "boolean"},
+        "suspend_mode": {"type": "string", "enum": ["release-and-restore", "provider-suspend-preferred"]}
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_kind", "provider_profile_ref", "isolation_runtime_ref", "storage_profile_ref", "network_policy_ref"],
+      "properties": {
+        "provider_kind": {"$ref": "#/$defs/identifier"},
+        "provider_profile_ref": {"$ref": "#/$defs/identifier"},
+        "isolation_runtime_ref": {"$ref": "#/$defs/identifier"},
+        "storage_profile_ref": {"$ref": "#/$defs/identifier"},
+        "network_policy_ref": {"$ref": "#/$defs/identifier"}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$"
+    },
+    "requestLimit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "limit"],
+      "properties": {
+        "request": {"type": "integer", "minimum": 1, "maximum": 1125899906842624},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 1125899906842624}
+      }
+    }
+  }
+}
