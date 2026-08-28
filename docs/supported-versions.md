@@ -17,7 +17,7 @@ Patch upgrades require the compatibility workflow below. Minor upgrades require 
 | Component | Exact version/API pin | Status | Rationale and required evidence |
 | --- | --- | --- | --- |
 | Kubernetes | `v1.36.2` | `PINNED_CANDIDATE` | Supported Kubernetes branch and the dependency generation explicitly targeted by Agent Sandbox `v0.5.x`. Run conformance/integration on the exact server and kubelet patch; record node/control-plane images and digests. |
-| Kubernetes Agent Sandbox | `v0.5.5`; core `agents.x-k8s.io/v1beta1`; extensions `extensions.agents.x-k8s.io/v1beta1` | `PINNED_CANDIDATE` | Current reviewed release, containing post-`v0.5.4` lifecycle fixes. Install exact release assets by checksum/digest; use beta APIs only. Qualify core lifecycle first; claims/templates second; warm pools later. |
+| Kubernetes Agent Sandbox | `v0.5.5`; core `agents.x-k8s.io/v1beta1`; extensions `extensions.agents.x-k8s.io/v1beta1` | `SUPERSEDED_CANDIDATE` | Previously reviewed candidate, now behind upstream `v1.0.0`. `PH0-KAS-001` requires selecting/testing the current line; do not claim production support. |
 | Kata Containers | `3.31.0`; containerd shim v2; `runtime-rs` default; QEMU initial VMM | `PINNED_CANDIDATE` | Current reviewed immutable release. Qualify `amd64` first and `arm64` before advertising it; record kernel/rootfs/hypervisor/agent/runtime artifact digests and effective RuntimeClass handler. |
 | Container runtime | containerd `2.3.1`; CRI `runtime.v1`; config schema accepted by the selected distribution; shim v2 | `PINNED_CANDIDATE` | Current reviewed LTS line/patch and Kata integration substrate. Qualify exact distribution build/config and runtime handler; upstream semantic version alone is insufficient. |
 | CSI snapshot controller/client | external-snapshotter `v8.6.0`; `snapshot.storage.k8s.io/v1` | `PINNED_CANDIDATE` | Current reviewed GA snapshot API/controller line. Install CRDs/controller by immutable image digest and qualify against the selected CSI driver. VolumeGroupSnapshot is not required. |
@@ -29,6 +29,8 @@ Patch upgrades require the compatibility workflow below. Minor upgrades require 
 Kubernetes `1.37.0` was released on 2026-08-26. At this review, Agent Sandbox's documented dependency upgrade explicitly supports Kubernetes 1.36, while no release evidence reviewed here qualifies `v0.5.5` plus Kata/storage on Kubernetes 1.37. ThinkPixelAR therefore pins `1.36.2` for its initial test lane and lists `1.37.0` as `EVALUATE_AFTER_BASELINE`, not supported. This is intentional conservatism, not a claim that 1.37 is incompatible.
 
 ## Kubernetes Agent Sandbox feature matrix
+
+Review update 2026-08-28: official tags now include `v0.5.6` and `v1.0.0`. The v1 source retains `v1beta1`, removes `v1alpha1`, and changes/clarifies Service, shutdown and managed NetworkPolicy behavior. See the [Phase 0 cross-system review](evidence/phase-0-cross-system-review.md). The table below preserves prior v0.5.5 analysis as historical input, not current support evidence.
 
 | Feature | Upstream surface | RC disposition | Qualification requirement |
 | --- | --- | --- | --- |
@@ -119,4 +121,3 @@ Kind without Kata may run fast functional/provider tests but cannot qualify `mic
 - containerd releases/support policy: <https://github.com/containerd/containerd/releases/tag/v2.3.1> and <https://github.com/containerd/containerd/blob/main/RELEASES.md>
 - CSI snapshotter `v8.6.0`: <https://github.com/kubernetes-csi/external-snapshotter/releases/tag/v8.6.0>
 - CSI attacher `v4.12.0`: <https://github.com/kubernetes-csi/external-attacher/releases/tag/v4.12.0>
-
