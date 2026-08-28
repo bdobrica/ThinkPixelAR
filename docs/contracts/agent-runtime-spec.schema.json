@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://thinkpixel.dev/schemas/thinkpixelar/agent-runtime-spec-v1.json",
+  "title": "ThinkPixelAR AgentRuntimeSpec v1",
+  "description": "Immutable, vendor-neutral agent runtime materialization contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "runtime_id",
+    "image",
+    "adapter",
+    "entrypoint",
+    "durable_vendor_paths",
+    "workspace_mount",
+    "runtime_profile",
+    "platform"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "runtime_id": {
+      "$ref": "#/$defs/stableIdentifier"
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "digest"],
+      "properties": {
+        "reference": {
+          "type": "string",
+          "minLength": 73,
+          "maxLength": 2048,
+          "pattern": "^[A-Za-z0-9._:/-]+@sha256:[a-f0-9]{64}$"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256Digest"
+        },
+        "manifest_media_type": {
+          "type": "string",
+          "enum": [
+            "application/vnd.oci.image.manifest.v1+json",
+            "application/vnd.docker.distribution.manifest.v2+json"
+          ]
+        }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "protocol_version", "compatibility"],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/stableIdentifier"
+        },
+        "protocol_version": {
+          "$ref": "#/$defs/semver"
+        },
+        "compatibility": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[0-9A-Za-z<>=~^*., -]+$"
+        },
+        "vendor_state_format": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        }
+      }
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^[^\\u0000\\r\\n]+$"
+          }
+        },
+        "working_directory": {
+          "$ref": "#/$defs/absolutePath"
+        },
+        "shutdown_grace_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 30
+        }
+      }
+    },
+    "durable_vendor_paths": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 7,
+        "maxLength": 1024,
+        "pattern": "^/state/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      }
+    },
+    "workspace_mount": {
+      "const": "/workspace"
+    },
+    "runtime_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "minimum_isolation_class"],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/stableIdentifier"
+        },
+        "minimum_isolation_class": {
+          "type": "string",
+          "enum": ["container-standard", "microvm-strong", "confidential-strong"]
+        },
+        "required_network_profile": {
+          "type": "string",
+          "enum": ["none", "thinkpixel-only", "restricted-development", "package-mirrors", "unrestricted-standalone"]
+        },
+        "required_capabilities": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/stableIdentifier"
+          }
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architectures"],
+      "properties": {
+        "os": {
+          "const": "linux"
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["amd64", "arm64"]
+          }
+        },
+        "minimum_agentd_protocol": {
+          "$ref": "#/$defs/semver"
+        },
+        "requires_gpu": {
+          "type": "boolean",
+          "default": false
+        },
+        "gpu_classes": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/stableIdentifier"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "requires_gpu": {"const": true}
+            },
+            "required": ["requires_gpu"]
+          },
+          "then": {
+            "required": ["gpu_classes"],
+            "properties": {
+              "gpu_classes": {"minItems": 1}
+            }
+          },
+          "else": {
+            "properties": {
+              "gpu_classes": {"maxItems": 0}
+            }
+          }
+        }
+      ]
+    },
+    "declared_environment": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "description": "Names of non-secret environment inputs supplied by trusted materialization; values are not part of this schema.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Z_][A-Z0-9_]*$"
+      }
+    }
+  },
+  "$defs": {
+    "stableIdentifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$"
+    },
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 64,
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "absolutePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^/(?:[A-Za-z0-9._-]+/?)*$"
+    }
+  }
+}
