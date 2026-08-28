@@ -2,6 +2,8 @@
 
 This directory contains the durable architecture and security contracts for ThinkPixelAR. Planning intent begins in `PLAN.md`; once a decision is accepted, its normative form belongs here.
 
+- [Supported component versions](supported-versions.md)
+
 ## Structure
 
 - `adr/` — numbered architecture decision records created from `adr/template.md`;
@@ -22,4 +24,3 @@ This directory contains the durable architecture and security contracts for Thin
 ## Architecture decision records
 
 Copy `adr/template.md` to the next zero-padded number, for example `adr/0001-example.md`. ADRs are immutable after acceptance except for typo or link corrections. A later decision supersedes an earlier one and links both records.
-
