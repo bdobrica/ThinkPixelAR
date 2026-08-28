@@ -13,3 +13,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [Runtime Profiles](runtime-profiles.md) ([JSON Schema](runtime-profile.schema.json))
 - [HarnessAdapter](harness-adapter.md)
 - [`thinkpixel-agentd`](agentd.md)
+- [Workspace, generations, and WorkspaceProvider](workspace.md)
