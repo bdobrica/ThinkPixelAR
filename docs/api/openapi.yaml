@@ -3,6 +3,9 @@ info:
   title: ThinkPixel Agent Runtime API
   version: 0.1.0-draft
   description: Vendor-neutral durable Session and bounded Execution API.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 servers:
   - url: https://thinkpixelar.example/v1
@@ -12,12 +15,14 @@ paths:
   /sessions:
     post:
       operationId: createSession
+      summary: Create a durable Session
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateSession'}}}}
       responses: {'201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
     get:
       operationId: listSessions
+      summary: List visible Sessions
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses: {'200': {description: Page, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
@@ -25,10 +30,12 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
       operationId: getSession
+      summary: Get a Session
       tags: [Sessions]
       responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, default: {$ref: '#/components/responses/Problem'}}
     delete:
       operationId: closeSession
+      summary: Close a Session
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       responses: {'202': {$ref: '#/components/responses/Accepted'}, '204': {description: Already closed}, default: {$ref: '#/components/responses/Problem'}}
@@ -36,6 +43,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
       operationId: createExecution
+      summary: Create a bounded Execution
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateExecution'}}}}
@@ -44,6 +52,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
       operationId: suspendSession
+      summary: Suspend a Session durably
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
@@ -51,6 +60,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
       operationId: resumeSession
+      summary: Resume a suspended Session
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Resume'}}}}
@@ -59,6 +69,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
       operationId: forkSession
+      summary: Fork a Session when supported
       description: Capability-gated by qualified storage and adapter support.
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
@@ -68,6 +79,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
       operationId: listSessionEvents
+      summary: List durable Session events
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses: {'200': {description: Durable event page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
@@ -75,6 +87,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
       operationId: streamSessionEvents
+      summary: Stream durable Session events
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/LastEventId'}]
       responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, default: {$ref: '#/components/responses/Problem'}}
@@ -82,12 +95,14 @@ paths:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     get:
       operationId: getExecution
+      summary: Get an Execution
       tags: [Executions]
       responses: {'200': {description: Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, default: {$ref: '#/components/responses/Problem'}}
   /executions/{execution_id}/signals:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     post:
       operationId: signalExecution
+      summary: Signal an active Execution
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Signal'}}}}
@@ -96,6 +111,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     post:
       operationId: cancelExecution
+      summary: Cancel an Execution
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Reason'}}}}
@@ -103,23 +119,27 @@ paths:
   /runtime-profiles:
     get:
       operationId: listRuntimeProfiles
+      summary: List allowed Runtime Profiles
       tags: [Capabilities]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses: {'200': {description: Allowed profiles, content: {application/json: {schema: {$ref: '#/components/schemas/ProfilePage'}}}}, default: {$ref: '#/components/responses/Problem'}}
   /adapters:
     get:
       operationId: listAdapters
+      summary: List HarnessAdapter capabilities
       tags: [Capabilities]
       responses: {'200': {description: Adapter capabilities, content: {application/json: {schema: {$ref: '#/components/schemas/AdapterPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
   /operations/{operation_id}:
     parameters: [{$ref: '#/components/parameters/OperationId'}]
     get:
       operationId: getOperation
+      summary: Get asynchronous operation status
       tags: [Operations]
       responses: {'200': {description: Operation, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}, default: {$ref: '#/components/responses/Problem'}}
   /admin/reconciliation:
     get:
       operationId: getReconciliationStatus
+      summary: List administrative reconciliation status
       tags: [Administration]
       security: [{bearerAuth: [ar.admin.read]}]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
@@ -127,12 +147,14 @@ paths:
   /livez:
     get:
       operationId: livez
+      summary: Report process liveness
       tags: [Health]
       security: []
       responses: {'200': {description: Alive, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}}
   /readyz:
     get:
       operationId: readyz
+      summary: Report service readiness
       tags: [Health]
       security: []
       responses: {'200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '503': {$ref: '#/components/responses/Problem'}}

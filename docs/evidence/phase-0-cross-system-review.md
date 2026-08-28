@@ -78,6 +78,7 @@ Schema `0.150.1` confirms `thread/start`, `thread/resume`, `thread/fork`, `turn/
 | `PH0-CODEX-001..005` adapter/state | Phase 4 | Schema digest, mapping/filter/approval/recovery/checkpoint tests. |
 | `PH0-EVIDENCE-001` independent evidence | Integrated Phase 7 | Port/policy mode and outage/fail-closed tests; AR stores references only. |
 | `PH0-API-001` executable OpenAPI | ENG-009 | Pinned parser/linter, full refs, contract/generated drift tests. |
+| `PH0-API-002` explicit response matrices | ENG-009 | Replace generic default-only problems with reviewed per-operation 4xx/5xx responses and negative contract tests. |
 | `PH0-EVENT-001` typed payload schemas | DB/API implementation | Registry schemas and adapter golden/malicious fixtures. |
 | `PH0-SLO-001` unmeasured targets | RC qualification | Representative load/chaos evidence and accepted deviations. |
 
