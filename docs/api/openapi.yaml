@@ -1,0 +1,176 @@
+openapi: 3.1.0
+info:
+  title: ThinkPixel Agent Runtime API
+  version: 0.1.0-draft
+  description: Vendor-neutral durable Session and bounded Execution API.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: https://thinkpixelar.example/v1
+security:
+  - bearerAuth: []
+paths:
+  /sessions:
+    post:
+      operationId: createSession
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateSession'}}}}
+      responses: {'201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+    get:
+      operationId: listSessions
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses: {'200': {description: Page, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get:
+      operationId: getSession
+      tags: [Sessions]
+      responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, default: {$ref: '#/components/responses/Problem'}}
+    delete:
+      operationId: closeSession
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '204': {description: Already closed}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/executions:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post:
+      operationId: createExecution
+      tags: [Executions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateExecution'}}}}
+      responses: {'201': {description: Accepted Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, '202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/suspend:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post:
+      operationId: suspendSession
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/resume:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post:
+      operationId: resumeSession
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Resume'}}}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/fork:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post:
+      operationId: forkSession
+      description: Capability-gated by qualified storage and adapter support.
+      tags: [Sessions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Fork'}}}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/events:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get:
+      operationId: listSessionEvents
+      tags: [Events]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses: {'200': {description: Durable event page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /sessions/{session_id}/events/stream:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get:
+      operationId: streamSessionEvents
+      tags: [Events]
+      parameters: [{$ref: '#/components/parameters/LastEventId'}]
+      responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /executions/{execution_id}:
+    parameters: [{$ref: '#/components/parameters/ExecutionId'}]
+    get:
+      operationId: getExecution
+      tags: [Executions]
+      responses: {'200': {description: Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /executions/{execution_id}/signals:
+    parameters: [{$ref: '#/components/parameters/ExecutionId'}]
+    post:
+      operationId: signalExecution
+      tags: [Executions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Signal'}}}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /executions/{execution_id}/cancel:
+    parameters: [{$ref: '#/components/parameters/ExecutionId'}]
+    post:
+      operationId: cancelExecution
+      tags: [Executions]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Reason'}}}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+  /runtime-profiles:
+    get:
+      operationId: listRuntimeProfiles
+      tags: [Capabilities]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses: {'200': {description: Allowed profiles, content: {application/json: {schema: {$ref: '#/components/schemas/ProfilePage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /adapters:
+    get:
+      operationId: listAdapters
+      tags: [Capabilities]
+      responses: {'200': {description: Adapter capabilities, content: {application/json: {schema: {$ref: '#/components/schemas/AdapterPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /operations/{operation_id}:
+    parameters: [{$ref: '#/components/parameters/OperationId'}]
+    get:
+      operationId: getOperation
+      tags: [Operations]
+      responses: {'200': {description: Operation, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /admin/reconciliation:
+    get:
+      operationId: getReconciliationStatus
+      tags: [Administration]
+      security: [{bearerAuth: [ar.admin.read]}]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses: {'200': {description: Bounded administrative status, content: {application/json: {schema: {$ref: '#/components/schemas/ReconciliationPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+  /livez:
+    get:
+      operationId: livez
+      tags: [Health]
+      security: []
+      responses: {'200': {description: Alive, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}}
+  /readyz:
+    get:
+      operationId: readyz
+      tags: [Health]
+      security: []
+      responses: {'200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '503': {$ref: '#/components/responses/Problem'}}
+components:
+  securitySchemes:
+    bearerAuth: {type: oauth2, flows: {clientCredentials: {tokenUrl: https://identity.example/oauth2/token, scopes: {ar.admin.read: Read reconciliation status}}}}
+  parameters:
+    SessionId: {name: session_id, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    ExecutionId: {name: execution_id, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    OperationId: {name: operation_id, in: path, required: true, schema: {$ref: '#/components/schemas/Id'}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9._~-]+$'}}
+    IfMatch: {name: If-Match, in: header, required: true, schema: {type: string, pattern: '^"[1-9][0-9]*"$'}}
+    Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 2048}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+    LastEventId: {name: Last-Event-ID, in: header, schema: {type: string, maxLength: 128}}
+  responses:
+    Accepted: {description: Accepted asynchronous operation, headers: {Location: {schema: {type: string, format: uri-reference}}, Retry-After: {schema: {type: integer, minimum: 1}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}
+    Problem: {description: RFC 7807 problem, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+  schemas:
+    Id: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
+    Time: {type: string, format: date-time}
+    Session:
+      type: object
+      additionalProperties: false
+      required: [id, state, state_version, execution_generation, agent_runtime_spec_id, runtime_profile_id, workspace_id, created_at, updated_at]
+      properties: {id: {$ref: '#/components/schemas/Id'}, state: {enum: [CREATING, READY, ACTIVE, IDLE, SUSPENDING, SUSPENDED, RESUMING, DEGRADED, CLOSING, CLOSED]}, state_version: {type: integer, minimum: 1}, execution_generation: {type: integer, minimum: 0}, agent_runtime_spec_id: {$ref: '#/components/schemas/Id'}, runtime_profile_id: {$ref: '#/components/schemas/Id'}, workspace_id: {$ref: '#/components/schemas/Id'}, current_checkpoint_id: {type: [string, 'null']}, created_at: {$ref: '#/components/schemas/Time'}, updated_at: {$ref: '#/components/schemas/Time'}}
+    CreateSession: {type: object, additionalProperties: false, required: [agent_runtime_spec_id, runtime_profile_id, source], properties: {agent_runtime_spec_id: {$ref: '#/components/schemas/Id'}, runtime_profile_id: {$ref: '#/components/schemas/Id'}, source: {type: object, additionalProperties: false, required: [kind], properties: {kind: {enum: [empty, artifact, repository_bundle, thinkpixel_tg]}, reference: {type: string, maxLength: 512}, digest: {type: string, maxLength: 256}}}}}
+    SessionPage: {type: object, required: [items], properties: {items: {type: array, items: {$ref: '#/components/schemas/Session'}}, next_cursor: {type: [string, 'null']}}}
+    Execution: {type: object, additionalProperties: false, required: [id, session_id, state, state_version, generation, created_at], properties: {id: {$ref: '#/components/schemas/Id'}, session_id: {$ref: '#/components/schemas/Id'}, state: {enum: [ACCEPTED, STARTING, RUNNING, CANCELLING, SUCCEEDED, FAILED, CANCELLED, TIMED_OUT]}, state_version: {type: integer, minimum: 1}, generation: {type: integer, minimum: 1}, run_reference: {type: string, maxLength: 256}, created_at: {$ref: '#/components/schemas/Time'}}}
+    CreateExecution: {type: object, additionalProperties: false, required: [input], properties: {run_reference: {type: string, maxLength: 256}, input: {type: string, minLength: 1, maxLength: 262144}}}
+    Signal: {type: object, additionalProperties: false, required: [type, payload], properties: {type: {enum: [user_input, permission_response, interrupt]}, payload: {type: object, maxProperties: 32}}}
+    Reason: {type: object, additionalProperties: false, properties: {reason: {type: string, maxLength: 256}}}
+    Resume: {type: object, additionalProperties: false, properties: {checkpoint_id: {$ref: '#/components/schemas/Id'}}}
+    Fork: {type: object, additionalProperties: false, required: [checkpoint_id], properties: {checkpoint_id: {$ref: '#/components/schemas/Id'}}}
+    EventPage: {type: object, required: [items, earliest_sequence, latest_sequence], properties: {items: {type: array, items: {type: object}}, next_cursor: {type: [string, 'null']}, earliest_sequence: {type: integer, minimum: 1}, latest_sequence: {type: integer, minimum: 0}}}
+    ProfilePage: {type: object, required: [items], properties: {items: {type: array, items: {type: object, required: [id, version, available], properties: {id: {$ref: '#/components/schemas/Id'}, version: {type: integer}, available: {type: boolean}}}}, next_cursor: {type: [string, 'null']}}}
+    AdapterPage: {type: object, required: [items], properties: {items: {type: array, items: {type: object, required: [kind, version, capabilities], properties: {kind: {$ref: '#/components/schemas/Id'}, version: {type: string}, capabilities: {type: array, items: {type: string}}}}}}}
+    Operation: {type: object, additionalProperties: false, required: [id, kind, state, created_at], properties: {id: {$ref: '#/components/schemas/Id'}, kind: {type: string}, state: {enum: [PENDING, RUNNING, SUCCEEDED, FAILED]}, resource_location: {type: string, format: uri-reference}, created_at: {$ref: '#/components/schemas/Time'}, completed_at: {type: [string, 'null'], format: date-time}}}
+    ReconciliationPage: {type: object, required: [items], properties: {items: {type: array, items: {type: object, required: [resource_type, resource_id, state], properties: {resource_type: {type: string}, resource_id: {$ref: '#/components/schemas/Id'}, state: {type: string}, reason_code: {type: string}}}}, next_cursor: {type: [string, 'null']}}}
+    Health: {type: object, additionalProperties: false, required: [status], properties: {status: {enum: [ok, degraded]}}}
+    Problem: {type: object, required: [type, title, status], properties: {type: {type: string, format: uri-reference}, title: {type: string, maxLength: 256}, status: {type: integer, minimum: 400, maximum: 599}, detail: {type: string, maxLength: 2048}, instance: {type: string, format: uri-reference}, code: {type: string, maxLength: 80}, request_id: {$ref: '#/components/schemas/Id'}}}
