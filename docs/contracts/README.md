@@ -21,3 +21,4 @@ Normative vendor-neutral domain, lifecycle, and port contracts live here.
 - [Local permission versus enterprise tool authorization](permission-vs-tool-authorization.md)
 - [Runtime events](runtime-events.md) ([JSON Schema](runtime-event.schema.json))
 - [Idempotency and replay safety](idempotency.md)
+- [PostgreSQL persistence model](postgresql-persistence.md)
