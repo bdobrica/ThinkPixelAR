@@ -22,7 +22,7 @@ Completion metadata format:
 ## Phase 0 — Decisions, threats, and contracts
 
 - [x] ARC-001 Create `docs/` structure and ADR template covering status, context, decision, alternatives, consequences, security, operations, compatibility, and references. — completed 2026-08-28, commit self (`ARC-001`), evidence: `find docs -type f`, ADR section validation
-- [ ] ARC-002 Write system-context and trust-boundary diagrams covering clients, AR control plane, PostgreSQL, Kubernetes Agent Sandbox, Kata runtime, `agentd`, harness, AG, LLMGW, TG, GR, registry, storage, and external providers.
+- [x] ARC-002 Write system-context and trust-boundary diagrams covering clients, AR control plane, PostgreSQL, Kubernetes Agent Sandbox, Kata runtime, `agentd`, harness, AG, LLMGW, TG, GR, registry, storage, and external providers. — completed 2026-08-28, commit self (`ARC-002`), evidence: component coverage and Mermaid fence validation in `docs/architecture/system-context.md`
 - [ ] ARC-003 Write the primary threat model assuming complete compromise of harness, generated code, repository code, dependencies, and `agentd`.
 - [ ] ARC-004 Define data-classification/redaction rules for prompts, model output, repository content, vendor state, Workspace contents, credentials, events, logs, traces, checkpoints, and artifacts.
 - [ ] ARC-005 Define the glossary and normative distinction between Session, Run, Execution, Attempt, Sandbox, harness process, Workspace, Checkpoint, Runtime Profile, and ExecutionGrant.
@@ -425,3 +425,4 @@ Date | TODO IDs | Commit | Verification evidence | Notes/deviations
 --- | --- | --- | --- | ---
 YYYY-MM-DD | `ARC-...` | `<sha>` | `<commands/artifacts>` | `<notes>`
 2026-08-28 | `ARC-001` | self (`ARC-001`) | `find docs -type f`; ADR required-section validation | Commit SHA is identified by the unique ARC ID in Git history because a commit cannot embed its own hash.
+2026-08-28 | `ARC-002` | self (`ARC-002`) | required-component coverage; Mermaid fence validation; `git diff --check` | Defines integrated and standalone boundaries; no implementation-specific CRD enters the public domain.
