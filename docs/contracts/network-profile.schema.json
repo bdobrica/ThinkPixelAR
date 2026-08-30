@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://thinkpixel.dev/schemas/network-profile-v1.json",
+  "$id": "https://schemas.thinkpixel.io/thinkpixelar/contracts/v1/network-profile.json",
   "title": "ThinkPixel NetworkProfile v1",
   "type": "object",
   "additionalProperties": false,

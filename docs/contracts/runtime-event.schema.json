@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://thinkpixel.dev/schemas/runtime-event-v1.json",
+  "$id": "https://schemas.thinkpixel.io/thinkpixelar/contracts/v1/runtime-event.json",
   "title": "ThinkPixel RuntimeEvent v1",
   "type": "object",
   "additionalProperties": false,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://thinkpixel.dev/schemas/checkpoint-manifest-v1.json",
+  "$id": "https://schemas.thinkpixel.io/thinkpixelar/contracts/v1/checkpoint-manifest.json",
   "title": "ThinkPixel Checkpoint Manifest v1",
   "type": "object",
   "additionalProperties": false,

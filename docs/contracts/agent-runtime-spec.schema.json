@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://thinkpixel.dev/schemas/thinkpixelar/agent-runtime-spec-v1.json",
+  "$id": "https://schemas.thinkpixel.io/thinkpixelar/contracts/v1/agent-runtime-spec.json",
   "title": "ThinkPixelAR AgentRuntimeSpec v1",
   "description": "Immutable, vendor-neutral agent runtime materialization contract.",
   "type": "object",
