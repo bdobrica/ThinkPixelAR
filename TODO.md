@@ -63,7 +63,7 @@ Completion metadata format:
 ## Phase 1 — Engineering foundation
 
 - [x] ENG-001 Initialize Go module using a supported pinned Go release and record the tested version. — completed 2026-08-31, commit `f541676`, evidence: official archive metadata/SHA-256 match; `go version` (`go1.26.7 linux/amd64`); `go mod tidy`; `go list -m -json`; `.go-version` pin check; `git diff --check`
-- [ ] ENG-002 Create repository package structure matching the domain/application/ports/adapters boundary in `PLAN.md`.
+- [x] ENG-002 Create repository package structure matching the domain/application/ports/adapters boundary in `PLAN.md`. — completed 2026-08-31, commit `b3b9b81`, evidence: pinned Go `go list ./...`; `go test ./...`; `go vet ./...`; `git diff --check`
 - [ ] ENG-003 Add dependency/source/license policy and document allowed dependency classes.
 - [ ] ENG-004 Implement typed configuration loading with environment/file support, validation, safe defaults, and secret redaction.
 - [ ] ENG-005 Implement structured logging with canonical request/trace/Session/Execution/Attempt correlation fields and recursive secret redaction.
