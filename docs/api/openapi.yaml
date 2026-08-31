@@ -158,6 +158,13 @@ paths:
       tags: [Health]
       security: []
       responses: {'200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '503': {$ref: '#/components/responses/Problem'}}
+  /metrics:
+    get:
+      operationId: metrics
+      summary: Expose bounded low-cardinality Prometheus metrics
+      tags: [Health]
+      security: []
+      responses: {'200': {description: Prometheus text exposition, content: {text/plain: {schema: {type: string}}}}}
 components:
   securitySchemes:
     bearerAuth: {type: oauth2, flows: {clientCredentials: {tokenUrl: https://identity.example/oauth2/token, scopes: {ar.admin.read: Read reconciliation status}}}}

@@ -1,4 +1,6 @@
 # thinkpixelar
 
-This directory is reserved for the AR control-plane command. ENG-008 introduces
-the baseline HTTP server; no placeholder executable is provided here.
+This command runs the AR control-plane HTTP server. Configuration is loaded as
+documented in [`docs/configuration.md`](../../docs/configuration.md). The current
+baseline exposes `/livez`, `/readyz`, and `/metrics`; application routes are
+added by later implementation phases.
