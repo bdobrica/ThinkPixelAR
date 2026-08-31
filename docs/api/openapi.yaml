@@ -19,26 +19,26 @@ paths:
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateSession'}}}}
-      responses: {'201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
     get:
       operationId: listSessions
       summary: List visible Sessions
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
-      responses: {'200': {description: Page, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Page, content: {application/json: {schema: {$ref: '#/components/schemas/SessionPage'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
       operationId: getSession
       summary: Get a Session
       tags: [Sessions]
-      responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Session, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
     delete:
       operationId: closeSession
       summary: Close a Session
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, '204': {description: Already closed}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '204': {description: Already closed}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/executions:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
@@ -47,7 +47,7 @@ paths:
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateExecution'}}}}
-      responses: {'201': {description: Accepted Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, '202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'201': {description: Accepted Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, '202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/suspend:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
@@ -55,7 +55,7 @@ paths:
       summary: Suspend a Session durably
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/resume:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
@@ -64,7 +64,7 @@ paths:
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Resume'}}}}
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/fork:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     post:
@@ -74,7 +74,7 @@ paths:
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Fork'}}}}
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '501': {$ref: '#/components/responses/NotImplemented'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/events:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
@@ -82,7 +82,7 @@ paths:
       summary: List durable Session events
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
-      responses: {'200': {description: Durable event page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Durable event page, content: {application/json: {schema: {$ref: '#/components/schemas/EventPage'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '410': {$ref: '#/components/responses/Gone'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /sessions/{session_id}/events/stream:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get:
@@ -90,14 +90,14 @@ paths:
       summary: Stream durable Session events
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/LastEventId'}]
-      responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '410': {$ref: '#/components/responses/Gone'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /executions/{execution_id}:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     get:
       operationId: getExecution
       summary: Get an Execution
       tags: [Executions]
-      responses: {'200': {description: Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Execution, content: {application/json: {schema: {$ref: '#/components/schemas/Execution'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /executions/{execution_id}/signals:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     post:
@@ -106,7 +106,7 @@ paths:
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Signal'}}}}
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /executions/{execution_id}/cancel:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     post:
@@ -115,27 +115,27 @@ paths:
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: false, content: {application/json: {schema: {$ref: '#/components/schemas/Reason'}}}}
-      responses: {'202': {$ref: '#/components/responses/Accepted'}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'202': {$ref: '#/components/responses/Accepted'}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}, '413': {$ref: '#/components/responses/PayloadTooLarge'}, '415': {$ref: '#/components/responses/UnsupportedMediaType'}, '422': {$ref: '#/components/responses/UnprocessableContent'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, '504': {$ref: '#/components/responses/Timeout'}, default: {$ref: '#/components/responses/Problem'}}
   /runtime-profiles:
     get:
       operationId: listRuntimeProfiles
       summary: List allowed Runtime Profiles
       tags: [Capabilities]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
-      responses: {'200': {description: Allowed profiles, content: {application/json: {schema: {$ref: '#/components/schemas/ProfilePage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Allowed profiles, content: {application/json: {schema: {$ref: '#/components/schemas/ProfilePage'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /adapters:
     get:
       operationId: listAdapters
       summary: List HarnessAdapter capabilities
       tags: [Capabilities]
-      responses: {'200': {description: Adapter capabilities, content: {application/json: {schema: {$ref: '#/components/schemas/AdapterPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Adapter capabilities, content: {application/json: {schema: {$ref: '#/components/schemas/AdapterPage'}}}}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /operations/{operation_id}:
     parameters: [{$ref: '#/components/parameters/OperationId'}]
     get:
       operationId: getOperation
       summary: Get asynchronous operation status
       tags: [Operations]
-      responses: {'200': {description: Operation, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Operation, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /admin/reconciliation:
     get:
       operationId: getReconciliationStatus
@@ -143,28 +143,28 @@ paths:
       tags: [Administration]
       security: [{bearerAuth: [ar.admin.read]}]
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
-      responses: {'200': {description: Bounded administrative status, content: {application/json: {schema: {$ref: '#/components/schemas/ReconciliationPage'}}}}, default: {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Bounded administrative status, content: {application/json: {schema: {$ref: '#/components/schemas/ReconciliationPage'}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /livez:
     get:
       operationId: livez
       summary: Report process liveness
       tags: [Health]
       security: []
-      responses: {'200': {description: Alive, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}}
+      responses: {'200': {description: Alive, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '429': {$ref: '#/components/responses/RateLimited'}}
   /readyz:
     get:
       operationId: readyz
       summary: Report service readiness
       tags: [Health]
       security: []
-      responses: {'200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '503': {$ref: '#/components/responses/Problem'}}
+      responses: {'200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}}
   /metrics:
     get:
       operationId: metrics
       summary: Expose bounded low-cardinality Prometheus metrics
       tags: [Health]
       security: []
-      responses: {'200': {description: Prometheus text exposition, content: {text/plain: {schema: {type: string}}}}}
+      responses: {'200': {description: Prometheus text exposition, content: {text/plain: {schema: {type: string}}}}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}}
 components:
   securitySchemes:
     bearerAuth: {type: oauth2, flows: {clientCredentials: {tokenUrl: https://identity.example/oauth2/token, scopes: {ar.admin.read: Read reconciliation status}}}}
@@ -179,6 +179,19 @@ components:
     LastEventId: {name: Last-Event-ID, in: header, schema: {type: string, maxLength: 128}}
   responses:
     Accepted: {description: Accepted asynchronous operation, headers: {Location: {schema: {type: string, format: uri-reference}}, Retry-After: {schema: {type: integer, minimum: 1}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Operation'}}}}
+    BadRequest: {description: 'Invalid request, cursor, or signal', content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Unauthorized: {description: Authentication required or credential invalid, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Forbidden: {description: Permission denied or runtime profile not allowed, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    NotFound: {description: Resource absent or not visible to the caller, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Conflict: {description: 'State, version, idempotency, or single-writer conflict', content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Gone: {description: Requested event history is outside retention, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    PayloadTooLarge: {description: Request body exceeds the endpoint limit, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    UnsupportedMediaType: {description: Request media type is unsupported, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    UnprocessableContent: {description: Request is syntactically valid but semantically invalid, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    RateLimited: {description: Caller rate or concurrency budget exhausted, headers: {Retry-After: {schema: {type: integer, minimum: 1}}}, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    NotImplemented: {description: Known deployment capability is unavailable, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Unavailable: {description: Service or required dependency is temporarily unavailable, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Timeout: {description: A required dependency exceeded its bounded deadline, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
     Problem: {description: RFC 7807 problem, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
   schemas:
     Id: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$'}
