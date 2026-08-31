@@ -9,8 +9,9 @@ GOVULNCHECK_VERSION := v1.7.0
 STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 BUILD_DIR ?= .cache/bin
+IMAGE ?= thinkpixelar:development
 
-.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license build openapi-check verify
+.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license build image image-smoke openapi-check verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -60,6 +61,12 @@ build: ## Build the service binary with reproducible path metadata.
 	mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/thinkpixelar ./cmd/thinkpixelar
 	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/migrate ./cmd/migrate
+
+image: ## Build the pinned, non-root thinkpixelar service image.
+	$(DOCKER) build --pull --tag $(IMAGE) .
+
+image-smoke: image ## Run the service image as non-root with a read-only filesystem.
+	DOCKER="$(DOCKER)" IMAGE="$(IMAGE)" sh ./scripts/smoke-thinkpixelar-image.sh
 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check

@@ -10,6 +10,8 @@ Last upstream review: 2026-08-28.
 | --- | --- | --- | --- |
 | Go | `go1.26.7` | `TESTED` | Official `linux/amd64` archive verified against Go release metadata, then used to run `go version`, `go mod tidy`, and `go list -m -json` on 2026-08-31. Package test and vet gates begin after ENG-002 adds packages. |
 | PostgreSQL development service | `18.6-alpine3.24`; OCI index digest `sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2` | `PINNED_DEVELOPMENT` | Docker Official Image pinned for repeatable local development. This is not production qualification; integration behavior begins with DB-001. |
+| Go container build stage | `1.26.7-alpine3.23`; OCI index digest `sha256:b17af760035fc2f338eed92d448a6c67f2d45438844fc6c60678fa5f99e44b57` | `PINNED_BUILD` | Docker Official Image used only to compile the statically linked service binary. |
+| Service runtime base | Distroless `static-debian13:nonroot`; OCI index digest `sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7` | `PINNED_RUNTIME` | Minimal shell-less runtime with numeric non-root identity; smoke-tested separately from Kubernetes qualification. |
 
 The module path is `github.com/bdobrica/ThinkPixelAR`. The `go` directive in
 `go.mod` and `.go-version` both pin Go `1.26.7`; development and CI environments

@@ -54,6 +54,10 @@ set `THINKPIXELAR_POSTGRES_PORT` to change the host port. Schema changes run
 separately through `make migrate` and are never applied automatically by API
 replicas. The migration engine and first schema arrive in DB-001.
 
+Build the baseline service container with `make image`. Run `make image-smoke`
+to verify that it starts as a non-root process with a read-only filesystem and
+answers `/livez`. Override the local tag with `IMAGE=registry/name:tag`.
+
 Typed process configuration supports strict JSON files and environment
 overrides with production-safe validation and secret-redacted diagnostics.
 See the [configuration reference](docs/configuration.md) for precedence,
