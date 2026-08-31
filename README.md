@@ -57,6 +57,10 @@ replicas. The migration engine and first schema arrive in DB-001.
 Build the baseline service container with `make image`. Run `make image-smoke`
 to verify that it starts as a non-root process with a read-only filesystem and
 answers `/livez`. Override the local tag with `IMAGE=registry/name:tag`.
+Build the distinct sandbox-supervisor baseline with `make agentd-image` and
+smoke-test it with `make agentd-image-smoke`; override its tag with
+`AGENTD_IMAGE=registry/name:tag`. This image contains only `thinkpixel-agentd`,
+not a vendor harness. Vendor agent images remain separate Phase 5 artifacts.
 
 Typed process configuration supports strict JSON files and environment
 overrides with production-safe validation and secret-redacted diagnostics.

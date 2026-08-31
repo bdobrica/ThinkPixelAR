@@ -10,8 +10,9 @@ STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSIO
 GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
+AGENTD_IMAGE ?= thinkpixel-agentd:development
 
-.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license build image image-smoke openapi-check verify
+.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license build image image-smoke agentd-image agentd-image-smoke openapi-check verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -60,6 +61,7 @@ license: ## Inventory modules and enforce the dependency/license policy.
 build: ## Build the service binary with reproducible path metadata.
 	mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/thinkpixelar ./cmd/thinkpixelar
+	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/thinkpixel-agentd ./cmd/thinkpixel-agentd
 	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/migrate ./cmd/migrate
 
 image: ## Build the pinned, non-root thinkpixelar service image.
@@ -67,6 +69,12 @@ image: ## Build the pinned, non-root thinkpixelar service image.
 
 image-smoke: image ## Run the service image as non-root with a read-only filesystem.
 	DOCKER="$(DOCKER)" IMAGE="$(IMAGE)" sh ./scripts/smoke-thinkpixelar-image.sh
+
+agentd-image: ## Build the distinct pinned, non-root sandbox supervisor image.
+	$(DOCKER) build --pull --file Dockerfile.agentd --tag $(AGENTD_IMAGE) .
+
+agentd-image-smoke: agentd-image ## Run the supervisor image as non-root with a read-only filesystem.
+	DOCKER="$(DOCKER)" AGENTD_IMAGE="$(AGENTD_IMAGE)" sh ./scripts/smoke-thinkpixel-agentd-image.sh
 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
