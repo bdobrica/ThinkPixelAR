@@ -38,10 +38,10 @@ See the [repository alignment contract](ALIGNMENT.md), [system context](docs/arc
 Development uses the exact Go version in `.go-version` (currently `1.26.7`).
 The package scaffold follows the domain, application, port, and adapter
 boundaries in `PLAN.md`; command and deployment directories are reserved for
-their later engineering-foundation items. The developer entry point will be
-`make verify` after ENG-010 adds it. Until then, the module can be checked with
-`go test ./...`, `go vet ./...`, and `go list ./...`; these checks are not
-runtime or release qualification.
+their later engineering-foundation items. Install the pinned OpenAPI tooling
+with `make deps`, then run the stable local/CI gate with `make verify`. Use
+`make help` to list the focused commands. These checks are not runtime or
+release qualification.
 
 Typed process configuration supports strict JSON files and environment
 overrides with production-safe validation and secret-redacted diagnostics.
