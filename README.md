@@ -45,6 +45,15 @@ pinned Go analysis tools and current vulnerability database, so it requires
 network access on a clean cache. Build output is written below `.cache/bin`.
 These checks are not runtime or release qualification.
 
+For local database work, Docker Compose provides the pinned PostgreSQL
+development service. Start it with `make db-up` and stop it with `make db-down`;
+the named volume is retained. Its loopback-only port and published credentials
+are development-only. The default URL is
+`postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:55432/thinkpixelar`;
+set `THINKPIXELAR_POSTGRES_PORT` to change the host port. Schema changes run
+separately through `make migrate` and are never applied automatically by API
+replicas. The migration engine and first schema arrive in DB-001.
+
 Typed process configuration supports strict JSON files and environment
 overrides with production-safe validation and secret-redacted diagnostics.
 See the [configuration reference](docs/configuration.md) for precedence,

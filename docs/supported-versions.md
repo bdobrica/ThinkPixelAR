@@ -9,6 +9,7 @@ Last upstream review: 2026-08-28.
 | Component | Exact version | Status | Verification |
 | --- | --- | --- | --- |
 | Go | `go1.26.7` | `TESTED` | Official `linux/amd64` archive verified against Go release metadata, then used to run `go version`, `go mod tidy`, and `go list -m -json` on 2026-08-31. Package test and vet gates begin after ENG-002 adds packages. |
+| PostgreSQL development service | `18.6-alpine3.24`; OCI index digest `sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2` | `PINNED_DEVELOPMENT` | Docker Official Image pinned for repeatable local development. This is not production qualification; integration behavior begins with DB-001. |
 
 The module path is `github.com/bdobrica/ThinkPixelAR`. The `go` directive in
 `go.mod` and `.go-version` both pin Go `1.26.7`; development and CI environments
@@ -128,6 +129,7 @@ Kind without Kata may run fast functional/provider tests but cannot qualify `mic
 
 - Go release history and support policy: <https://go.dev/doc/devel/release>
 - Go `1.26.7` archive metadata: <https://go.dev/dl/?mode=json&include=all>
+- PostgreSQL 18.6 release and Docker Official Image: <https://www.postgresql.org/about/news/postgresql-186-1711-1615-1519-1424-and-19-beta-3-released-3365/> and <https://hub.docker.com/_/postgres>
 - Kubernetes releases and patch support: <https://kubernetes.io/releases/> and <https://kubernetes.io/releases/1.37/>
 - Kubernetes storage snapshot/clone concepts: <https://kubernetes.io/docs/concepts/storage/volume-snapshots/> and <https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/>
 - Kubernetes Agent Sandbox releases (`v0.5.5`) and API migration: <https://github.com/kubernetes-sigs/agent-sandbox/releases/tag/v0.5.5> and <https://github.com/kubernetes-sigs/agent-sandbox/blob/main/docs/api-migration-guide.md>
