@@ -2,8 +2,14 @@
 
 GO ?= go
 NPM ?= npm
+NODE ?= node
+STATICCHECK_VERSION := v0.8.1
+GOVULNCHECK_VERSION := v1.7.0
+STATICCHECK := $(GO) run honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+BUILD_DIR ?= .cache/bin
 
-.PHONY: help deps generate fmt vet test test-race openapi-check verify
+.PHONY: help deps generate fmt vet lint static test test-unit test-race vulnerability license build openapi-check verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -20,13 +26,31 @@ fmt: ## Format Go source files.
 vet: ## Run the Go vet analyzer.
 	$(GO) vet ./...
 
+lint: ## Run the pinned Staticcheck analyzer.
+	$(STATICCHECK) ./...
+
+static: vet lint ## Run all static-analysis gates.
+
 test: ## Run Go unit tests.
 	$(GO) test ./...
+
+test-unit: test ## Run Go unit tests (explicit CI alias).
 
 test-race: ## Run Go tests with the race detector.
 	$(GO) test -race ./...
 
+vulnerability: ## Report reachable vulnerabilities using the pinned Go scanner.
+	$(GOVULNCHECK) ./...
+
+license: ## Inventory modules and enforce the dependency/license policy.
+	./scripts/dependency-policy.sh "$(GO)"
+	$(NODE) ./scripts/check-npm-dependencies.mjs
+
+build: ## Build the service binary with reproducible path metadata.
+	mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/thinkpixelar ./cmd/thinkpixelar
+
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
 
-verify: vet test test-race openapi-check ## Run the current local and CI verification gate.
+verify: static test-unit test-race vulnerability license build openapi-check ## Run the current local and CI verification gate.

@@ -144,9 +144,13 @@ review are still recorded.
 
 ## Verification and release evidence
 
-Until the automated gate is added by ENG-011, reviewers verify this policy
-from `go.mod`, `go.sum`, image/deployment manifests, generator pins, and the
-change diff. ENG-011 MUST add deterministic checks that:
+The root `make license` and `make vulnerability` targets enforce the automated
+Go dependency gate. Analyzer versions are exactly pinned in the root Makefile;
+the gate rejects module replacements and unversioned non-main modules, emits a
+module and license inventory, enforces the default license allowlist, and
+reports reachable known vulnerabilities. Reviewers continue to inspect
+non-Go artifacts, image/deployment manifests, generator pins, and the change
+diff. The automated checks:
 
 - enumerate direct and transitive runtime/build dependencies;
 - reject prohibited or unapproved license classifications;
