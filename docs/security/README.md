@@ -6,3 +6,4 @@ Threat models, data-classification rules, credential handling, and security inva
 - [Data classification and redaction](data-classification.md)
 - [Secure caller delegation and OBO](caller-delegation.md)
 - [Execution-scoped credentials](execution-credentials.md)
+- [Dependency, source, and license policy](dependency-policy.md)

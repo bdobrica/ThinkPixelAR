@@ -3,6 +3,7 @@
 This directory contains the durable architecture and security contracts for ThinkPixelAR. Planning intent begins in `PLAN.md`; once a decision is accepted, its normative form belongs here.
 
 - [Supported component versions](supported-versions.md)
+- [Dependency, source, and license policy](security/dependency-policy.md)
 
 ## Structure
 
