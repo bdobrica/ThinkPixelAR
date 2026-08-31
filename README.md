@@ -43,6 +43,11 @@ their later engineering-foundation items. The developer entry point will be
 `go test ./...`, `go vet ./...`, and `go list ./...`; these checks are not
 runtime or release qualification.
 
+Typed process configuration supports strict JSON files and environment
+overrides with production-safe validation and secret-redacted diagnostics.
+See the [configuration reference](docs/configuration.md) for precedence,
+defaults, and supported variables.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)

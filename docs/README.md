@@ -4,6 +4,7 @@ This directory contains the durable architecture and security contracts for Thin
 
 - [Supported component versions](supported-versions.md)
 - [Dependency, source, and license policy](security/dependency-policy.md)
+- [Process configuration](configuration.md)
 
 ## Structure
 
