@@ -35,7 +35,12 @@ See the [repository alignment contract](ALIGNMENT.md), [system context](docs/arc
 
 ## Development
 
-This repository does not yet contain the planned implementation or Makefile. The developer entry point will be `make verify` after the engineering-foundation phase adds it. Until then, documentation changes can be checked with `git diff --check`; that is not runtime or release qualification.
+Development uses the exact Go version in `.go-version` (currently `1.26.7`).
+The repository does not yet contain application packages or the planned Makefile;
+those arrive in subsequent engineering-foundation items. The developer entry
+point will be `make verify` after that phase adds it. Until then, the module can
+be checked with `go mod tidy` and `go list -m -json`, and documentation changes
+with `git diff --check`; these checks are not runtime or release qualification.
 
 ## Documentation
 

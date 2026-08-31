@@ -4,6 +4,18 @@ Status: Normative Phase 0 compatibility baseline.
 
 Last upstream review: 2026-08-28.
 
+## Development toolchain
+
+| Component | Exact version | Status | Verification |
+| --- | --- | --- | --- |
+| Go | `go1.26.7` | `TESTED` | Official `linux/amd64` archive verified against Go release metadata, then used to run `go version`, `go mod tidy`, and `go list -m -json` on 2026-08-31. Package test and vet gates begin after ENG-002 adds packages. |
+
+The module path is `github.com/bdobrica/ThinkPixelAR`. The `go` directive in
+`go.mod` and `.go-version` both pin Go `1.26.7`; development and CI environments
+MUST use that exact patch release until the pin is deliberately updated and the
+verification commands are rerun. Go `1.26` remains supported under the upstream
+policy until Go `1.28` is released.
+
 ## Meaning of support
 
 ThinkPixelAR uses exact qualification pins. A component is **release-qualified** only after the required clean-cluster, lifecycle, recovery, storage, and isolation evidence passes with the exact patch versions and immutable artifacts recorded here. Source-level compatibility or an upstream support statement alone is insufficient.
@@ -114,6 +126,8 @@ Kind without Kata may run fast functional/provider tests but cannot qualify `mic
 
 ## Upstream sources reviewed
 
+- Go release history and support policy: <https://go.dev/doc/devel/release>
+- Go `1.26.7` archive metadata: <https://go.dev/dl/?mode=json&include=all>
 - Kubernetes releases and patch support: <https://kubernetes.io/releases/> and <https://kubernetes.io/releases/1.37/>
 - Kubernetes storage snapshot/clone concepts: <https://kubernetes.io/docs/concepts/storage/volume-snapshots/> and <https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/>
 - Kubernetes Agent Sandbox releases (`v0.5.5`) and API migration: <https://github.com/kubernetes-sigs/agent-sandbox/releases/tag/v0.5.5> and <https://github.com/kubernetes-sigs/agent-sandbox/blob/main/docs/api-migration-guide.md>
