@@ -4,4 +4,8 @@
 // before they reach the wrapped slog handler. Callers should still construct
 // records from a small, reviewed set of fields rather than logging request,
 // configuration, or provider objects wholesale.
+//
+// Metrics expose only predeclared, bounded label dimensions. Tracing installs
+// no automatic instrumentation and initializes resources with safe service
+// metadata only; payload attributes must never be added incidentally.
 package telemetry
