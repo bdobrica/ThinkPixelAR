@@ -1573,6 +1573,11 @@ Initialize:
 
 Exit when a clean checkout passes the baseline verification gate and produces hardened non-root service images.
 
+Implementation tracking (2026-09-01): ENG-017 is complete at `7ebcb2d` with
+exact repository, development, build, and runtime pins enforced by a
+reproducible version-drift gate. Cluster substrate pins remain qualification
+candidates until their later integration gates pass.
+
 ### Phase 2 — Authoritative AR persistence and domain state
 
 Implement:
