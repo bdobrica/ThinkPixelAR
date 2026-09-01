@@ -1584,6 +1584,12 @@ checks, binary builds, and both hardened image smoke gates. CI executes the
 same prerequisites in separate clean-checkout jobs so source analysis does not
 receive Docker access.
 
+ENG-019 closes Phase 1 at `5ab12fa`; the delivery matrix, baseline evidence,
+and deferred qualification boundary are recorded in
+`docs/phase-1-evidence.md`. Phase 1 establishes the repository and hardened
+image baseline only; persistence, cluster substrate, integration, SLO, and
+release qualification remain owned by later phases.
+
 ### Phase 2 — Authoritative AR persistence and domain state
 
 Implement:
