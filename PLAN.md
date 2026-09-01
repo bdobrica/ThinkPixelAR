@@ -1578,6 +1578,12 @@ exact repository, development, build, and runtime pins enforced by a
 reproducible version-drift gate. Cluster substrate pins remain qualification
 candidates until their later integration gates pass.
 
+ENG-018 is complete at `9ebb64b`. The stable `baseline-verify` aggregate now
+covers non-mutating generation/format drift, analysis, tests, supply-chain
+checks, binary builds, and both hardened image smoke gates. CI executes the
+same prerequisites in separate clean-checkout jobs so source analysis does not
+receive Docker access.
+
 ### Phase 2 — Authoritative AR persistence and domain state
 
 Implement:
