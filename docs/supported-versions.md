@@ -1,18 +1,28 @@
 # Supported component versions
 
-Status: Normative Phase 0 compatibility baseline.
+Status: Normative tested and candidate compatibility baseline.
 
-Last upstream review: 2026-08-28.
+Last repository environment validation: 2026-09-01.
 
 ## Development toolchain
 
-| Component | Exact version | Status | Verification |
+| Component | Exact version or artifact | Status | Reproducible verification |
 | --- | --- | --- | --- |
-| Go | `go1.26.7` | `TESTED` | Official `linux/amd64` archive verified against Go release metadata, then used to run `go version`, `go mod tidy`, and `go list -m -json` on 2026-08-31. Package test and vet gates begin after ENG-002 adds packages. |
-| PostgreSQL development service | `18.6-alpine3.24`; OCI index digest `sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2` | `PINNED_DEVELOPMENT` | Docker Official Image pinned for repeatable local development. This is not production qualification; integration behavior begins with DB-001. |
-| Go container build stage | `1.26.7-alpine3.23`; OCI index digest `sha256:b17af760035fc2f338eed92d448a6c67f2d45438844fc6c60678fa5f99e44b57` | `PINNED_BUILD` | Docker Official Image used only to compile the statically linked service binary. |
-| Service runtime base | Distroless `static-debian13:nonroot`; OCI index digest `sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7` | `PINNED_RUNTIME` | Minimal shell-less runtime with numeric non-root identity; smoke-tested separately from Kubernetes qualification. |
-| `thinkpixel-agentd` runtime base | Distroless `static-debian13:nonroot`; OCI index digest `sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7` | `PINNED_RUNTIME` | Same reviewed minimal runtime, packaged as a separate supervisor-only image with no vendor harness. |
+| Go | `go1.26.7` | `TESTED_REPOSITORY` | `make versions-check` verifies the running toolchain against `.go-version` and `go.mod`; `make verify` compiles, analyzes, vulnerability-scans, and tests all packages. |
+| Node.js / npm | Node.js `24.11.1`; npm `11.6.2` | `TESTED_REPOSITORY` | `make versions-check` verifies both executables against `package.json`; CI provisions the exact Node.js patch and `npm ci` enforces the lock file. |
+| OpenAPI CLI | Redocly CLI `2.49.0` | `TESTED_REPOSITORY` | Exact direct dependency in `package.json` and `package-lock.json`; `make openapi-check` validates and regenerates to a temporary file to detect drift. |
+| Static analysis | Staticcheck `v0.8.1` | `TESTED_REPOSITORY` | Exact `go run` tool pin in `Makefile`; executed by `make verify`. |
+| Vulnerability scanner | govulncheck `v1.7.0` | `TESTED_REPOSITORY` | Exact `go run` tool pin in `Makefile`; executed by `make verify`. |
+| PostgreSQL development service | `postgres:18.6-alpine3.24@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2` | `TESTED_DEVELOPMENT` | Immutable Compose pin; real health/version smoke evidence is recorded in [ENG-012](evidence/eng-012-postgresql.md). This is not production qualification; integration behavior begins with DB-001. |
+| Go container build stage | `golang:1.26.7-alpine3.23@sha256:b17af760035fc2f338eed92d448a6c67f2d45438844fc6c60678fa5f99e44b57` | `TESTED_BUILD` | Both Dockerfiles use this immutable build-only artifact; real builds are recorded in [ENG-013](evidence/eng-013-container-image.md) and [ENG-014](evidence/eng-014-agentd-image.md). |
+| Service and `thinkpixel-agentd` runtime base | `gcr.io/distroless/static-debian13:nonroot@sha256:1c2c046bc09ed40fad370b599a0b1ae7987f55b01e247cf27a7c27cd97e5bbc7` | `TESTED_RUNTIME_BASE` | Both final images use this immutable artifact. Their separate non-root, read-only, capability-drop, and no-new-privileges smoke evidence is recorded in ENG-013 and ENG-014. This is not Kubernetes qualification. |
+
+`TESTED_REPOSITORY` means the exact tool version has run the repository gate.
+`TESTED_DEVELOPMENT`, `TESTED_BUILD`, and `TESTED_RUNTIME_BASE` are narrower
+claims described in their evidence; none imply that the later cluster tuple is
+release-qualified. `make versions-check` fails when the running Go/Node/npm
+toolchain differs from its source pin, when Docker/Compose pins drift, or when
+this table stops recording those exact artifacts.
 
 The module path is `github.com/bdobrica/ThinkPixelAR`. The `go` directive in
 `go.mod` and `.go-version` both pin Go `1.26.7`; development and CI environments
