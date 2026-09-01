@@ -12,7 +12,7 @@ BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
 AGENTD_IMAGE ?= thinkpixel-agentd:development
 
-.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify
+.PHONY: help deps db-up db-down migrate generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -34,6 +34,9 @@ generate: ## Regenerate committed artifacts.
 
 fmt: ## Format Go source files.
 	$(GO) fmt ./...
+
+fmt-check: ## Reject Go source files that are not gofmt-formatted.
+	./scripts/check-go-format.sh
 
 vet: ## Run the Go vet analyzer.
 	$(GO) vet ./...
@@ -88,4 +91,6 @@ agentd-image-smoke: agentd-image ## Run the supervisor image as non-root with a 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
 
-verify: hygiene hygiene-test versions-check static test-unit test-race vulnerability license build openapi-check ## Run the current local and CI verification gate.
+verify: hygiene hygiene-test versions-check fmt-check static test-unit test-race vulnerability license build openapi-check ## Run the local and CI source verification gate.
+
+baseline-verify: verify image-smoke agentd-image-smoke ## Run the complete Phase 1 source and image baseline.
