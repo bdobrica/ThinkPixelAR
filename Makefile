@@ -12,7 +12,7 @@ BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
 AGENTD_IMAGE ?= thinkpixel-agentd:development
 
-.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license build image image-smoke agentd-image agentd-image-smoke openapi-check verify
+.PHONY: help deps db-up db-down migrate generate fmt vet lint static test test-unit test-race vulnerability license hygiene hygiene-test build image image-smoke agentd-image agentd-image-smoke openapi-check verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -58,6 +58,12 @@ license: ## Inventory modules and enforce the dependency/license policy.
 	./scripts/dependency-policy.sh "$(GO)"
 	$(NODE) ./scripts/check-npm-dependencies.mjs
 
+hygiene: ## Reject tracked local state, credentials, secrets, and binaries.
+	./scripts/repository-hygiene.sh
+
+hygiene-test: ## Test the repository hygiene policy with isolated fixtures.
+	./scripts/test-repository-hygiene.sh
+
 build: ## Build the service binary with reproducible path metadata.
 	mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -o $(BUILD_DIR)/thinkpixelar ./cmd/thinkpixelar
@@ -79,4 +85,4 @@ agentd-image-smoke: agentd-image ## Run the supervisor image as non-root with a 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
 
-verify: static test-unit test-race vulnerability license build openapi-check ## Run the current local and CI verification gate.
+verify: hygiene hygiene-test static test-unit test-race vulnerability license build openapi-check ## Run the current local and CI verification gate.

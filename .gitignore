@@ -1,3 +1,33 @@
 /AUDIT_SUMMARY.md
 /.cache/
 /node_modules/
+
+# Local runtime and Workspace state.
+/.thinkpixelar/
+/.workspace/
+/workspace-state/
+/vendor-state/
+/checkpoints/
+/sandboxes/
+
+# Local credentials and cluster configuration.
+/.env
+/.env.*
+!/.env.example
+/.codex/
+/.claude/
+/.kube/
+/kubeconfig
+/kubeconfig.*
+/*.kubeconfig
+/*.pem
+/*.key
+/*.p12
+/*.pfx
+
+# Build outputs.
+/bin/
+/dist/
+/thinkpixelar
+/thinkpixel-agentd
+/migrate
