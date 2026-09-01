@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# No job writes repository state or receives another token permission.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  verify:
+    name: Baseline verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOCACHE: ${{ runner.temp }}/thinkpixelar-${{ github.run_id }}-${{ github.run_attempt }}/go-build
+      GOMODCACHE: ${{ runner.temp }}/thinkpixelar-${{ github.run_id }}-${{ github.run_attempt }}/go-mod
+      TMPDIR: ${{ runner.temp }}/thinkpixelar-${{ github.run_id }}-${{ github.run_attempt }}/tmp
+      npm_config_cache: ${{ runner.temp }}/thinkpixelar-${{ github.run_id }}-${{ github.run_attempt }}/npm
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .go-version
+          cache: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.11.1
+          package-manager-cache: false
+
+      - name: Create isolated temporary directories
+        run: mkdir -p "$GOCACHE" "$GOMODCACHE" "$TMPDIR" "$npm_config_cache"
+
+      - name: Install locked build dependencies
+        run: make deps
+
+      - name: Run full baseline verification
+        run: make verify
+
+  service-image:
+    name: Service image smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build and smoke-test service image
+        run: make image-smoke
+
+  agentd-image:
+    name: Agentd image smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build and smoke-test agentd image
+        run: make agentd-image-smoke

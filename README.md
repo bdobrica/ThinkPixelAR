@@ -44,6 +44,9 @@ with `make deps`, then run the stable local/CI gate with `make verify`. Use
 pinned Go analysis tools and current vulnerability database, so it requires
 network access on a clean cache. Build output is written below `.cache/bin`.
 These checks are not runtime or release qualification.
+GitHub Actions runs the same baseline gate and the two hardened image smoke
+targets with read-only repository permissions and isolated, non-persistent
+dependency caches.
 
 For local database work, Docker Compose provides the pinned PostgreSQL
 development service. Start it with `make db-up` and stop it with `make db-down`;
