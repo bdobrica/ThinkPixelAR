@@ -91,7 +91,7 @@ Completion metadata format:
 - [x] DB-003 Add Executions schema/domain including Session binding, authority reference, immutable resolved agent/version evidence, deadline, state, and generation. — completed 2026-09-02, evidence: PostgreSQL 18.6 migration applied twice with ledger/RLS/trigger/FK inspection; exhaustive lifecycle transition tests; focused tests and vet
 - [x] DB-004 Add Attempts schema/domain including current-attempt designation, lifecycle, Sandbox/Harness references, heartbeat timestamps, and terminal result. — completed 2026-09-02, evidence: PostgreSQL 18.6 migration applied twice with ledger/RLS/trigger/generation-FK/current-index inspection; exhaustive lifecycle, binding, heartbeat, and terminal-result tests; full tests, focused race tests, and vet
 - [x] DB-005 Add database-enforced invariant preventing multiple active mutable Executions for one Session. — completed 2026-09-02, evidence: PostgreSQL 18.6 concurrent insertion allowed exactly one mutable Execution per tenant/Session while permitting terminal history; migration apply/reapply and focused tests
-- [ ] DB-006 Add monotonic Session execution epoch/fence and tests preventing stale Attempt mutation.
+- [x] DB-006 Add monotonic Session execution epoch/fence and tests preventing stale Attempt mutation. — completed 2026-09-02, evidence: PostgreSQL 18.6 admission/replacement tests reject regressed/skipped epochs and stale Attempt writes; focused/full tests and vet
 - [ ] DB-007 Add Workspace and WorkspaceGeneration metadata schema/domain.
 - [ ] DB-008 Add Checkpoint metadata schema/domain with immutable integrity and generation references.
 - [ ] DB-009 Add Runtime Profile resolution snapshot persistence.

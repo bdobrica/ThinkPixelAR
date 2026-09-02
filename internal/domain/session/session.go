@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"time"
 
@@ -27,11 +28,12 @@ const (
 )
 
 var (
-	states               = []State{Provisioning, Ready, Active, Idle, Suspended, Degraded, Closing, Closed}
-	ErrInvalidSession    = errors.New("invalid session")
-	ErrIllegalTransition = errors.New("illegal session transition")
-	ErrVersionConflict   = errors.New("session state version conflict")
-	sha256Digest         = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	states                 = []State{Provisioning, Ready, Active, Idle, Suspended, Degraded, Closing, Closed}
+	ErrInvalidSession      = errors.New("invalid session")
+	ErrIllegalTransition   = errors.New("illegal session transition")
+	ErrVersionConflict     = errors.New("session state version conflict")
+	ErrGenerationExhausted = errors.New("session execution generation exhausted")
+	sha256Digest           = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 )
 
 // ParseState validates a closed Session state value.
@@ -141,6 +143,9 @@ func (s *Session) Transition(next State, expectedVersion uint64, now time.Time) 
 		return ErrIllegalTransition
 	}
 	previous := s.state
+	if (previous == Ready || previous == Idle) && next == Active && s.executionGeneration == math.MaxInt64 {
+		return ErrGenerationExhausted
+	}
 	if next == Degraded {
 		s.recoveryState = previous
 	} else if previous == Degraded {

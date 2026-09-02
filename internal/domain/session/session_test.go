@@ -2,6 +2,7 @@ package session
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,22 @@ func TestTransitionVersionGenerationAndTimestamps(t *testing.T) {
 	}
 	if s.StateVersion() != version+1 || s.ExecutionGeneration() != 1 || !s.UpdatedAt().Equal(when) {
 		t.Fatalf("state version=%d generation=%d updated=%v", s.StateVersion(), s.ExecutionGeneration(), s.UpdatedAt())
+	}
+}
+
+func TestExecutionGenerationExhaustionFailsClosed(t *testing.T) {
+	s := sessionInState(t, Ready)
+	s.executionGeneration = math.MaxInt64
+	beforeVersion := s.StateVersion()
+	beforeUpdatedAt := s.UpdatedAt()
+
+	err := s.Transition(Active, beforeVersion, beforeUpdatedAt.Add(time.Minute))
+	if !errors.Is(err, ErrGenerationExhausted) {
+		t.Fatalf("Transition() error = %v", err)
+	}
+	if s.State() != Ready || s.StateVersion() != beforeVersion ||
+		s.ExecutionGeneration() != math.MaxInt64 || !s.UpdatedAt().Equal(beforeUpdatedAt) {
+		t.Fatal("generation exhaustion mutated aggregate")
 	}
 }
 

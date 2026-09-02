@@ -10,9 +10,10 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 4 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 5 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
-		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" {
+		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
+		got[4].Version != 5 || got[4].Name != "session_execution_fencing" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -40,6 +41,22 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	} {
 		if !regexp.MustCompile(required).MatchString(got[3].SQL) {
 			t.Errorf("mutable execution invariant migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{
+		"ADD COLUMN current_execution_id uuid",
+		"DEFERRABLE INITIALLY DEFERRED",
+		"CREATE TRIGGER sessions_execution_epoch",
+		"NEW.execution_generation < OLD.execution_generation",
+		"NEW.execution_generation - OLD.execution_generation <> 1",
+		"CREATE TRIGGER attempts_current_mutation_fence",
+		"s.current_execution_id = e.execution_id",
+		"s.execution_generation = e.session_generation",
+		"TG_OP = 'INSERT' AND NEW.is_current",
+		"TG_OP = 'UPDATE' AND OLD.is_current",
+	} {
+		if !regexp.MustCompile(required).MatchString(got[4].SQL) {
+			t.Errorf("session fencing migration does not contain %q", required)
 		}
 	}
 }
