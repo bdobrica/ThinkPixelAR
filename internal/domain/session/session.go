@@ -89,6 +89,37 @@ func New(tenantID, sessionID primitives.ID, binding RuntimeBinding, now time.Tim
 	}, nil
 }
 
+// Restore reconstructs a previously validated aggregate from authoritative storage.
+func Restore(tenantID, sessionID primitives.ID, binding RuntimeBinding, state State, recoveryState State,
+	stateVersion, executionGeneration uint64, createdAt, updatedAt time.Time, closedAt *time.Time) (*Session, error) {
+	if !validID(tenantID) || !validID(sessionID) || validateBinding(binding) != nil || createdAt.IsZero() ||
+		updatedAt.Before(createdAt) || stateVersion > math.MaxInt64 || executionGeneration > math.MaxInt64 {
+		return nil, ErrInvalidSession
+	}
+	if _, err := ParseState(string(state)); err != nil {
+		return nil, ErrInvalidSession
+	}
+	if recoveryState != "" {
+		if _, err := ParseState(string(recoveryState)); err != nil || recoveryState == Degraded || recoveryState == Closed {
+			return nil, ErrInvalidSession
+		}
+	}
+	if (state == Closed) != (closedAt != nil) || (closedAt != nil && closedAt.Before(createdAt)) ||
+		(state == Degraded) != (recoveryState != "") {
+		return nil, ErrInvalidSession
+	}
+	var closed *time.Time
+	if closedAt != nil {
+		value := closedAt.UTC()
+		closed = &value
+	}
+	return &Session{tenantID: tenantID, id: sessionID, binding: cloneBinding(binding), state: state,
+		stateVersion: stateVersion, executionGeneration: executionGeneration, recoveryState: recoveryState,
+		createdAt: createdAt.UTC(), updatedAt: updatedAt.UTC(), closedAt: closed}, nil
+}
+
+func validID(id primitives.ID) bool { _, err := primitives.ParseID(string(id)); return err == nil }
+
 func validateBinding(binding RuntimeBinding) error {
 	values := []string{
 		binding.AuthorityMode, binding.AuthorityNamespace, binding.AgentID,

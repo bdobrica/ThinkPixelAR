@@ -77,6 +77,37 @@ func New(tenantID, attemptID primitives.ID, binding Binding, now time.Time) (*At
 	return &Attempt{tenantID: tenantID, id: attemptID, binding: binding, state: Pending, current: true, createdAt: now, updatedAt: now}, nil
 }
 
+// Restore reconstructs a previously validated aggregate from authoritative storage.
+func Restore(tenantID, attemptID primitives.ID, binding Binding, state State, stateVersion uint64, current bool,
+	sandboxReference, harnessReference primitives.ID, sandboxHeartbeatAt, harnessHeartbeatAt *time.Time,
+	result *TerminalResult, createdAt, updatedAt time.Time, terminalAt *time.Time) (*Attempt, error) {
+	if !validID(tenantID) || !validID(attemptID) || !validID(binding.ExecutionID) || binding.ExecutionGeneration == 0 || binding.Number == 0 ||
+		createdAt.IsZero() || updatedAt.Before(createdAt) || (sandboxReference != "" && !validID(sandboxReference)) || (harnessReference != "" && !validID(harnessReference)) {
+		return nil, ErrInvalidAttempt
+	}
+	if _, err := ParseState(string(state)); err != nil {
+		return nil, ErrInvalidAttempt
+	}
+	if isTerminal(state) != (result != nil && terminalAt != nil) || (isTerminal(state) && current) || (result != nil && !validResult(*result)) {
+		return nil, ErrInvalidAttempt
+	}
+	copyTime := func(value *time.Time) *time.Time {
+		if value == nil {
+			return nil
+		}
+		v := value.UTC()
+		return &v
+	}
+	var resultCopy *TerminalResult
+	if result != nil {
+		v := *result
+		resultCopy = &v
+	}
+	return &Attempt{tenantID: tenantID, id: attemptID, binding: binding, state: state, stateVersion: stateVersion, current: current,
+		sandboxReference: sandboxReference, harnessReference: harnessReference, sandboxHeartbeatAt: copyTime(sandboxHeartbeatAt), harnessHeartbeatAt: copyTime(harnessHeartbeatAt),
+		terminalResult: resultCopy, createdAt: createdAt.UTC(), updatedAt: updatedAt.UTC(), terminalAt: copyTime(terminalAt)}, nil
+}
+
 // BindSandbox records the opaque AR SandboxBinding reference once.
 func (a *Attempt) BindSandbox(reference primitives.ID, expectedVersion uint64, now time.Time) error {
 	return a.bind(&a.sandboxReference, reference, expectedVersion, now)

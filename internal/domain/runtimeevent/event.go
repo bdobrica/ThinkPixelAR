@@ -95,9 +95,27 @@ func New(eventID, tenantID, sessionID, executionID, attemptID primitives.ID, seq
 		retentionPolicy: retentionPolicy, retainUntil: expiry}, nil
 }
 
-func (e *Event) Sequence() uint64       { return e.sequence }
-func (e *Event) Payload() []byte        { return append([]byte(nil), e.payload...) }
-func (e *Event) EventID() primitives.ID { return e.eventID }
+func (e *Event) Sequence() uint64               { return e.sequence }
+func (e *Event) Payload() []byte                { return append([]byte(nil), e.payload...) }
+func (e *Event) EventID() primitives.ID         { return e.eventID }
+func (e *Event) TenantID() primitives.ID        { return e.tenantID }
+func (e *Event) SessionID() primitives.ID       { return e.sessionID }
+func (e *Event) ExecutionID() primitives.ID     { return e.executionID }
+func (e *Event) AttemptID() primitives.ID       { return e.attemptID }
+func (e *Event) AggregateVersion() uint64       { return e.aggregateVersion }
+func (e *Event) Type() Type                     { return e.typeName }
+func (e *Event) OccurredAt() time.Time          { return e.occurredAt }
+func (e *Event) RecordedAt() time.Time          { return e.recordedAt }
+func (e *Event) Source() Source                 { return e.source }
+func (e *Event) Classification() Classification { return e.classification }
+func (e *Event) Correlation() Correlation       { return e.correlation }
+func (e *Event) RetentionPolicy() string        { return e.retentionPolicy }
+func (e *Event) RetainUntil() (time.Time, bool) {
+	if e.retainUntil == nil {
+		return time.Time{}, false
+	}
+	return *e.retainUntil, true
+}
 
 // ValidateReference applies the storage bound used by registered payload reference fields.
 func ValidateReference(value string) error {

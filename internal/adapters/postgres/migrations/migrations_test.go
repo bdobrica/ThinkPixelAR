@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 10 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 11 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -18,7 +18,8 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[6].Version != 7 || got[6].Name != "checkpoint_metadata" ||
 		got[7].Version != 8 || got[7].Name != "runtime_profile_resolution_snapshots" ||
 		got[8].Version != 9 || got[8].Name != "runtime_bindings" ||
-		got[9].Version != 10 || got[9].Name != "runtime_events" {
+		got[9].Version != 10 || got[9].Name != "runtime_events" ||
+		got[10].Version != 11 || got[10].Name != "session_recovery_state" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -87,6 +88,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	for _, required := range []string{"CREATE TABLE runtime_event_streams", "CREATE TABLE runtime_events", "UNIQUE \\(tenant_id, session_id, sequence\\)", "payload_reference", "octet_length\\(payload::text\\) BETWEEN 2 AND 65536", "FOR UPDATE", "runtime event sequence must advance by exactly one", "runtime events are append-only", "ENABLE ROW LEVEL SECURITY"} {
 		if !regexp.MustCompile(required).MatchString(got[9].SQL) {
 			t.Errorf("runtime event migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"ADD COLUMN recovery_state", "sessions_recovery_state_consistent", "state = 'DEGRADED'"} {
+		if !regexp.MustCompile(required).MatchString(got[10].SQL) {
+			t.Errorf("Session recovery state migration does not contain %q", required)
 		}
 	}
 }

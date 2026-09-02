@@ -87,6 +87,33 @@ func New(tenantID, executionID primitives.ID, binding Binding, deadline, now tim
 	}, nil
 }
 
+// Restore reconstructs a previously validated aggregate from authoritative storage.
+func Restore(tenantID, executionID primitives.ID, binding Binding, deadline time.Time, state State, stateVersion uint64,
+	result *TerminalResult, createdAt, updatedAt time.Time, terminalAt *time.Time) (*Execution, error) {
+	if !validID(tenantID) || !validID(executionID) || !validID(binding.SessionID) || binding.SessionGeneration == 0 ||
+		!validBinding(binding) || deadline.IsZero() || createdAt.IsZero() || !deadline.After(createdAt) || updatedAt.Before(createdAt) {
+		return nil, ErrInvalidExecution
+	}
+	if _, err := ParseState(string(state)); err != nil {
+		return nil, ErrInvalidExecution
+	}
+	if isTerminal(state) != (result != nil && terminalAt != nil) || (result != nil && !validResult(*result)) {
+		return nil, ErrInvalidExecution
+	}
+	var resultCopy *TerminalResult
+	if result != nil {
+		v := *result
+		resultCopy = &v
+	}
+	var terminalCopy *time.Time
+	if terminalAt != nil {
+		v := terminalAt.UTC()
+		terminalCopy = &v
+	}
+	return &Execution{tenantID: tenantID, id: executionID, binding: cloneBinding(binding), deadline: deadline.UTC(), state: state,
+		stateVersion: stateVersion, terminalResult: resultCopy, createdAt: createdAt.UTC(), updatedAt: updatedAt.UTC(), terminalAt: terminalCopy}, nil
+}
+
 func validID(id primitives.ID) bool {
 	_, err := primitives.ParseID(string(id))
 	return err == nil
