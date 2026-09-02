@@ -10,13 +10,14 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 8 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 9 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
 		got[5].Version != 6 || got[5].Name != "workspace_metadata" ||
 		got[6].Version != 7 || got[6].Name != "checkpoint_metadata" ||
-		got[7].Version != 8 || got[7].Name != "runtime_profile_resolution_snapshots" {
+		got[7].Version != 8 || got[7].Name != "runtime_profile_resolution_snapshots" ||
+		got[8].Version != 9 || got[8].Name != "runtime_bindings" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -75,6 +76,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	for _, required := range []string{"CREATE TABLE runtime_profile_resolution_snapshots", "canonical_resolution bytea", "canonical_supported_versions bytea", "jsonb_typeof", "decision_reason", "RFC8785-JCS", "runtime_profile_resolution_snapshots_immutable", "ENABLE ROW LEVEL SECURITY"} {
 		if !regexp.MustCompile(required).MatchString(got[7].SQL) {
 			t.Errorf("runtime profile resolution migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"CREATE TABLE sandbox_bindings", "CREATE TABLE harness_bindings", "provider_reference", "negotiation_digest", "attempts_sandbox_binding_fk", "attempts_harness_binding_fk", "DEFERRABLE INITIALLY DEFERRED", "runtime binding ownership and attempt fence are immutable", "ENABLE ROW LEVEL SECURITY"} {
+		if !regexp.MustCompile(required).MatchString(got[8].SQL) {
+			t.Errorf("runtime binding migration does not contain %q", required)
 		}
 	}
 }
