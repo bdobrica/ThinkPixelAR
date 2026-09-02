@@ -10,12 +10,13 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 7 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 8 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
 		got[5].Version != 6 || got[5].Name != "workspace_metadata" ||
-		got[6].Version != 7 || got[6].Name != "checkpoint_metadata" {
+		got[6].Version != 7 || got[6].Name != "checkpoint_metadata" ||
+		got[7].Version != 8 || got[7].Name != "runtime_profile_resolution_snapshots" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -69,6 +70,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	for _, required := range []string{"CREATE TABLE checkpoints", "workspace_generation_id", "checkpoints_tenant_session_committed_idx", "checkpoints_immutable_integrity", "committed checkpoint integrity metadata is immutable", "RFC8785-JCS", "ENABLE ROW LEVEL SECURITY"} {
 		if !regexp.MustCompile(required).MatchString(got[6].SQL) {
 			t.Errorf("checkpoint migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"CREATE TABLE runtime_profile_resolution_snapshots", "canonical_resolution bytea", "canonical_supported_versions bytea", "jsonb_typeof", "decision_reason", "RFC8785-JCS", "runtime_profile_resolution_snapshots_immutable", "ENABLE ROW LEVEL SECURITY"} {
+		if !regexp.MustCompile(required).MatchString(got[7].SQL) {
+			t.Errorf("runtime profile resolution migration does not contain %q", required)
 		}
 	}
 }
