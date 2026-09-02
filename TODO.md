@@ -86,8 +86,8 @@ Completion metadata format:
 
 ## Phase 2 — Authoritative AR persistence and domain state
 
-- [x] DB-001 Add migration framework and first schema migration for tenant-scoped Sessions. — completed 2026-09-02, commit pending (pre-existing dirty worktree), evidence: pinned PostgreSQL 18.6 migration applied twice; migration ledger checksum/policy/trigger inspection; `go test ./cmd/migrate ./internal/adapters/postgres/migrations`; `go vet ./cmd/migrate ./internal/adapters/postgres/migrations`
-- [ ] DB-002 Add Sessions domain aggregate, transition validation, optimistic state version, timestamps, and table-driven tests.
+- [x] DB-001 Add migration framework and first schema migration for tenant-scoped Sessions. — completed 2026-09-02, commit `c1c14e2`, evidence: pinned PostgreSQL 18.6 migration applied twice; migration ledger checksum/policy/trigger inspection; `go test ./cmd/migrate ./internal/adapters/postgres/migrations`; `go vet ./cmd/migrate ./internal/adapters/postgres/migrations`
+- [x] DB-002 Add Sessions domain aggregate, transition validation, optimistic state version, timestamps, and table-driven tests. — completed 2026-09-02, commit `26d0fb2`, evidence: `go test ./...`; `go test -race ./internal/domain/session ./cmd/migrate ./internal/adapters/postgres/migrations`; `go vet ./...`
 - [ ] DB-003 Add Executions schema/domain including Session binding, authority reference, immutable resolved agent/version evidence, deadline, state, and generation.
 - [ ] DB-004 Add Attempts schema/domain including current-attempt designation, lifecycle, Sandbox/Harness references, heartbeat timestamps, and terminal result.
 - [ ] DB-005 Add database-enforced invariant preventing multiple active mutable Executions for one Session.
