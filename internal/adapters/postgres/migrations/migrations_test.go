@@ -10,10 +10,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 5 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 6 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
-		got[4].Version != 5 || got[4].Name != "session_execution_fencing" {
+		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
+		got[5].Version != 6 || got[5].Name != "workspace_metadata" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -58,6 +59,9 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		if !regexp.MustCompile(required).MatchString(got[4].SQL) {
 			t.Errorf("session fencing migration does not contain %q", required)
 		}
+	}
+	for _, required := range []string{"CREATE TABLE workspaces", "CREATE TABLE workspace_generations", "UNIQUE \\(tenant_id, session_id\\)", "workspaces_current_generation_fk", "workspace_generations_immutable", "workspace generation must advance by exactly one from snapshotting", "ENABLE ROW LEVEL SECURITY"} {
+		if !regexp.MustCompile(required).MatchString(got[5].SQL) { t.Errorf("workspace migration does not contain %q", required) }
 	}
 }
 
