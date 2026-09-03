@@ -10,6 +10,7 @@ import (
 
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/cleanup"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/reconciliation"
@@ -184,6 +185,130 @@ func TestStoreCommitsAndRollsBackTenantScopedRepositories(t *testing.T) {
 	})
 	if !errors.Is(err, persistence.ErrNotFound) {
 		t.Fatalf("Get rolled-back Session error = %v", err)
+	}
+}
+
+func TestStoreRollsBackExternalReferenceReservationBeforeCommit(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ids := make([]primitives.ID, 7)
+	for i := range ids {
+		ids[i], _ = primitives.NewID(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, ids[0]); err == nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO tenants (tenant_id) VALUES ($1)`, ids[0])
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	sessionBinding := session.RuntimeBinding{AuthorityMode: "LOCAL", AuthorityNamespace: "test", AgentID: "agent", AgentVersionID: "v1", RuntimeSpecSchemaVersion: "v1", RuntimeSpec: []byte(`{}`), RuntimeSpecDigest: testDigest('a'), RuntimeProfileSchemaVersion: "v1", RuntimeProfileSnapshot: []byte(`{}`), RuntimeProfileDigest: testDigest('b')}
+	sess, err := session.New(ids[0], ids[1], sessionBinding, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	executionBinding := execution.Binding{SessionID: ids[1], SessionGeneration: 1, AuthorityMode: "THINKPIXEL_AG", AuthorityNamespace: "test", AuthorityReference: "run:reserved-before-commit", ExternalRunID: "external-run", GrantDigest: testDigest('c'), AgentID: "agent", AgentVersionID: "v1", AgentEvidence: []byte(`{}`), AgentEvidenceDigest: testDigest('d')}
+	reserved, err := execution.New(ids[0], ids[2], executionBinding, now.Add(time.Hour), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := runtimeevent.New(ids[3], ids[0], ids[1], ids[2], "", 1, 1, "execution.accepted", now, now, runtimeevent.SourceRunAuthority, runtimeevent.Internal, []byte(`{"state":"QUEUED"}`), runtimeevent.Correlation{}, "execution", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := outbox.New(ids[0], ids[4], outbox.Envelope{Topic: "runtime.events", SchemaVersion: runtimeevent.SchemaVersion, EventID: ids[3], AggregateType: "execution", AggregateID: ids[2], AggregateVersion: 1, Payload: []byte(`{"type":"execution.accepted"}`), PayloadDigest: testDigest('e')}, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := postgres.NewStore(db)
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Sessions().Add(ctx, sess)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	wantRollback := errors.New("forced failure after external-reference reservation")
+	err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		if err := repos.Executions().Add(ctx, reserved); err != nil {
+			return err
+		}
+		if err := repos.RuntimeEvents().Append(ctx, event); err != nil {
+			return err
+		}
+		if err := repos.Outbox().Add(ctx, message); err != nil {
+			return err
+		}
+		return wantRollback
+	})
+	if !errors.Is(err, wantRollback) {
+		t.Fatalf("rollback error = %v", err)
+	}
+
+	err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		if _, err := repos.Executions().Get(ctx, ids[2]); !errors.Is(err, persistence.ErrNotFound) {
+			return errors.New("rolled-back Execution remained visible")
+		}
+		if _, err := repos.Outbox().Get(ctx, ids[4]); !errors.Is(err, persistence.ErrNotFound) {
+			return errors.New("rolled-back OutboxMessage remained visible")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var eventCount int
+	check, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = check.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, ids[0]); err == nil {
+		err = check.QueryRowContext(ctx, `SELECT count(*) FROM runtime_events WHERE tenant_id=$1 AND event_id=$2`, ids[0], ids[3]).Scan(&eventCount)
+	}
+	if rollbackErr := check.Rollback(); err == nil {
+		err = rollbackErr
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if eventCount != 0 {
+		t.Fatalf("rolled-back RuntimeEvent count = %d", eventCount)
+	}
+
+	replacement, err := execution.New(ids[0], ids[5], executionBinding, now.Add(time.Hour), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Executions().Add(ctx, replacement)
+	}); err != nil {
+		t.Fatalf("reuse rolled-back authority reference: %v", err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		got, err := repos.Executions().Get(ctx, ids[5])
+		if err == nil && got.Binding().AuthorityReference != executionBinding.AuthorityReference {
+			t.Fatalf("authority reference = %q", got.Binding().AuthorityReference)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

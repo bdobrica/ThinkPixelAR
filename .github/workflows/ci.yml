@@ -100,6 +100,9 @@ jobs:
       - name: Test migrations on pinned PostgreSQL
         run: make test-db-migrations
 
+      - name: Test transaction rollbacks on pinned PostgreSQL
+        run: make test-db-transactions
+
       - name: Stop PostgreSQL
         if: always()
         run: docker compose down --volumes
