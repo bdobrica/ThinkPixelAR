@@ -1608,6 +1608,13 @@ Implement:
 
 Exit when real PostgreSQL tests prove tenant isolation, state transitions, event ordering, concurrency rules, fencing, rollback, and replay behavior.
 
+DB-023 closes Phase 2 at `7b9f9a5`; the schema/domain delivery matrix,
+real-PostgreSQL exit checks, dependency security remediation, and deferred
+qualification boundary are recorded in `docs/phase-2-evidence.md`. Phase 2
+establishes authoritative persistence and domain state only; provider, cluster,
+public API, operational recovery, and release qualification remain owned by
+later phases.
+
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
 Implement:
