@@ -9,5 +9,6 @@ Phase and release verification summaries live here. Evidence must be reproducibl
 - [ENG-017 supported version validation](eng-017-supported-versions.md)
 - [ENG-018 clean-checkout baseline](eng-018-clean-checkout-baseline.md)
 - [Phase 1 engineering foundation](../phase-1-evidence.md)
+- [Phase 2 authoritative persistence and domain state](../phase-2-evidence.md)
 - [Phase 0 cross-system review](phase-0-cross-system-review.md)
 - [Phase 0 exit evidence](phase-0-exit.md)
