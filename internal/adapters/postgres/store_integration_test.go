@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/cleanup"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
@@ -102,6 +104,278 @@ func testDigest(c byte) string {
 		b[i] = c
 	}
 	return "sha256:" + string(b)
+}
+
+func TestStoreIsolatesEveryRepositoryByTenant(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ids := make([]primitives.ID, 12)
+	for i := range ids {
+		ids[i], _ = primitives.NewID(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	tenants := []primitives.ID{ids[0], ids[1]}
+	for _, tenantID := range tenants {
+		tx, beginErr := db.BeginTx(ctx, nil)
+		if beginErr != nil {
+			t.Fatal(beginErr)
+		}
+		if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, tenantID); err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO tenants (tenant_id) VALUES ($1)`, tenantID)
+		}
+		if err != nil {
+			_ = tx.Rollback()
+			t.Fatal(err)
+		}
+		if err = tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	type tenantRecords struct {
+		session        *session.Session
+		execution      *execution.Execution
+		attempt        *attempt.Attempt
+		event          *runtimeevent.Event
+		idempotency    *idempotency.Record
+		outbox         *outbox.Message
+		reconciliation *reconciliation.Work
+		cleanup        *cleanup.Intent
+	}
+	build := func(tenantID primitives.ID, marker byte) tenantRecords {
+		binding := session.RuntimeBinding{AuthorityMode: "LOCAL", AuthorityNamespace: "tenant-isolation", AgentID: "agent", AgentVersionID: "v1", RuntimeSpecSchemaVersion: "v1", RuntimeSpec: []byte(`{}`), RuntimeSpecDigest: testDigest(marker), RuntimeProfileSchemaVersion: "v1", RuntimeProfileSnapshot: []byte(`{}`), RuntimeProfileDigest: testDigest(marker)}
+		sess, buildErr := session.New(tenantID, ids[2], binding, now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		if buildErr = sess.Transition(session.Ready, 0, now); buildErr == nil {
+			buildErr = sess.Transition(session.Active, 1, now)
+		}
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		exec, buildErr := execution.New(tenantID, ids[3], execution.Binding{SessionID: ids[2], SessionGeneration: 1, AuthorityMode: "LOCAL", AuthorityNamespace: "tenant-isolation", AuthorityReference: "shared-authority-reference", GrantDigest: testDigest(marker), AgentID: "agent", AgentVersionID: "v1", AgentEvidence: []byte(`{}`), AgentEvidenceDigest: testDigest(marker)}, now.Add(time.Hour), now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		if buildErr = exec.Transition(execution.Materializing, 0, nil, now); buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		att, buildErr := attempt.New(tenantID, ids[4], attempt.Binding{ExecutionID: ids[3], ExecutionGeneration: 1, Number: 1}, now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		event, buildErr := runtimeevent.New(ids[5], tenantID, ids[2], ids[3], ids[4], 1, 1, "attempt.started", now, now, runtimeevent.SourceAgentRuntime, runtimeevent.Internal, []byte(`{"state":"PENDING"}`), runtimeevent.Correlation{}, "attempt", nil)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		scope := idempotency.Scope{PrincipalDigest: testDigest('c'), Action: "POST:/v1/executions", KeyDigest: testDigest('d')}
+		idem, buildErr := idempotency.New(tenantID, ids[6], scope, "http-v1", testDigest(marker), ids[7], ids[3], ids[8], ids[9], now.Add(time.Minute), now.Add(time.Hour), now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		message, buildErr := outbox.New(tenantID, ids[10], outbox.Envelope{Topic: "runtime.events", SchemaVersion: runtimeevent.SchemaVersion, EventID: ids[5], AggregateType: "attempt", AggregateID: ids[4], AggregateVersion: 1, Payload: []byte(`{"type":"attempt.started"}`), PayloadDigest: testDigest(marker)}, now, now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		work, buildErr := reconciliation.New(tenantID, ids[11], "attempt.reconcile", "attempt", ids[4], now, now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		intent, buildErr := cleanup.New(tenantID, ids[7], cleanup.Target{OwnerType: "attempt", OwnerID: ids[4], TargetType: "sandbox", ProviderKind: "agentsandbox", ExternalReference: "shared-sandbox-reference", OperationID: ids[8], RequestDigest: testDigest(marker), OwnershipProofDigest: testDigest(marker), Orphan: true}, now, now)
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		return tenantRecords{sess, exec, att, event, idem, message, work, intent}
+	}
+	records := []tenantRecords{build(tenants[0], 'a'), build(tenants[1], 'b')}
+	store, err := postgres.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tenantID := range tenants {
+		r := records[i]
+		if err = store.WithinTransaction(ctx, tenantID, func(ctx context.Context, repos persistence.Repositories) error {
+			if err := repos.Sessions().Add(ctx, r.session); err != nil {
+				return err
+			}
+			return repos.Executions().Add(ctx, r.execution)
+		}); err != nil {
+			t.Fatalf("seed tenant %s aggregate: %v", tenantID, err)
+		}
+		tx, beginErr := db.BeginTx(ctx, nil)
+		if beginErr != nil {
+			t.Fatal(beginErr)
+		}
+		if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, tenantID); err == nil {
+			_, err = tx.ExecContext(ctx, `UPDATE sessions SET current_execution_id=$2 WHERE tenant_id=$1 AND session_id=$3`, tenantID, ids[3], ids[2])
+		}
+		if err == nil {
+			err = tx.Commit()
+		} else {
+			_ = tx.Rollback()
+		}
+		if err != nil {
+			t.Fatalf("bind tenant %s current execution: %v", tenantID, err)
+		}
+		if err = store.WithinTransaction(ctx, tenantID, func(ctx context.Context, repos persistence.Repositories) error {
+			if err := repos.Attempts().Add(ctx, r.attempt); err != nil {
+				return err
+			}
+			if err := repos.RuntimeEvents().Append(ctx, r.event); err != nil {
+				return err
+			}
+			if _, created, err := repos.Idempotency().Reserve(ctx, r.idempotency); err != nil || !created {
+				if err != nil {
+					return err
+				}
+				return errors.New("idempotency record was not created")
+			}
+			if err := repos.Outbox().Add(ctx, r.outbox); err != nil {
+				return err
+			}
+			if err := repos.Reconciliation().Add(ctx, r.reconciliation); err != nil {
+				return err
+			}
+			return repos.Cleanup().Add(ctx, r.cleanup)
+		}); err != nil {
+			t.Fatalf("seed tenant %s repositories: %v", tenantID, err)
+		}
+	}
+
+	for i, tenantID := range tenants {
+		if err = store.WithinTransaction(ctx, tenantID, func(ctx context.Context, repos persistence.Repositories) error {
+			checks := []struct {
+				name string
+				get  func() (primitives.ID, error)
+			}{
+				{"Sessions", func() (primitives.ID, error) {
+					v, err := repos.Sessions().Get(ctx, ids[2])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Executions", func() (primitives.ID, error) {
+					v, err := repos.Executions().Get(ctx, ids[3])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Attempts", func() (primitives.ID, error) {
+					v, err := repos.Attempts().Get(ctx, ids[4])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Idempotency", func() (primitives.ID, error) {
+					v, err := repos.Idempotency().Get(ctx, records[i].idempotency.Scope())
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Outbox", func() (primitives.ID, error) {
+					v, err := repos.Outbox().Get(ctx, ids[10])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Reconciliation", func() (primitives.ID, error) {
+					v, err := repos.Reconciliation().Get(ctx, ids[11])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+				{"Cleanup", func() (primitives.ID, error) {
+					v, err := repos.Cleanup().Get(ctx, ids[7])
+					if err != nil {
+						return "", err
+					}
+					return v.TenantID(), nil
+				}},
+			}
+			for _, check := range checks {
+				got, getErr := check.get()
+				if getErr != nil {
+					return fmt.Errorf("%s: %w", check.name, getErr)
+				}
+				if got != tenantID {
+					return fmt.Errorf("%s returned tenant %s", check.name, got)
+				}
+			}
+			claimedOutbox, claimErr := repos.Outbox().ClaimAvailable(ctx, ids[8], now, now.Add(time.Minute), 10)
+			if claimErr != nil || len(claimedOutbox) != 1 || claimedOutbox[0].TenantID() != tenantID {
+				return fmt.Errorf("Outbox claim tenant isolation: %v, %#v", claimErr, claimedOutbox)
+			}
+			claimedWork, claimErr := repos.Reconciliation().ClaimAvailable(ctx, ids[8], now, now.Add(time.Minute), 10)
+			if claimErr != nil || len(claimedWork) != 1 || claimedWork[0].TenantID() != tenantID {
+				return fmt.Errorf("Reconciliation claim tenant isolation: %v, %#v", claimErr, claimedWork)
+			}
+			due, listErr := repos.Cleanup().ListDue(ctx, now, 10)
+			if listErr != nil || len(due) != 1 || due[0].TenantID() != tenantID {
+				return fmt.Errorf("Cleanup list tenant isolation: %v, %#v", listErr, due)
+			}
+			return nil
+		}); err != nil {
+			t.Fatalf("read tenant %s: %v", tenantID, err)
+		}
+	}
+
+	if err = store.WithinTransaction(ctx, tenants[0], func(ctx context.Context, repos persistence.Repositories) error {
+		foreign := records[1]
+		operations := []struct {
+			name string
+			run  func() error
+		}{
+			{"Sessions", func() error { return repos.Sessions().Add(ctx, foreign.session) }},
+			{"Executions", func() error { return repos.Executions().Add(ctx, foreign.execution) }},
+			{"Attempts", func() error { return repos.Attempts().Add(ctx, foreign.attempt) }},
+			{"RuntimeEvents", func() error { return repos.RuntimeEvents().Append(ctx, foreign.event) }},
+			{"Idempotency", func() error { _, _, err := repos.Idempotency().Reserve(ctx, foreign.idempotency); return err }},
+			{"Outbox", func() error { return repos.Outbox().Add(ctx, foreign.outbox) }},
+			{"Reconciliation", func() error { return repos.Reconciliation().Add(ctx, foreign.reconciliation) }},
+			{"Cleanup", func() error { return repos.Cleanup().Add(ctx, foreign.cleanup) }},
+		}
+		for _, operation := range operations {
+			if operation.run() == nil {
+				return fmt.Errorf("%s accepted another tenant's aggregate", operation.name)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tenantID := range tenants {
+		var count int
+		tx, beginErr := db.BeginTx(ctx, nil)
+		if beginErr != nil {
+			t.Fatal(beginErr)
+		}
+		if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, tenantID); err == nil {
+			err = tx.QueryRowContext(ctx, `SELECT count(*) FROM runtime_events WHERE tenant_id=$1 AND event_id=$2`, tenantID, ids[5]).Scan(&count)
+		}
+		_ = tx.Rollback()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Fatalf("RuntimeEvents visible to tenant %s = %d", tenantID, count)
+		}
+	}
 }
 
 func TestStoreCommitsAndRollsBackTenantScopedRepositories(t *testing.T) {

@@ -103,6 +103,9 @@ jobs:
       - name: Test transaction rollbacks on pinned PostgreSQL
         run: make test-db-transactions
 
+      - name: Test repository tenant isolation on pinned PostgreSQL
+        run: make test-db-tenant-isolation
+
       - name: Stop PostgreSQL
         if: always()
         run: docker compose down --volumes
