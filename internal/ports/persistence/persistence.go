@@ -10,6 +10,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/reconciliation"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
@@ -34,6 +35,15 @@ type Repositories interface {
 	RuntimeEvents() RuntimeEventRepository
 	Idempotency() IdempotencyRepository
 	Outbox() OutboxRepository
+	Reconciliation() ReconciliationRepository
+}
+
+// ReconciliationRepository leases restart-safe work to stateless reconcilers.
+type ReconciliationRepository interface {
+	Add(context.Context, *reconciliation.Work) error
+	Get(context.Context, primitives.ID) (*reconciliation.Work, error)
+	ClaimAvailable(context.Context, primitives.ID, time.Time, time.Time, int) ([]*reconciliation.Work, error)
+	Update(context.Context, *reconciliation.Work, uint64) error
 }
 
 type SessionRepository interface {

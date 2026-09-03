@@ -11,6 +11,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/reconciliation"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
@@ -99,6 +100,86 @@ func TestStoreCommitsAndRollsBackTenantScopedRepositories(t *testing.T) {
 	})
 	if !errors.Is(err, persistence.ErrNotFound) {
 		t.Fatalf("Get rolled-back Session error = %v", err)
+	}
+}
+
+func TestReconciliationRepositoryClaimsAndRejectsStaleWorker(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ids := make([]primitives.ID, 5)
+	for i := range ids {
+		ids[i], _ = primitives.NewID(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, ids[0]); err == nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO tenants (tenant_id) VALUES ($1)`, ids[0])
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	work, err := reconciliation.New(ids[0], ids[1], "session.reconcile", "session", ids[2], now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := postgres.NewStore(db)
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Reconciliation().Add(ctx, work)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var stale *reconciliation.Work
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		claimed, err := repos.Reconciliation().ClaimAvailable(ctx, ids[3], now, now.Add(time.Minute), 10)
+		if err != nil {
+			return err
+		}
+		if len(claimed) != 1 || claimed[0].ClaimFence() != 1 {
+			t.Fatalf("first claim = %#v", claimed)
+		}
+		stale = claimed[0]
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		claimed, err := repos.Reconciliation().ClaimAvailable(ctx, ids[4], now.Add(time.Minute), now.Add(2*time.Minute), 10)
+		if err != nil {
+			return err
+		}
+		if len(claimed) != 1 || claimed[0].ClaimFence() != 2 || claimed[0].Attempts() != 2 {
+			t.Fatalf("takeover = %#v", claimed)
+		}
+		if err = claimed[0].Complete(ids[4], 2, now.Add(90*time.Second)); err != nil {
+			return err
+		}
+		return repos.Reconciliation().Update(ctx, claimed[0], 2)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = stale.Reschedule(ids[3], 1, now.Add(3*time.Minute), "STALE", now.Add(30*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Reconciliation().Update(ctx, stale, 1)
+	})
+	if !errors.Is(err, persistence.ErrConflict) {
+		t.Fatalf("stale update = %v", err)
 	}
 }
 

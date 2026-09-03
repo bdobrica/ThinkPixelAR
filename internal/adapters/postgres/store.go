@@ -11,6 +11,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/reconciliation"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
@@ -70,6 +71,9 @@ func (r *repositories) Idempotency() persistence.IdempotencyRepository {
 	return (*idempotencyRepository)(r)
 }
 func (r *repositories) Outbox() persistence.OutboxRepository { return (*outboxRepository)(r) }
+func (r *repositories) Reconciliation() persistence.ReconciliationRepository {
+	return (*reconciliationRepository)(r)
+}
 func (r *repositories) owns(id primitives.ID) error {
 	if id != r.tenantID {
 		return errors.New("aggregate tenant does not match transaction tenant")
@@ -443,6 +447,83 @@ func scanOutbox(row rowScanner, tenantID primitives.ID) (*outbox.Message, error)
 		dead = &outbox.DeadLetter{ReasonCode: reason.String, Detail: detail.String}
 	}
 	return outbox.Restore(tenantID, id, envelope, outbox.State(state), attempts, fence, primitives.ID(owner.String), available, timePtr(claimExpiry), lastError.String, dead, created, updated, timePtr(delivered))
+}
+
+type reconciliationRepository repositories
+
+func (r *reconciliationRepository) Add(ctx context.Context, value *reconciliation.Work) error {
+	if value == nil {
+		return errors.New("reconciliation work is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	_, err := r.tx.ExecContext(ctx, `INSERT INTO reconciliation_work (tenant_id,work_id,work_kind,target_type,target_id,state,attempts,claim_fence,next_attempt_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, value.TenantID(), value.ID(), value.Kind(), value.TargetType(), value.TargetID(), value.State(), value.Attempts(), value.ClaimFence(), value.NextAttemptAt(), value.CreatedAt(), value.UpdatedAt())
+	return wrap("insert reconciliation work", err)
+}
+
+func (r *reconciliationRepository) Get(ctx context.Context, id primitives.ID) (*reconciliation.Work, error) {
+	return scanReconciliation(r.tx.QueryRowContext(ctx, reconciliationSelect+` WHERE tenant_id=$1 AND work_id=$2`, r.tenantID, id), r.tenantID)
+}
+
+func (r *reconciliationRepository) ClaimAvailable(ctx context.Context, ownerID primitives.ID, now, leaseExpiresAt time.Time, limit int) ([]*reconciliation.Work, error) {
+	if _, err := primitives.ParseID(string(ownerID)); err != nil || now.IsZero() || !leaseExpiresAt.After(now) || limit < 1 || limit > 100 {
+		return nil, errors.New("invalid reconciliation claim request")
+	}
+	rows, err := r.tx.QueryContext(ctx, `WITH candidates AS (
+SELECT tenant_id,work_id FROM reconciliation_work WHERE tenant_id=$1 AND next_attempt_at<=$2
+AND (state='PENDING' OR (state='CLAIMED' AND claim_expires_at<=$2))
+ORDER BY next_attempt_at,work_id LIMIT $3 FOR UPDATE SKIP LOCKED
+), claimed AS (
+UPDATE reconciliation_work AS w SET state='CLAIMED',attempts=w.attempts+1,claim_owner_id=$4,
+claim_fence=w.claim_fence+1,claim_expires_at=$5,updated_at=$2 FROM candidates AS c
+WHERE w.tenant_id=c.tenant_id AND w.work_id=c.work_id RETURNING w.*
+)
+SELECT work_id,work_kind,target_type,target_id,state,attempts,claim_owner_id,claim_fence,next_attempt_at,claim_expires_at,last_error_code,created_at,updated_at,completed_at FROM claimed ORDER BY next_attempt_at,work_id`, r.tenantID, now.UTC(), limit, ownerID, leaseExpiresAt.UTC())
+	if err != nil {
+		return nil, wrap("claim reconciliation work", err)
+	}
+	defer rows.Close()
+	result := make([]*reconciliation.Work, 0, limit)
+	for rows.Next() {
+		value, err := scanReconciliation(rows, r.tenantID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, wrap("claim reconciliation work", err)
+	}
+	return result, nil
+}
+
+func (r *reconciliationRepository) Update(ctx context.Context, value *reconciliation.Work, expectedFence uint64) error {
+	if value == nil {
+		return errors.New("reconciliation work is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	claim, hasClaim := value.ClaimExpiresAt()
+	completed, hasCompleted := value.CompletedAt()
+	result, err := r.tx.ExecContext(ctx, `UPDATE reconciliation_work SET state=$3,attempts=$4,claim_owner_id=$5,claim_fence=$6,claim_expires_at=$7,next_attempt_at=$8,last_error_code=$9,updated_at=$10,completed_at=$11 WHERE tenant_id=$1 AND work_id=$2 AND state='CLAIMED' AND claim_fence=$12`, r.tenantID, value.ID(), value.State(), value.Attempts(), nullID(value.OwnerID()), value.ClaimFence(), nullableTime(claim, hasClaim), value.NextAttemptAt(), nullString(value.LastErrorCode()), value.UpdatedAt(), nullableTime(completed, hasCompleted), expectedFence)
+	return affected("update reconciliation work", result, err)
+}
+
+const reconciliationSelect = `SELECT work_id,work_kind,target_type,target_id,state,attempts,claim_owner_id,claim_fence,next_attempt_at,claim_expires_at,last_error_code,created_at,updated_at,completed_at FROM reconciliation_work`
+
+func scanReconciliation(row rowScanner, tenantID primitives.ID) (*reconciliation.Work, error) {
+	var id, targetID primitives.ID
+	var kind, targetType, state string
+	var attempts, fence uint64
+	var owner, lastError sql.NullString
+	var next, created, updated time.Time
+	var claim, completed sql.NullTime
+	if err := row.Scan(&id, &kind, &targetType, &targetID, &state, &attempts, &owner, &fence, &next, &claim, &lastError, &created, &updated, &completed); err != nil {
+		return nil, wrap("scan reconciliation work", err)
+	}
+	return reconciliation.Restore(tenantID, id, kind, targetType, targetID, reconciliation.State(state), attempts, fence, primitives.ID(owner.String), next, timePtr(claim), lastError.String, created, updated, timePtr(completed))
 }
 
 func wrap(operation string, err error) error {
