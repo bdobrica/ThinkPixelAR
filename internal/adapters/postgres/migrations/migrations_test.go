@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 11 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 12 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -19,7 +19,8 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[7].Version != 8 || got[7].Name != "runtime_profile_resolution_snapshots" ||
 		got[8].Version != 9 || got[8].Name != "runtime_bindings" ||
 		got[9].Version != 10 || got[9].Name != "runtime_events" ||
-		got[10].Version != 11 || got[10].Name != "session_recovery_state" {
+		got[10].Version != 11 || got[10].Name != "session_recovery_state" ||
+		got[11].Version != 12 || got[11].Name != "idempotency_records" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -93,6 +94,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	for _, required := range []string{"ADD COLUMN recovery_state", "sessions_recovery_state_consistent", "state = 'DEGRADED'"} {
 		if !regexp.MustCompile(required).MatchString(got[10].SQL) {
 			t.Errorf("Session recovery state migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"CREATE TABLE idempotency_records", "UNIQUE \\(tenant_id, principal_digest, action, key_digest\\)", "request_digest", "response_payload", "expires_at", "idempotency_records_fenced_mutation", "active idempotency lease cannot be taken over", "ENABLE ROW LEVEL SECURITY"} {
+		if !regexp.MustCompile(required).MatchString(got[11].SQL) {
+			t.Errorf("idempotency migration does not contain %q", required)
 		}
 	}
 }

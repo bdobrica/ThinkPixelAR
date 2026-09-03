@@ -4,17 +4,20 @@ package persistence
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
 
 var (
-	ErrNotFound = errors.New("persistent resource not found")
-	ErrConflict = errors.New("persistent resource conflict")
+	ErrNotFound              = errors.New("persistent resource not found")
+	ErrConflict              = errors.New("persistent resource conflict")
+	ErrRequestDigestMismatch = errors.New("idempotency request digest mismatch")
 )
 
 // TransactionManager runs one tenant's authoritative changes atomically.
@@ -28,6 +31,7 @@ type Repositories interface {
 	Executions() ExecutionRepository
 	Attempts() AttemptRepository
 	RuntimeEvents() RuntimeEventRepository
+	Idempotency() IdempotencyRepository
 }
 
 type SessionRepository interface {
@@ -50,4 +54,12 @@ type AttemptRepository interface {
 
 type RuntimeEventRepository interface {
 	Append(context.Context, *runtimeevent.Event) error
+}
+
+// IdempotencyRepository atomically elects one record for a scoped mutation.
+type IdempotencyRepository interface {
+	Reserve(context.Context, *idempotency.Record) (*idempotency.Record, bool, error)
+	Get(context.Context, idempotency.Scope) (*idempotency.Record, error)
+	Update(context.Context, *idempotency.Record, uint64) error
+	DeleteExpired(context.Context, time.Time, int) (int64, error)
 }

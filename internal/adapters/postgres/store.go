@@ -9,6 +9,7 @@ import (
 
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
@@ -63,6 +64,9 @@ func (r *repositories) Executions() persistence.ExecutionRepository { return (*e
 func (r *repositories) Attempts() persistence.AttemptRepository     { return (*attemptRepository)(r) }
 func (r *repositories) RuntimeEvents() persistence.RuntimeEventRepository {
 	return (*eventRepository)(r)
+}
+func (r *repositories) Idempotency() persistence.IdempotencyRepository {
+	return (*idempotencyRepository)(r)
 }
 func (r *repositories) owns(id primitives.ID) error {
 	if id != r.tenantID {
@@ -238,6 +242,109 @@ func (r *eventRepository) Append(ctx context.Context, value *runtimeevent.Event)
 	c := value.Correlation()
 	_, err := r.tx.ExecContext(ctx, `INSERT INTO runtime_events (tenant_id,event_id,session_id,execution_id,attempt_id,sequence,aggregate_version,schema_version,event_type,occurred_at,recorded_at,source,classification,payload,request_id,trace_id,span_id,retention_policy,retain_until) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`, value.TenantID(), value.EventID(), value.SessionID(), nullID(value.ExecutionID()), nullID(value.AttemptID()), value.Sequence(), value.AggregateVersion(), runtimeevent.SchemaVersion, value.Type(), value.OccurredAt(), value.RecordedAt(), value.Source(), value.Classification(), value.Payload(), nullID(c.RequestID), nullString(c.TraceID), nullString(c.SpanID), value.RetentionPolicy(), ret)
 	return wrap("append runtime event", err)
+}
+
+type idempotencyRepository repositories
+
+func (r *idempotencyRepository) Reserve(ctx context.Context, value *idempotency.Record) (*idempotency.Record, bool, error) {
+	if value == nil {
+		return nil, false, errors.New("idempotency record is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return nil, false, err
+	}
+	s := value.Scope()
+	lease, _ := value.LeaseExpiresAt()
+	result, err := r.tx.ExecContext(ctx, `INSERT INTO idempotency_records (tenant_id,idempotency_record_id,principal_digest,action,key_digest,normalization_version,request_digest,operation_id,resource_id,state,owner_id,owner_fence,lease_expires_at,audit_correlation_id,created_at,updated_at,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT (tenant_id,principal_digest,action,key_digest) DO NOTHING`, value.TenantID(), value.ID(), s.PrincipalDigest, s.Action, s.KeyDigest, value.NormalizationVersion(), value.RequestDigest(), value.OperationID(), nullID(value.ResourceID()), value.State(), value.OwnerID(), value.OwnerFence(), lease, value.AuditCorrelationID(), value.CreatedAt(), value.UpdatedAt(), value.ExpiresAt())
+	if err != nil {
+		return nil, false, wrap("reserve idempotency record", err)
+	}
+	created, err := result.RowsAffected()
+	if err != nil {
+		return nil, false, wrap("reserve idempotency record", err)
+	}
+	if created == 1 {
+		return value, true, nil
+	}
+	existing, err := r.get(ctx, s, true)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing.NormalizationVersion() != value.NormalizationVersion() || existing.RequestDigest() != value.RequestDigest() {
+		return nil, false, persistence.ErrRequestDigestMismatch
+	}
+	return existing, false, nil
+}
+
+func (r *idempotencyRepository) Get(ctx context.Context, scope idempotency.Scope) (*idempotency.Record, error) {
+	return r.get(ctx, scope, false)
+}
+
+func (r *idempotencyRepository) get(ctx context.Context, scope idempotency.Scope, lock bool) (*idempotency.Record, error) {
+	query := `SELECT idempotency_record_id,normalization_version,request_digest,operation_id,resource_id,state,owner_id,owner_fence,lease_expires_at,http_status,response_payload,response_reference,problem_type,problem_code,audit_correlation_id,created_at,updated_at,completed_at,expires_at FROM idempotency_records WHERE tenant_id=$1 AND principal_digest=$2 AND action=$3 AND key_digest=$4`
+	if lock {
+		query += ` FOR UPDATE`
+	}
+	var id, operation, owner, audit primitives.ID
+	var resource sql.NullString
+	var state string
+	var fence uint64
+	var normalization, digest string
+	var lease, completed sql.NullTime
+	var status sql.NullInt64
+	var payload []byte
+	var reference, problemType, problemCode sql.NullString
+	var created, updated, expires time.Time
+	err := r.tx.QueryRowContext(ctx, query, r.tenantID, scope.PrincipalDigest, scope.Action, scope.KeyDigest).Scan(&id, &normalization, &digest, &operation, &resource, &state, &owner, &fence, &lease, &status, &payload, &reference, &problemType, &problemCode, &audit, &created, &updated, &completed, &expires)
+	if err != nil {
+		return nil, wrap("get idempotency record", err)
+	}
+	var response *idempotency.Response
+	var failure *idempotency.Failure
+	if state == string(idempotency.Succeeded) {
+		response = &idempotency.Response{HTTPStatus: int(status.Int64), Payload: payload, Reference: reference.String}
+	}
+	if state == string(idempotency.Failed) {
+		failure = &idempotency.Failure{HTTPStatus: int(status.Int64), ProblemType: problemType.String, ProblemCode: problemCode.String}
+	}
+	return idempotency.Restore(r.tenantID, id, scope, normalization, digest, operation, primitives.ID(resource.String), owner, audit, idempotency.State(state), fence, timePtr(lease), response, failure, created, updated, timePtr(completed), expires)
+}
+
+func (r *idempotencyRepository) Update(ctx context.Context, value *idempotency.Record, expectedFence uint64) error {
+	if value == nil {
+		return errors.New("idempotency record is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	var status, payload, reference, problemType, problemCode any
+	if response, ok := value.Response(); ok {
+		status = response.HTTPStatus
+		if response.Payload != nil {
+			payload = response.Payload
+		}
+		reference = nullString(response.Reference)
+	}
+	if failure, ok := value.Failure(); ok {
+		status = failure.HTTPStatus
+		problemType = failure.ProblemType
+		problemCode = failure.ProblemCode
+	}
+	lease, hasLease := value.LeaseExpiresAt()
+	completed, hasCompleted := value.CompletedAt()
+	result, err := r.tx.ExecContext(ctx, `UPDATE idempotency_records SET state=$3,owner_id=$4,owner_fence=$5,lease_expires_at=$6,http_status=$7,response_payload=$8,response_reference=$9,problem_type=$10,problem_code=$11,updated_at=$12,completed_at=$13 WHERE tenant_id=$1 AND idempotency_record_id=$2 AND owner_fence=$14 AND state='IN_PROGRESS'`, r.tenantID, value.ID(), value.State(), value.OwnerID(), value.OwnerFence(), nullableTime(lease, hasLease), status, payload, reference, problemType, problemCode, value.UpdatedAt(), nullableTime(completed, hasCompleted), expectedFence)
+	return affected("update idempotency record", result, err)
+}
+
+func (r *idempotencyRepository) DeleteExpired(ctx context.Context, before time.Time, limit int) (int64, error) {
+	if before.IsZero() || limit < 1 || limit > 1000 {
+		return 0, errors.New("invalid idempotency expiry request")
+	}
+	result, err := r.tx.ExecContext(ctx, `DELETE FROM idempotency_records WHERE (tenant_id,idempotency_record_id) IN (SELECT tenant_id,idempotency_record_id FROM idempotency_records WHERE tenant_id=$1 AND state<>'IN_PROGRESS' AND expires_at<=$2 ORDER BY expires_at,idempotency_record_id LIMIT $3 FOR UPDATE SKIP LOCKED)`, r.tenantID, before.UTC(), limit)
+	if err != nil {
+		return 0, wrap("delete expired idempotency records", err)
+	}
+	return result.RowsAffected()
 }
 
 func wrap(operation string, err error) error {
