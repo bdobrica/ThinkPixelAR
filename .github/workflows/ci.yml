@@ -106,6 +106,9 @@ jobs:
       - name: Test repository tenant isolation on pinned PostgreSQL
         run: make test-db-tenant-isolation
 
+      - name: Test persistence concurrency invariants on pinned PostgreSQL
+        run: make test-db-concurrency
+
       - name: Stop PostgreSQL
         if: always()
         run: docker compose down --volumes

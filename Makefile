@@ -12,7 +12,7 @@ BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
 AGENTD_IMAGE ?= thinkpixel-agentd:development
 
-.PHONY: help deps db-up db-down migrate test-db-migrations test-db-transactions test-db-tenant-isolation generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
+.PHONY: help deps db-up db-down migrate test-db-migrations test-db-transactions test-db-tenant-isolation test-db-concurrency generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -39,6 +39,10 @@ test-db-transactions: db-up ## Test transaction rollback behavior on pinned Post
 test-db-tenant-isolation: db-up ## Test every repository's tenant boundary on pinned PostgreSQL.
 	THINKPIXELAR_DATABASE_URL="$${THINKPIXELAR_TEST_DATABASE_URL:-postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:$${THINKPIXELAR_POSTGRES_PORT:-55432}/thinkpixelar?sslmode=disable}" $(GO) run ./cmd/migrate up
 	THINKPIXELAR_TEST_DATABASE_URL="$${THINKPIXELAR_TEST_DATABASE_URL:-postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:$${THINKPIXELAR_POSTGRES_PORT:-55432}/thinkpixelar?sslmode=disable}" $(GO) test ./internal/adapters/postgres -run '^TestStoreIsolatesEveryRepositoryByTenant$$' -count=1
+
+test-db-concurrency: db-up ## Test persistence concurrency invariants on pinned PostgreSQL.
+	THINKPIXELAR_DATABASE_URL="$${THINKPIXELAR_TEST_DATABASE_URL:-postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:$${THINKPIXELAR_POSTGRES_PORT:-55432}/thinkpixelar?sslmode=disable}" $(GO) run ./cmd/migrate up
+	THINKPIXELAR_TEST_DATABASE_URL="$${THINKPIXELAR_TEST_DATABASE_URL:-postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:$${THINKPIXELAR_POSTGRES_PORT:-55432}/thinkpixelar?sslmode=disable}" $(GO) test ./internal/adapters/postgres -run '^TestStoreConcurrencyInvariants$$' -count=1
 
 generate: ## Regenerate committed artifacts.
 	$(NPM) run openapi:generate
