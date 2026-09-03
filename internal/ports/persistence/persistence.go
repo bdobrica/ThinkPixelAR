@@ -9,6 +9,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
@@ -32,6 +33,7 @@ type Repositories interface {
 	Attempts() AttemptRepository
 	RuntimeEvents() RuntimeEventRepository
 	Idempotency() IdempotencyRepository
+	Outbox() OutboxRepository
 }
 
 type SessionRepository interface {
@@ -62,4 +64,13 @@ type IdempotencyRepository interface {
 	Get(context.Context, idempotency.Scope) (*idempotency.Record, error)
 	Update(context.Context, *idempotency.Record, uint64) error
 	DeleteExpired(context.Context, time.Time, int) (int64, error)
+}
+
+// OutboxRepository persists publication intent in the aggregate transaction
+// and leases available messages to at-least-once dispatchers.
+type OutboxRepository interface {
+	Add(context.Context, *outbox.Message) error
+	Get(context.Context, primitives.ID) (*outbox.Message, error)
+	ClaimAvailable(context.Context, primitives.ID, time.Time, time.Time, int) ([]*outbox.Message, error)
+	Update(context.Context, *outbox.Message, uint64) error
 }

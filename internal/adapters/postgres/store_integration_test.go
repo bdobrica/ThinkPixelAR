@@ -10,6 +10,7 @@ import (
 
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
@@ -199,6 +200,103 @@ func TestIdempotencyRepositoryReservesReplaysCompletesAndExpires(t *testing.T) {
 		return err
 	})
 	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxRepositoryClaimsRetriesAndDeliversWithStableIdentity(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ids := make([]primitives.ID, 7)
+	for i := range ids {
+		ids[i], _ = primitives.NewID(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, ids[0]); err == nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO tenants (tenant_id) VALUES ($1)`, ids[0])
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	digest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	message, err := outbox.New(ids[0], ids[1], outbox.Envelope{Topic: "runtime.events", SchemaVersion: "thinkpixel.runtime-event/v1", EventID: ids[2], AggregateType: "session", AggregateID: ids[3], AggregateVersion: 2, Payload: []byte(`{"type":"session.created"}`), PayloadDigest: digest}, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := postgres.NewStore(db)
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Outbox().Add(ctx, message)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	duplicate, _ := outbox.New(ids[0], ids[6], message.Envelope(), now, now)
+	err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Outbox().Add(ctx, duplicate)
+	})
+	if !errors.Is(err, persistence.ErrConflict) {
+		t.Fatalf("duplicate semantic event error = %v", err)
+	}
+
+	var claimed *outbox.Message
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		got, err := repos.Outbox().ClaimAvailable(ctx, ids[4], now, now.Add(time.Minute), 10)
+		if err != nil {
+			return err
+		}
+		if len(got) != 1 || got[0].ID() != ids[1] || got[0].Envelope().EventID != ids[2] {
+			t.Fatalf("claimed = %#v", got)
+		}
+		claimed = got[0]
+		if err = claimed.Retry(ids[4], 1, now.Add(2*time.Minute), "UPSTREAM_UNAVAILABLE", now.Add(time.Second)); err != nil {
+			return err
+		}
+		return repos.Outbox().Update(ctx, claimed, 1)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		got, err := repos.Outbox().ClaimAvailable(ctx, ids[5], now.Add(2*time.Minute), now.Add(3*time.Minute), 10)
+		if err != nil {
+			return err
+		}
+		if len(got) != 1 || got[0].ClaimFence() != 2 || got[0].Attempts() != 2 {
+			t.Fatalf("reclaimed = %#v", got)
+		}
+		if err = got[0].MarkDelivered(ids[5], 2, now.Add(150*time.Second)); err != nil {
+			return err
+		}
+		return repos.Outbox().Update(ctx, got[0], 2)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		got, err := repos.Outbox().Get(ctx, ids[1])
+		if err != nil {
+			return err
+		}
+		if got.State() != outbox.Delivered || got.ID() != ids[1] || got.Envelope().EventID != ids[2] {
+			t.Fatalf("delivered = %#v", got)
+		}
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 }

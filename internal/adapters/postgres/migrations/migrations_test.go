@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 12 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 13 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -20,7 +20,8 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[8].Version != 9 || got[8].Name != "runtime_bindings" ||
 		got[9].Version != 10 || got[9].Name != "runtime_events" ||
 		got[10].Version != 11 || got[10].Name != "session_recovery_state" ||
-		got[11].Version != 12 || got[11].Name != "idempotency_records" {
+		got[11].Version != 12 || got[11].Name != "idempotency_records" ||
+		got[12].Version != 13 || got[12].Name != "transactional_outbox" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
@@ -99,6 +100,11 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	for _, required := range []string{"CREATE TABLE idempotency_records", "UNIQUE \\(tenant_id, principal_digest, action, key_digest\\)", "request_digest", "response_payload", "expires_at", "idempotency_records_fenced_mutation", "active idempotency lease cannot be taken over", "ENABLE ROW LEVEL SECURITY"} {
 		if !regexp.MustCompile(required).MatchString(got[11].SQL) {
 			t.Errorf("idempotency migration does not contain %q", required)
+		}
+	}
+	for _, required := range []string{"CREATE TABLE outbox_messages", "UNIQUE \\(tenant_id, topic, event_id\\)", "payload_digest", "claim_expires_at", "outbox_messages_available_idx", "FOR EACH ROW EXECUTE FUNCTION enforce_outbox_message_mutation", "active outbox claim cannot be taken over", "dead_letter_reason_code", "ENABLE ROW LEVEL SECURITY"} {
+		if !regexp.MustCompile(required).MatchString(got[12].SQL) {
+			t.Errorf("outbox migration does not contain %q", required)
 		}
 	}
 }

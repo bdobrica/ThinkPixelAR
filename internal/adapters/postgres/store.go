@@ -10,6 +10,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
@@ -68,6 +69,7 @@ func (r *repositories) RuntimeEvents() persistence.RuntimeEventRepository {
 func (r *repositories) Idempotency() persistence.IdempotencyRepository {
 	return (*idempotencyRepository)(r)
 }
+func (r *repositories) Outbox() persistence.OutboxRepository { return (*outboxRepository)(r) }
 func (r *repositories) owns(id primitives.ID) error {
 	if id != r.tenantID {
 		return errors.New("aggregate tenant does not match transaction tenant")
@@ -345,6 +347,102 @@ func (r *idempotencyRepository) DeleteExpired(ctx context.Context, before time.T
 		return 0, wrap("delete expired idempotency records", err)
 	}
 	return result.RowsAffected()
+}
+
+type outboxRepository repositories
+
+func (r *outboxRepository) Add(ctx context.Context, value *outbox.Message) error {
+	if value == nil {
+		return errors.New("outbox message is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	e := value.Envelope()
+	var payload any
+	if len(e.Payload) > 0 {
+		payload = e.Payload
+	}
+	_, err := r.tx.ExecContext(ctx, `INSERT INTO outbox_messages (tenant_id,message_id,topic,schema_version,event_id,aggregate_type,aggregate_id,aggregate_version,payload,payload_reference,payload_digest,state,attempts,claim_fence,available_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, value.TenantID(), value.ID(), e.Topic, e.SchemaVersion, e.EventID, e.AggregateType, e.AggregateID, e.AggregateVersion, payload, nullString(e.PayloadReference), e.PayloadDigest, value.State(), value.Attempts(), value.ClaimFence(), value.AvailableAt(), value.CreatedAt(), value.UpdatedAt())
+	return wrap("insert outbox message", err)
+}
+
+func (r *outboxRepository) Get(ctx context.Context, id primitives.ID) (*outbox.Message, error) {
+	row := r.tx.QueryRowContext(ctx, outboxSelect+` WHERE tenant_id=$1 AND message_id=$2`, r.tenantID, id)
+	return scanOutbox(row, r.tenantID)
+}
+
+func (r *outboxRepository) ClaimAvailable(ctx context.Context, ownerID primitives.ID, now, leaseExpiresAt time.Time, limit int) ([]*outbox.Message, error) {
+	if _, err := primitives.ParseID(string(ownerID)); err != nil || now.IsZero() || !leaseExpiresAt.After(now) || limit < 1 || limit > 100 {
+		return nil, errors.New("invalid outbox claim request")
+	}
+	rows, err := r.tx.QueryContext(ctx, `WITH candidates AS (
+SELECT tenant_id,message_id FROM outbox_messages
+WHERE tenant_id=$1 AND available_at<=$2 AND (state='PENDING' OR (state='CLAIMED' AND claim_expires_at<=$2))
+ORDER BY available_at,message_id LIMIT $3 FOR UPDATE SKIP LOCKED
+), claimed AS (
+UPDATE outbox_messages AS o SET state='CLAIMED',attempts=o.attempts+1,claim_owner_id=$4,claim_fence=o.claim_fence+1,claim_expires_at=$5,updated_at=$2
+FROM candidates AS c WHERE o.tenant_id=c.tenant_id AND o.message_id=c.message_id RETURNING o.*
+)
+SELECT message_id,topic,schema_version,event_id,aggregate_type,aggregate_id,aggregate_version,payload,payload_reference,payload_digest,state,attempts,claim_owner_id,claim_fence,available_at,claim_expires_at,last_error_code,dead_letter_reason_code,dead_letter_detail,created_at,updated_at,delivered_at FROM claimed ORDER BY available_at,message_id`, r.tenantID, now.UTC(), limit, ownerID, leaseExpiresAt.UTC())
+	if err != nil {
+		return nil, wrap("claim outbox messages", err)
+	}
+	defer rows.Close()
+	messages := make([]*outbox.Message, 0, limit)
+	for rows.Next() {
+		message, err := scanOutbox(rows, r.tenantID)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, wrap("claim outbox messages", err)
+	}
+	return messages, nil
+}
+
+func (r *outboxRepository) Update(ctx context.Context, value *outbox.Message, expectedFence uint64) error {
+	if value == nil {
+		return errors.New("outbox message is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	claimExpiry, hasClaim := value.ClaimExpiresAt()
+	delivered, hasDelivered := value.DeliveredAt()
+	var reason, detail any
+	if dead, ok := value.DeadLetterMetadata(); ok {
+		reason, detail = dead.ReasonCode, dead.Detail
+	}
+	result, err := r.tx.ExecContext(ctx, `UPDATE outbox_messages SET state=$3,attempts=$4,claim_owner_id=$5,claim_fence=$6,claim_expires_at=$7,available_at=$8,last_error_code=$9,dead_letter_reason_code=$10,dead_letter_detail=$11,updated_at=$12,delivered_at=$13 WHERE tenant_id=$1 AND message_id=$2 AND state='CLAIMED' AND claim_fence=$14`, r.tenantID, value.ID(), value.State(), value.Attempts(), nullID(value.OwnerID()), value.ClaimFence(), nullableTime(claimExpiry, hasClaim), value.AvailableAt(), nullString(value.LastErrorCode()), reason, detail, value.UpdatedAt(), nullableTime(delivered, hasDelivered), expectedFence)
+	return affected("update outbox message", result, err)
+}
+
+const outboxSelect = `SELECT message_id,topic,schema_version,event_id,aggregate_type,aggregate_id,aggregate_version,payload,payload_reference,payload_digest,state,attempts,claim_owner_id,claim_fence,available_at,claim_expires_at,last_error_code,dead_letter_reason_code,dead_letter_detail,created_at,updated_at,delivered_at FROM outbox_messages`
+
+type rowScanner interface{ Scan(...any) error }
+
+func scanOutbox(row rowScanner, tenantID primitives.ID) (*outbox.Message, error) {
+	var id, eventID, aggregateID primitives.ID
+	var envelope outbox.Envelope
+	var state string
+	var attempts, fence uint64
+	var payload []byte
+	var payloadRef, owner, lastError, reason, detail sql.NullString
+	var available, created, updated time.Time
+	var claimExpiry, delivered sql.NullTime
+	err := row.Scan(&id, &envelope.Topic, &envelope.SchemaVersion, &eventID, &envelope.AggregateType, &aggregateID, &envelope.AggregateVersion, &payload, &payloadRef, &envelope.PayloadDigest, &state, &attempts, &owner, &fence, &available, &claimExpiry, &lastError, &reason, &detail, &created, &updated, &delivered)
+	if err != nil {
+		return nil, wrap("scan outbox message", err)
+	}
+	envelope.EventID, envelope.AggregateID, envelope.Payload, envelope.PayloadReference = eventID, aggregateID, payload, payloadRef.String
+	var dead *outbox.DeadLetter
+	if reason.Valid {
+		dead = &outbox.DeadLetter{ReasonCode: reason.String, Detail: detail.String}
+	}
+	return outbox.Restore(tenantID, id, envelope, outbox.State(state), attempts, fence, primitives.ID(owner.String), available, timePtr(claimExpiry), lastError.String, dead, created, updated, timePtr(delivered))
 }
 
 func wrap(operation string, err error) error {
