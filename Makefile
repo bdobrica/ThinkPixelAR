@@ -12,7 +12,7 @@ BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
 AGENTD_IMAGE ?= thinkpixel-agentd:development
 
-.PHONY: help deps db-up db-down migrate generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
+.PHONY: help deps db-up db-down migrate test-db-migrations generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
 
 help: ## Show the supported developer commands.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,6 +28,9 @@ db-down: ## Stop the local PostgreSQL development service without deleting its v
 
 migrate: ## Run explicit PostgreSQL migrations (ARGS="...").
 	$(GO) run ./cmd/migrate $(ARGS)
+
+test-db-migrations: db-up ## Test the full migration chain from an empty schema on pinned PostgreSQL.
+	THINKPIXELAR_TEST_DATABASE_URL="$${THINKPIXELAR_TEST_DATABASE_URL:-postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:$${THINKPIXELAR_POSTGRES_PORT:-55432}/thinkpixelar?sslmode=disable}" $(GO) test ./internal/adapters/postgres/migrations -run '^TestUpFromEmptyPostgreSQL$$' -count=1
 
 generate: ## Regenerate committed artifacts.
 	$(NPM) run openapi:generate
