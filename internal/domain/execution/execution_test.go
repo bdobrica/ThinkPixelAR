@@ -53,6 +53,83 @@ func TestVersionConflictDoesNotMutate(t *testing.T) {
 	}
 }
 
+func FuzzExecutionTransitionSequences(f *testing.F) {
+	f.Add([]byte{1, 2, 5})
+	f.Add([]byte{3, 7, 2})
+	f.Add([]byte{4, 8, 0})
+
+	f.Fuzz(func(t *testing.T, commands []byte) {
+		e := newExecution(t)
+		for step, command := range commands {
+			before := executionTransitionSnapshotOf(e)
+			next := states[int(command)%len(states)]
+			now := e.UpdatedAt().Add(time.Duration(step+1) * time.Nanosecond)
+			wantLegal := executionTransitionAllowed(before.state, next)
+			var result *TerminalResult
+			if isTerminal(next) {
+				value := validResultValue()
+				result = &value
+			}
+
+			err := e.Transition(next, before.version, result, now)
+			if !wantLegal {
+				if !errors.Is(err, ErrIllegalTransition) {
+					t.Fatalf("step %d: %s -> %s error = %v", step, before.state, next, err)
+				}
+				if got := executionTransitionSnapshotOf(e); got != before {
+					t.Fatalf("step %d: illegal transition mutated aggregate: before=%+v after=%+v", step, before, got)
+				}
+				continue
+			}
+			if err != nil {
+				t.Fatalf("step %d: legal %s -> %s transition: %v", step, before.state, next, err)
+			}
+			wantVersion := before.version + 1
+			if next == before.state {
+				wantVersion = before.version
+			}
+			if e.StateVersion() != wantVersion {
+				t.Fatalf("step %d: state version = %d, want %d", step, e.StateVersion(), wantVersion)
+			}
+			if isTerminal(before.state) && e.State() != before.state {
+				t.Fatalf("step %d: terminal execution changed from %s to %s", step, before.state, e.State())
+			}
+		}
+	})
+}
+
+type executionTransitionSnapshot struct {
+	state       State
+	version     uint64
+	updatedAt   time.Time
+	result      TerminalResult
+	hasResult   bool
+	terminalAt  time.Time
+	hasTerminal bool
+}
+
+func executionTransitionSnapshotOf(e *Execution) executionTransitionSnapshot {
+	result, hasResult := e.TerminalResult()
+	terminalAt, hasTerminal := e.TerminalAt()
+	return executionTransitionSnapshot{
+		state: e.State(), version: e.StateVersion(), updatedAt: e.UpdatedAt(),
+		result: result, hasResult: hasResult, terminalAt: terminalAt, hasTerminal: hasTerminal,
+	}
+}
+
+func executionTransitionAllowed(from, to State) bool {
+	if from == to {
+		return isTerminal(from)
+	}
+	return map[State]map[State]bool{
+		Queued:        {Materializing: true, Cancelling: true, TimingOut: true, Failed: true},
+		Materializing: {Running: true, Cancelling: true, TimingOut: true, Failed: true},
+		Running:       {Materializing: true, Cancelling: true, TimingOut: true, Succeeded: true, Failed: true},
+		Cancelling:    {Cancelled: true, Failed: true},
+		TimingOut:     {TimedOut: true, Failed: true},
+	}[from][to]
+}
+
 func TestTerminalResultRequiredAndImmutable(t *testing.T) {
 	e := executionInState(t, Running)
 	if err := e.Transition(Succeeded, e.StateVersion(), nil, e.UpdatedAt().Add(time.Minute)); !errors.Is(err, ErrInvalidExecution) {

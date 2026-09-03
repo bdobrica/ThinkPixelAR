@@ -83,6 +83,93 @@ func TestExecutionGenerationExhaustionFailsClosed(t *testing.T) {
 	}
 }
 
+func FuzzSessionTransitionSequences(f *testing.F) {
+	f.Add([]byte{1, 2, 3, 2, 3})
+	f.Add([]byte{1, 5, 1, 6, 7})
+	f.Add([]byte{6, 7, 0, 2})
+
+	f.Fuzz(func(t *testing.T, commands []byte) {
+		s := sessionInState(t, Provisioning)
+		for step, command := range commands {
+			before := sessionTransitionSnapshotOf(s)
+			next := states[int(command)%len(states)]
+			now := s.UpdatedAt().Add(time.Duration(step+1) * time.Nanosecond)
+			wantLegal := sessionTransitionAllowed(before.state, before.recoveryState, next)
+
+			err := s.Transition(next, before.version, now)
+			if !wantLegal {
+				if !errors.Is(err, ErrIllegalTransition) {
+					t.Fatalf("step %d: %s -> %s error = %v", step, before.state, next, err)
+				}
+				if got := sessionTransitionSnapshotOf(s); got != before {
+					t.Fatalf("step %d: illegal transition mutated aggregate: before=%+v after=%+v", step, before, got)
+				}
+				continue
+			}
+			if err != nil {
+				t.Fatalf("step %d: legal %s -> %s transition: %v", step, before.state, next, err)
+			}
+
+			idempotent := next == before.state
+			wantVersion := before.version + 1
+			if idempotent {
+				wantVersion = before.version
+			}
+			if s.StateVersion() != wantVersion {
+				t.Fatalf("step %d: state version = %d, want %d", step, s.StateVersion(), wantVersion)
+			}
+			wantGeneration := before.generation
+			if (before.state == Ready || before.state == Idle) && next == Active {
+				wantGeneration++
+			}
+			if s.ExecutionGeneration() != wantGeneration {
+				t.Fatalf("step %d: execution generation = %d, want %d", step, s.ExecutionGeneration(), wantGeneration)
+			}
+			if before.state == Closed && s.State() != Closed {
+				t.Fatalf("step %d: CLOSED regained authority as %s", step, s.State())
+			}
+		}
+	})
+}
+
+type sessionTransitionSnapshot struct {
+	state         State
+	recoveryState State
+	version       uint64
+	generation    uint64
+	updatedAt     time.Time
+	closedAt      time.Time
+	hasClosedAt   bool
+}
+
+func sessionTransitionSnapshotOf(s *Session) sessionTransitionSnapshot {
+	closedAt, hasClosedAt := s.ClosedAt()
+	return sessionTransitionSnapshot{
+		state: s.State(), recoveryState: s.RecoveryState(), version: s.StateVersion(),
+		generation: s.ExecutionGeneration(), updatedAt: s.UpdatedAt(), closedAt: closedAt, hasClosedAt: hasClosedAt,
+	}
+}
+
+func sessionTransitionAllowed(from, recoveryState, to State) bool {
+	if from == to {
+		return from == Closing || from == Closed
+	}
+	if from != Closed && to == Closing {
+		return true
+	}
+	if from == Degraded {
+		return to == recoveryState
+	}
+	return map[State]map[State]bool{
+		Provisioning: {Ready: true, Degraded: true},
+		Ready:        {Active: true, Suspended: true, Degraded: true},
+		Active:       {Idle: true, Degraded: true},
+		Idle:         {Active: true, Suspended: true, Degraded: true},
+		Suspended:    {Ready: true, Idle: true, Degraded: true},
+		Closing:      {Closed: true},
+	}[from][to]
+}
+
 func TestDegradedRecoveryReturnsOnlyToRecordedSafeState(t *testing.T) {
 	for _, prior := range []State{Provisioning, Ready, Active, Idle, Suspended} {
 		t.Run(string(prior), func(t *testing.T) {

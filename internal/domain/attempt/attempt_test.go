@@ -119,6 +119,87 @@ func TestVersionConflictAndCreationValidation(t *testing.T) {
 	}
 }
 
+func FuzzAttemptTransitionSequences(f *testing.F) {
+	f.Add([]byte{1, 2, 3, 5})
+	f.Add([]byte{4, 7, 3})
+	f.Add([]byte{1, 4, 9, 0})
+
+	f.Fuzz(func(t *testing.T, commands []byte) {
+		a := newAttempt(t)
+		for step, command := range commands {
+			before := attemptTransitionSnapshotOf(a)
+			next := states[int(command)%len(states)]
+			now := a.UpdatedAt().Add(time.Duration(step+1) * time.Nanosecond)
+			wantLegal := attemptTransitionAllowed(before.state, next)
+			var result *TerminalResult
+			if isTerminal(next) {
+				value := validResultValue()
+				result = &value
+			}
+
+			err := a.Transition(next, before.version, result, now)
+			if !wantLegal {
+				if !errors.Is(err, ErrIllegalTransition) {
+					t.Fatalf("step %d: %s -> %s error = %v", step, before.state, next, err)
+				}
+				if got := attemptTransitionSnapshotOf(a); got != before {
+					t.Fatalf("step %d: illegal transition mutated aggregate: before=%+v after=%+v", step, before, got)
+				}
+				continue
+			}
+			if err != nil {
+				t.Fatalf("step %d: legal %s -> %s transition: %v", step, before.state, next, err)
+			}
+			wantVersion := before.version + 1
+			if next == before.state {
+				wantVersion = before.version
+			}
+			if a.StateVersion() != wantVersion {
+				t.Fatalf("step %d: state version = %d, want %d", step, a.StateVersion(), wantVersion)
+			}
+			if isTerminal(a.State()) && a.IsCurrent() {
+				t.Fatalf("step %d: terminal attempt %s remained current", step, a.State())
+			}
+			if isTerminal(before.state) && a.State() != before.state {
+				t.Fatalf("step %d: terminal attempt changed from %s to %s", step, before.state, a.State())
+			}
+		}
+	})
+}
+
+type attemptTransitionSnapshot struct {
+	state       State
+	version     uint64
+	current     bool
+	updatedAt   time.Time
+	result      TerminalResult
+	hasResult   bool
+	terminalAt  time.Time
+	hasTerminal bool
+}
+
+func attemptTransitionSnapshotOf(a *Attempt) attemptTransitionSnapshot {
+	result, hasResult := a.TerminalResult()
+	terminalAt, hasTerminal := a.TerminalAt()
+	return attemptTransitionSnapshot{
+		state: a.State(), version: a.StateVersion(), current: a.IsCurrent(), updatedAt: a.UpdatedAt(),
+		result: result, hasResult: hasResult, terminalAt: terminalAt, hasTerminal: hasTerminal,
+	}
+}
+
+func attemptTransitionAllowed(from, to State) bool {
+	if from == to {
+		return isTerminal(from)
+	}
+	return map[State]map[State]bool{
+		Pending:      {Acquiring: true, Failed: true, Interrupting: true},
+		Acquiring:    {Starting: true, Failed: true, Interrupting: true},
+		Starting:     {Running: true, Failed: true, Interrupting: true},
+		Running:      {Succeeded: true, Failed: true, Interrupting: true},
+		Interrupting: {Cancelled: true, TimedOut: true, Replaced: true, Failed: true},
+	}[from][to]
+}
+
 func attemptInState(t *testing.T, state State) *Attempt {
 	t.Helper()
 	a := newAttempt(t)
