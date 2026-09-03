@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/cleanup"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
@@ -36,6 +37,16 @@ type Repositories interface {
 	Idempotency() IdempotencyRepository
 	Outbox() OutboxRepository
 	Reconciliation() ReconciliationRepository
+	Cleanup() CleanupRepository
+}
+
+// CleanupRepository persists exact external targets and credential-free
+// tombstones. Worker coordination is provided separately by Reconciliation.
+type CleanupRepository interface {
+	Add(context.Context, *cleanup.Intent) error
+	Get(context.Context, primitives.ID) (*cleanup.Intent, error)
+	ListDue(context.Context, time.Time, int) ([]*cleanup.Intent, error)
+	Update(context.Context, *cleanup.Intent, uint64) error
 }
 
 // ReconciliationRepository leases restart-safe work to stateless reconcilers.

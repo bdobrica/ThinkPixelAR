@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/attempt"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/cleanup"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
@@ -74,6 +75,7 @@ func (r *repositories) Outbox() persistence.OutboxRepository { return (*outboxRe
 func (r *repositories) Reconciliation() persistence.ReconciliationRepository {
 	return (*reconciliationRepository)(r)
 }
+func (r *repositories) Cleanup() persistence.CleanupRepository { return (*cleanupRepository)(r) }
 func (r *repositories) owns(id primitives.ID) error {
 	if id != r.tenantID {
 		return errors.New("aggregate tenant does not match transaction tenant")
@@ -524,6 +526,77 @@ func scanReconciliation(row rowScanner, tenantID primitives.ID) (*reconciliation
 		return nil, wrap("scan reconciliation work", err)
 	}
 	return reconciliation.Restore(tenantID, id, kind, targetType, targetID, reconciliation.State(state), attempts, fence, primitives.ID(owner.String), next, timePtr(claim), lastError.String, created, updated, timePtr(completed))
+}
+
+type cleanupRepository repositories
+
+func (r *cleanupRepository) Add(ctx context.Context, value *cleanup.Intent) error {
+	if value == nil {
+		return errors.New("cleanup intent is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	t := value.Target()
+	_, err := r.tx.ExecContext(ctx, `INSERT INTO cleanup_intents (tenant_id,cleanup_intent_id,owner_type,owner_id,target_type,provider_kind,external_reference,cleanup_operation_id,request_digest,ownership_proof_digest,is_orphan,state,state_version,attempts,next_attempt_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, value.TenantID(), value.ID(), t.OwnerType, t.OwnerID, t.TargetType, t.ProviderKind, t.ExternalReference, t.OperationID, t.RequestDigest, t.OwnershipProofDigest, t.Orphan, value.State(), value.Version(), value.Attempts(), value.NextAttemptAt(), value.CreatedAt(), value.UpdatedAt())
+	return wrap("insert cleanup intent", err)
+}
+
+func (r *cleanupRepository) Get(ctx context.Context, id primitives.ID) (*cleanup.Intent, error) {
+	return scanCleanup(r.tx.QueryRowContext(ctx, cleanupSelect+` WHERE tenant_id=$1 AND cleanup_intent_id=$2`, r.tenantID, id), r.tenantID)
+}
+
+func (r *cleanupRepository) ListDue(ctx context.Context, now time.Time, limit int) ([]*cleanup.Intent, error) {
+	if now.IsZero() || limit < 1 || limit > 100 {
+		return nil, errors.New("invalid cleanup query")
+	}
+	rows, err := r.tx.QueryContext(ctx, cleanupSelect+` WHERE tenant_id=$1 AND state='PENDING' AND next_attempt_at<=$2 ORDER BY next_attempt_at,cleanup_intent_id LIMIT $3`, r.tenantID, now.UTC(), limit)
+	if err != nil {
+		return nil, wrap("list due cleanup intents", err)
+	}
+	defer rows.Close()
+	result := make([]*cleanup.Intent, 0, limit)
+	for rows.Next() {
+		value, scanErr := scanCleanup(rows, r.tenantID)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, value)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, wrap("list due cleanup intents", err)
+	}
+	return result, nil
+}
+
+func (r *cleanupRepository) Update(ctx context.Context, value *cleanup.Intent, expectedVersion uint64) error {
+	if value == nil {
+		return errors.New("cleanup intent is required")
+	}
+	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	confirmed, hasConfirmed := value.ConfirmedAt()
+	quarantined, hasQuarantined := value.QuarantinedAt()
+	result, err := r.tx.ExecContext(ctx, `UPDATE cleanup_intents SET state=$3,state_version=$4,attempts=$5,next_attempt_at=$6,last_error_code=$7,updated_at=$8,confirmed_at=$9,quarantined_at=$10 WHERE tenant_id=$1 AND cleanup_intent_id=$2 AND state='PENDING' AND state_version=$11`, r.tenantID, value.ID(), value.State(), value.Version(), value.Attempts(), value.NextAttemptAt(), nullString(value.LastErrorCode()), value.UpdatedAt(), nullableTime(confirmed, hasConfirmed), nullableTime(quarantined, hasQuarantined), expectedVersion)
+	return affected("update cleanup intent", result, err)
+}
+
+const cleanupSelect = `SELECT cleanup_intent_id,owner_type,owner_id,target_type,provider_kind,external_reference,cleanup_operation_id,request_digest,ownership_proof_digest,is_orphan,state,state_version,attempts,next_attempt_at,last_error_code,created_at,updated_at,confirmed_at,quarantined_at FROM cleanup_intents`
+
+func scanCleanup(row rowScanner, tenantID primitives.ID) (*cleanup.Intent, error) {
+	var id, ownerID, operationID primitives.ID
+	var target cleanup.Target
+	var state string
+	var version, attempts uint64
+	var next, created, updated time.Time
+	var lastError sql.NullString
+	var confirmed, quarantined sql.NullTime
+	if err := row.Scan(&id, &target.OwnerType, &ownerID, &target.TargetType, &target.ProviderKind, &target.ExternalReference, &operationID, &target.RequestDigest, &target.OwnershipProofDigest, &target.Orphan, &state, &version, &attempts, &next, &lastError, &created, &updated, &confirmed, &quarantined); err != nil {
+		return nil, wrap("scan cleanup intent", err)
+	}
+	target.OwnerID, target.OperationID = ownerID, operationID
+	return cleanup.Restore(tenantID, id, target, cleanup.State(state), version, attempts, next, lastError.String, created, updated, timePtr(confirmed), timePtr(quarantined))
 }
 
 func wrap(operation string, err error) error {

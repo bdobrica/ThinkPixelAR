@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/cleanup"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/idempotency"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/outbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/reconciliation"
@@ -18,6 +19,89 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+func TestCleanupRepositoryRetainsExactRetryableTombstone(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ids := make([]primitives.ID, 4)
+	for i := range ids {
+		ids[i], _ = primitives.NewID(now.Add(time.Duration(i) * time.Millisecond))
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.ExecContext(ctx, `SELECT set_config('thinkpixelar.tenant_id',$1,true)`, ids[0]); err == nil {
+		_, err = tx.ExecContext(ctx, `INSERT INTO tenants (tenant_id) VALUES ($1)`, ids[0])
+	}
+	if err != nil {
+		_ = tx.Rollback()
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	target := cleanup.Target{OwnerType: "sandbox-binding", OwnerID: ids[2], TargetType: "sandbox", ProviderKind: "agentsandbox", ExternalReference: "clusters/a/sandboxes/exact", OperationID: ids[3], RequestDigest: testDigest('a'), OwnershipProofDigest: testDigest('b'), Orphan: true}
+	intent, err := cleanup.New(ids[0], ids[1], target, now, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := postgres.NewStore(db)
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Cleanup().Add(ctx, intent)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = intent.Retry(0, now.Add(time.Minute), "TIMEOUT", now.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Cleanup().Update(ctx, intent, 0)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = intent.Confirm(1, now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		return repos.Cleanup().Update(ctx, intent, 1)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.WithinTransaction(ctx, ids[0], func(ctx context.Context, repos persistence.Repositories) error {
+		got, err := repos.Cleanup().Get(ctx, ids[1])
+		if err != nil {
+			return err
+		}
+		if got.State() != cleanup.Confirmed || got.Target() != target || got.Attempts() != 2 {
+			t.Fatalf("tombstone = %#v", got)
+		}
+		due, err := repos.Cleanup().ListDue(ctx, now.Add(time.Hour), 10)
+		if err == nil && len(due) != 0 {
+			t.Fatalf("terminal intent listed: %#v", due)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testDigest(c byte) string {
+	b := make([]byte, 64)
+	for i := range b {
+		b[i] = c
+	}
+	return "sha256:" + string(b)
+}
 
 func TestStoreCommitsAndRollsBackTenantScopedRepositories(t *testing.T) {
 	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
