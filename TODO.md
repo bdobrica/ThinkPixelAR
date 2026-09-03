@@ -107,7 +107,7 @@ Completion metadata format:
 - [x] DB-019 Add tenant-isolation integration tests for every repository. — completed 2026-09-03, evidence: real PostgreSQL tests use colliding identifiers and idempotency scopes across two tenants; verify tenant-scoped reads, event visibility, worker claims/lists, and write ownership rejection for every repository; dedicated local/CI target
 - [x] DB-020 Add concurrency tests for active Execution uniqueness, Attempt fencing, event sequence allocation, idempotency races, and reconciliation claims. — completed 2026-09-03, evidence: real PostgreSQL contention tests prove one mutable Execution per Session, optimistic Attempt update fencing, serialized per-Session event sequences, one idempotency winner with stable replay identity, and exclusive reconciliation claims; dedicated local/CI target; repeated race-detector run
 - [x] DB-021 Add property/fuzz tests for legal Session/Execution/Attempt transitions. — completed 2026-09-03, evidence: generated lifecycle command sequences independently model legal edges and prove illegal-transition atomicity, monotonic state versions and Session execution generations, immutable terminal Executions, and terminal Attempt fencing/current-designation removal
-- [ ] DB-022 Verify restart/replay behavior for outbox and reconciliation work.
+- [x] DB-022 Verify restart/replay behavior for outbox and reconciliation work. — completed 2026-09-03, evidence: real PostgreSQL connection/store restart proves active leases remain exclusive, expired outbox and reconciliation claims replay with stable identities and monotonic fences, and terminal work is not replayed; dedicated local/CI target
 - [ ] DB-023 Commit Phase 2 with schema/domain evidence.
 
 ---

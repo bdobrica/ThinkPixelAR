@@ -109,6 +109,9 @@ jobs:
       - name: Test persistence concurrency invariants on pinned PostgreSQL
         run: make test-db-concurrency
 
+      - name: Test restart-safe persistence replay on pinned PostgreSQL
+        run: make test-db-restart-replay
+
       - name: Stop PostgreSQL
         if: always()
         run: docker compose down --volumes
