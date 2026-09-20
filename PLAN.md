@@ -1579,7 +1579,8 @@ Implement:
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
 - Runtime Profile implementation-reference resolution and mapping;
-- Sandbox status/suspend/resume/release;
+- Sandbox suspend/resume/release;
+- concrete effective-state verifier for secure readiness;
 - production binding storage and blueprint resolver wiring for Acquire;
 - Workspace attachment seam;
 - restricted security configuration;

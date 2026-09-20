@@ -117,8 +117,8 @@ Completion metadata format:
 - [x] KAS-001 Implement Kubernetes client/configuration port with in-cluster and development kubeconfig modes and bounded API timeouts. — completed 2026-09-20, commit `d6442fc`, evidence: `make verify`; [client evidence](docs/evidence/kas-001-client.md).
 - [x] KAS-002 Add Kubernetes Agent Sandbox API dependency at the exact Phase 0 pin without exposing its types outside the adapter. — completed 2026-09-20, commit `26cf754`, evidence: `make verify`; [API evidence](docs/evidence/kas-002-api.md); ADR-0006 resolves the superseded candidate.
 - [x] KAS-003 Implement Runtime Profile configuration loader and validation. — completed 2026-09-20, commit `696a3c5`, evidence: `make verify`; [profile evidence](docs/evidence/kas-003-profiles.md).
-- [x] KAS-004 Implement `KubernetesAgentSandboxProvider.Acquire`. — completed 2026-09-20, commit: this KAS-004 commit, evidence: `make verify`; [acquire evidence](docs/evidence/kas-004-acquire.md).
-- [ ] KAS-005 Implement provider status translation from Kubernetes Agent Sandbox state to AR-neutral Sandbox status.
+- [x] KAS-004 Implement `KubernetesAgentSandboxProvider.Acquire`. — completed 2026-09-20, commit `2820dbe`, evidence: `make verify`; [acquire evidence](docs/evidence/kas-004-acquire.md).
+- [x] KAS-005 Implement provider status translation from Kubernetes Agent Sandbox state to AR-neutral Sandbox status. — completed 2026-09-20, commit: this KAS-005 commit, evidence: `make verify`; [status evidence](docs/evidence/kas-005-status.md).
 - [ ] KAS-006 Implement provider release/delete with idempotent semantics.
 - [ ] KAS-007 Implement provider suspend operation using supported upstream semantics.
 - [ ] KAS-008 Implement provider resume operation using supported upstream semantics.

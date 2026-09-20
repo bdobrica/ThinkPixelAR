@@ -85,6 +85,8 @@ func testBlueprint(_ context.Context, r sandbox.AcquireRequest) (core.SandboxBlu
 type testAPI struct {
 	mu           sync.Mutex
 	object       map[string]any
+	pod          map[string]any
+	unavailable  bool
 	creates      int
 	loseResponse bool
 }
@@ -94,6 +96,20 @@ func (a *testAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "GET" {
+		if a.unavailable {
+			w.WriteHeader(503)
+			_, _ = w.Write([]byte(`{"kind":"Status","apiVersion":"v1","reason":"ServiceUnavailable","code":503}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/pods/") {
+			if a.pod == nil {
+				w.WriteHeader(404)
+				_, _ = w.Write([]byte(`{"kind":"Status","apiVersion":"v1","reason":"NotFound","code":404}`))
+				return
+			}
+			_ = json.NewEncoder(w).Encode(a.pod)
+			return
+		}
 		if a.object == nil {
 			w.WriteHeader(404)
 			_, _ = w.Write([]byte(`{"kind":"Status","apiVersion":"v1","reason":"NotFound","code":404}`))

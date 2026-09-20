@@ -33,13 +33,18 @@ type KubernetesAgentSandboxProvider struct {
 	resolve   BlueprintResolver
 	namespace string
 	now       func() time.Time
+	verify    EffectiveVerifier
 }
 
-func New(client dynamic.Interface, bindings sandbox.BindingStore, namespace string, resolve BlueprintResolver) (*KubernetesAgentSandboxProvider, error) {
+func New(client dynamic.Interface, bindings sandbox.BindingStore, namespace string, resolve BlueprintResolver, options ...Option) (*KubernetesAgentSandboxProvider, error) {
 	if client == nil || bindings == nil || resolve == nil || !regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`).MatchString(namespace) {
 		return nil, sandbox.ErrInvalid
 	}
-	return &KubernetesAgentSandboxProvider{client: client, bindings: bindings, namespace: namespace, resolve: resolve, now: time.Now}, nil
+	p := &KubernetesAgentSandboxProvider{client: client, bindings: bindings, namespace: namespace, resolve: resolve, now: time.Now}
+	for _, option := range options {
+		option(p)
+	}
+	return p, nil
 }
 
 // RequestDigest hashes the complete normalized request, excluding only its

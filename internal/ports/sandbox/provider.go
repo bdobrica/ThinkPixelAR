@@ -96,3 +96,20 @@ type BindingStore interface {
 	Get(context.Context, primitives.ID, primitives.ID) (Binding, error)
 	BindReference(context.Context, primitives.ID, primitives.ID, string) error
 }
+
+type EffectiveFacts struct {
+	IsolationClass      string
+	Image               string
+	Architecture        string
+	ResourceDigest      string
+	NetworkClass        string
+	AttachmentReference string
+	Verified            bool
+}
+type Status struct {
+	Handle             Handle
+	State              State
+	Reason             string
+	ProviderGeneration string
+	Effective          EffectiveFacts
+}
