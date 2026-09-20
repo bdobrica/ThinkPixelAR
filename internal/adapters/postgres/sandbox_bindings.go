@@ -164,7 +164,7 @@ func (s *SandboxBindings) Reserve(ctx context.Context, r sandbox.AcquireRequest)
 				}
 			}
 			result = previous
-			return nil
+			return queueCompute(ctx, tx, r.Scope.TenantID, r.Scope.SandboxID)
 		}
 		if !errors.Is(e, sql.ErrNoRows) {
 			return e
@@ -180,6 +180,7 @@ func (s *SandboxBindings) Reserve(ctx context.Context, r sandbox.AcquireRequest)
 		_, e = tx.ExecContext(ctx, `UPDATE attempts SET sandbox_binding_reference=$3,state_version=state_version+1,updated_at=CURRENT_TIMESTAMP WHERE tenant_id=$1 AND attempt_id=$2`, r.Scope.TenantID, r.Scope.AttemptID, r.Scope.SandboxID)
 		if e == nil {
 			result = sandbox.Binding{Request: r}
+			return queueCompute(ctx, tx, r.Scope.TenantID, r.Scope.SandboxID)
 		}
 		return e
 	})
@@ -254,6 +255,9 @@ func (s *SandboxBindings) BeginOperation(ctx context.Context, tenant, id primiti
 			if previousID != string(id) || previousKind != kind || previousDigest != op.Digest || previousRevision != revision {
 				return sandbox.ErrConflict
 			}
+			if kind == "release" {
+				return queueCompute(ctx, tx, tenant, id)
+			}
 			return nil
 		}
 		if !errors.Is(e, sql.ErrNoRows) {
@@ -279,6 +283,9 @@ func (s *SandboxBindings) BeginOperation(ctx context.Context, tenant, id primiti
 		}
 		// kind is a closed vocabulary above, never caller-controlled SQL syntax.
 		_, e = tx.ExecContext(ctx, `UPDATE sandbox_bindings SET `+kind+`_operation_id=COALESCE(`+kind+`_operation_id,$3::uuid),`+kind+`_request_digest=COALESCE(`+kind+`_request_digest,$4),state_version=state_version+1,updated_at=CURRENT_TIMESTAMP WHERE tenant_id=$1 AND sandbox_binding_id=$2`, tenant, id, op.ID, op.Digest)
+		if e == nil && kind == "release" {
+			return queueCompute(ctx, tx, tenant, id)
+		}
 		return e
 	})
 	return revision, err

@@ -88,7 +88,7 @@ func (c *Compute) running(ctx context.Context, intent sandbox.ComputeIntent) san
 		if !status.Effective.Verified {
 			return recovery("EFFECTIVE_STATE_UNVERIFIED")
 		}
-		return sandbox.ComputeObservation{State: sandbox.Ready, Code: "COMPUTE_READY", Converged: true}
+		return sandbox.ComputeObservation{State: sandbox.Ready, Code: "COMPUTE_READY", Converged: true, Effective: status.Effective}
 	case sandbox.Requested, sandbox.Provisioning, sandbox.Resuming:
 		return sandbox.ComputeObservation{State: status.State, Code: "COMPUTE_PENDING"}
 	case sandbox.Unknown:

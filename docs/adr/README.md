@@ -31,3 +31,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0014: Homelab-first release candidate](0014-homelab-first-release-candidate.md) — Accepted
 - [ADR-0015: Sandbox network enforcement](0015-sandbox-network-enforcement.md) — Accepted
 - [ADR-0016: Compute reconciliation](0016-compute-reconciliation.md) — Accepted
+- [ADR-0017: Durable compute monitoring](0017-durable-compute-monitoring.md) — Accepted

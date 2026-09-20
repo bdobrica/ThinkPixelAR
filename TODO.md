@@ -131,8 +131,8 @@ Completion metadata format:
 - [x] KAS-013A Add explicit homelab RC profiles and document future production infrastructure without making it an RC blocker. — completed 2026-09-20, commit `5adc795`; ADR-0014; profile schema/race tests and `make verify`; live limits remain KAS-022.
 - [x] KAS-014 Add NetworkPolicy/egress enforcement hooks for Runtime Profile network classes. — completed 2026-09-20, commit `ac13a0a`; [network hook evidence](docs/evidence/kas-014-network-hooks.md); focused race tests and `make verify`.
 - [x] KAS-015 Add metadata-service and Kubernetes API denial tests for the secure coding profile. — completed 2026-09-20, commit `7d95985`; [live ARM64 evidence](docs/evidence/kas-015-network-denial.md); positive controls, host metadata packet-rejection counter, focused race tests and `make verify`.
-- [x] KAS-016 Implement AR reconciler for desired Session/Execution state against actual Sandbox state. — completed 2026-09-20, commit: this KAS-016 commit; [reconciler evidence](docs/evidence/kas-016-reconciler.md); ADR-0016; focused race tests and `make verify`.
-- [ ] KAS-017 Make sandbox acquisition/release reconciliation restart-safe and idempotent.
+- [x] KAS-016 Implement AR reconciler for desired Session/Execution state against actual Sandbox state. — completed 2026-09-20, commit `bfedb75`; [reconciler evidence](docs/evidence/kas-016-reconciler.md); ADR-0016; focused race tests and `make verify`.
+- [x] KAS-017 Make sandbox acquisition/release reconciliation restart-safe and idempotent. — completed 2026-09-20, commit: this KAS-017 commit; [real PostgreSQL evidence](docs/evidence/kas-017-durable-reconciliation.md); ADR-0017; focused database/race tests and `make verify`.
 - [ ] KAS-018 Detect orphaned/missing Sandboxes and create explicit recovery work rather than silently marking Sessions terminal.
 - [ ] KAS-019 Add disposable-cluster integration suite for acquire/readiness/release/recreate.
 - [ ] KAS-020 Add suspend/resume integration tests where supported by the pinned upstream release.

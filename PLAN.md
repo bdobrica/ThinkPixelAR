@@ -745,8 +745,9 @@ AR additionally uses its own Session/Execution generation checks to prevent stal
 ### 4.30 Reconciliation model
 
 The implemented compute reconciliation boundary is recorded in
-[ADR-0016](docs/adr/0016-compute-reconciliation.md). Durable worker scheduling and
-recovery effects follow in KAS-017/018; harness and Session restore orchestration
+[ADR-0016](docs/adr/0016-compute-reconciliation.md). Durable compute monitoring is recorded
+in [ADR-0017](docs/adr/0017-durable-compute-monitoring.md). Recovery effects follow
+in KAS-018; harness and Session restore orchestration
 remain in their later phases.
 
 ### 4.31 Temporal decision
@@ -1560,7 +1561,7 @@ Implement:
 - concrete qualification of Runtime Profile implementation references;
 - concrete infrastructure proof adapters behind the effective-state security gate;
 - service composition using durable provider, Workspace and bootstrap services;
-- durable reconciliation worker scheduling and recovery effects.
+- durable recovery effects for missing/orphaned compute.
 
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 

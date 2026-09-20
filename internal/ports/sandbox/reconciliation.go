@@ -39,6 +39,7 @@ type ComputeObservation struct {
 	Code             string
 	Converged        bool
 	RecoveryRequired bool
+	Effective        EffectiveFacts
 }
 
 // ComputeStore revalidates the complete aggregate/operation fence when recording
