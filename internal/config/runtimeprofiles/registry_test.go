@@ -103,7 +103,7 @@ func TestCrossFieldConstraintsAndParsing(t *testing.T) {
 		{"security.runtime_sockets", true}, {"security.linux_capabilities_add", []string{"SYS_ADMIN"}},
 		{"network.default_deny_ingress", false}, {"network.default_deny_egress", false},
 		{"network.deny_cloud_metadata", false}, {"network.deny_kubernetes_api", false},
-		{"network.profile", "unrestricted-standalone"}, {"network.profile", "none"},
+		{"network.profile", "unrestricted-standalone"},
 		{"schema_version", 2}, {"resources.max_processes", 0}, {"platform.architectures", []string{"bogus"}},
 	}
 	for _, tc := range cases {
@@ -171,4 +171,12 @@ func TestAtomicReloadCanonicalDigestAndCopies(t *testing.T) {
 		}
 	}
 	wg.Wait()
+}
+
+func TestOfflineProfileRetainsMandatoryPlatformDNS(t *testing.T) {
+	r := registry(t)
+	raw := mutate(t, fixture(t), []string{"network", "profile"}, "none", false)
+	if err := r.Reload([][]byte{raw}, accepted); err != nil {
+		t.Fatal(err)
+	}
 }

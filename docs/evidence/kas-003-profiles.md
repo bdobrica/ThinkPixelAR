@@ -21,3 +21,12 @@ not grant Execution authority or qualify a named runtime.
 
 `make verify` passed the full source gate, including static analysis, race tests,
 vulnerability/license checks, builds and OpenAPI drift validation.
+
+## Contract correction — 2026-09-20
+
+The `none` network class still permits mandatory platform control, including
+required trusted DNS. Removed a cross-field check that incorrectly required
+DNS to be disabled. A regression test loads the offline profile with trusted
+DNS; focused race tests and `make verify` pass. This follows the existing
+[network contract](../contracts/network-profiles.md), without widening workload
+egress.

@@ -1562,7 +1562,8 @@ Implement:
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
 - Runtime Profile implementation-reference resolution and mapping;
-- concrete effective-state verifier for secure readiness;
+- concrete effective-state verifier for secure readiness (including mandatory
+  platform control for the `none` network class);
 - production binding storage and blueprint resolver wiring for Acquire;
 - Workspace attachment seam;
 - restricted security configuration;

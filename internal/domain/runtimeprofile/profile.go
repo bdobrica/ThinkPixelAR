@@ -102,8 +102,5 @@ func (p Profile) ValidateConstraints() error {
 			return ErrInvalidProfile
 		}
 	}
-	if p.Network.Profile == "none" && p.Network.DNSPolicy != "disabled" {
-		return ErrInvalidProfile
-	}
 	return nil
 }

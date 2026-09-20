@@ -116,13 +116,13 @@ Completion metadata format:
 
 - [x] KAS-001 Implement Kubernetes client/configuration port with in-cluster and development kubeconfig modes and bounded API timeouts. — completed 2026-09-20, commit `d6442fc`, evidence: `make verify`; [client evidence](docs/evidence/kas-001-client.md).
 - [x] KAS-002 Add Kubernetes Agent Sandbox API dependency at the exact Phase 0 pin without exposing its types outside the adapter. — completed 2026-09-20, commit `26cf754`, evidence: `make verify`; [API evidence](docs/evidence/kas-002-api.md); ADR-0006 resolves the superseded candidate.
-- [x] KAS-003 Implement Runtime Profile configuration loader and validation. — completed 2026-09-20, commit `696a3c5`, evidence: `make verify`; [profile evidence](docs/evidence/kas-003-profiles.md).
+- [x] KAS-003 Implement Runtime Profile configuration loader and validation (including the offline platform-DNS contract correction). — completed 2026-09-20, commit `696a3c5`, evidence: `make verify`; [profile evidence](docs/evidence/kas-003-profiles.md).
 - [x] KAS-004 Implement `KubernetesAgentSandboxProvider.Acquire`. — completed 2026-09-20, commit `2820dbe`, evidence: `make verify`; [acquire evidence](docs/evidence/kas-004-acquire.md).
 - [x] KAS-005 Implement provider status translation from Kubernetes Agent Sandbox state to AR-neutral Sandbox status. — completed 2026-09-20, commit `86454b4`, evidence: `make verify`; [status evidence](docs/evidence/kas-005-status.md).
 - [x] KAS-006 Implement provider release/delete with idempotent semantics. — completed 2026-09-20, commit `b00afb7`, evidence: `make verify`; [release evidence](docs/evidence/kas-006-release.md).
 - [x] KAS-007 Implement provider suspend operation using supported upstream semantics. — completed 2026-09-20, commit `afda458`, evidence: `make verify`; [suspend evidence](docs/evidence/kas-007-suspend.md).
 - [x] KAS-008 Implement provider resume operation using supported upstream semantics. — completed 2026-09-20, commit `8c86980`, evidence: `make verify`; [resume evidence](docs/evidence/kas-008-resume.md).
-- [x] KAS-008A Install and document Kata on the authorized ARM64 homelab workers. — completed 2026-09-20, commit: this Kata installation commit; [live installation evidence](docs/evidence/kata-homelab-installation.md). This prerequisite does not close KAS-021/022.
+- [x] KAS-008A Install and document Kata on the authorized ARM64 homelab workers. — completed 2026-09-20, commit `0dff888`; [live installation evidence](docs/evidence/kata-homelab-installation.md). This prerequisite does not close KAS-021/022.
 - [ ] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile.
 - [ ] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding.
 - [ ] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects.
