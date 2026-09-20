@@ -1567,14 +1567,14 @@ Cold acquisition/release/replacement now pass against the homelab controller;
 see [live lifecycle evidence](docs/evidence/kas-019-live-lifecycle.md) and the
 [installation/test guide](docs/operations/agent-sandbox.md). Native suspend/resume also passes
 with preserved Sandbox identity/deadline and replacement Pods
-([evidence](docs/evidence/kas-020-live-suspend-resume.md)). Physical isolation/resource
-checks and final compatibility/evidence closure remain.
+([evidence](docs/evidence/kas-020-live-suspend-resume.md)). The runtime boundary now has [host-correlated KVM proof](docs/evidence/kas-021-live-isolation.md).
+Physical resource checks and final compatibility/evidence closure remain.
 
 The homelab-first RC scope and explicit smaller profiles are recorded in
 [ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). The repeatable IPv4 API/metadata denial
 checks and their scoped live evidence are in
-[the KAS-015 record](docs/evidence/kas-015-network-denial.md). KAS-019–022 must
-record the remaining ARM64 lifecycle and resource test envelope. Larger production qualification is future
+[the KAS-015 record](docs/evidence/kas-015-network-denial.md). KAS-022 must
+record the remaining ARM64 resource test envelope. Larger production qualification is future
 work described in the [infrastructure guide](docs/operations/rc-infrastructure.md),
 not an RC prerequisite.
 

@@ -171,3 +171,28 @@ The supplied mapping is ARM64-only and intentionally cannot admit the existing
 amd64 coding profile. Its candidate qualification reference and installer-default
 overhead remain unqualified. A production mapping requires completed evidence and
 must be combined with the separate storage/network admission checks.
+
+## Live host correlation
+
+For each runtime qualification, create a fresh bounded probe from
+`deploy/kata/smoke.yaml`: choose a unique Pod name, pin the target worker with
+`nodeSelector.kubernetes.io/hostname`, and use a short deadline (900 seconds is
+sufficient). Apply its namespace and deny-all policy before the Pod. Wait for
+readiness and obtain its UID from the trusted Kubernetes API. Keep the objects
+for evidence; the active deadline stops the probe.
+
+On that worker, run the checked-in read-only tool through your operator SSH
+connection (substitute the exact Pod name, namespace, UID and handler):
+
+```sh
+sudo python3 kata-host-proof.py --name "$PROBE_NAME" \
+  --namespace "$PROBE_NAMESPACE" --uid "$PROBE_UID" \
+  --handler kata-qemu-runtime-rs-ar331
+```
+
+The tool matches the ready CRI sandbox to QEMU, verifies pinned executable/kernel/
+image hashes and an actual host KVM VM descriptor, then rechecks identity. It is
+specific to the recorded ARM64 artifacts. Review/update pins and rerun qualification
+when changing artifacts; do not simply bypass mismatches. It prints selected
+infrastructure facts only. It does not certify the complete profile or supply
+production `EffectiveVerifier` evidence. See [KAS-021](../evidence/kas-021-live-isolation.md).
