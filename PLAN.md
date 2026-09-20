@@ -1351,7 +1351,7 @@ Verify:
 - suspend/resume;
 - release;
 - persistent volume attachment;
-- Runtime Profile implementation-reference resolution and mapping;
+- concrete qualification of Runtime Profile implementation references;
 - security context;
 - resource limits;
 - loss/recreation.
@@ -1554,17 +1554,18 @@ later phases.
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
 The implemented connection boundary is recorded in
-[ADR-0005](docs/adr/0005-kubernetes-client-boundary.md). Remaining work:
+[ADR-0005](docs/adr/0005-kubernetes-client-boundary.md); immutable coding-template
+mapping is recorded in [ADR-0009](docs/adr/0009-coding-template-mapping.md). Remaining work:
 
 Implement:
 
 - provider capability validation;
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
-- Runtime Profile implementation-reference resolution and mapping;
+- concrete qualification of Runtime Profile implementation references;
 - concrete effective-state verifier for secure readiness (including mandatory
   platform control for the `none` network class);
-- production binding storage and blueprint resolver wiring for Acquire;
+- production binding storage and attachment resolver wiring for Acquire;
 - Workspace attachment seam;
 - restricted security configuration;
 - lifecycle reconciliation.
