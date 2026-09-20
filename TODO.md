@@ -119,8 +119,8 @@ Completion metadata format:
 - [x] KAS-003 Implement Runtime Profile configuration loader and validation. — completed 2026-09-20, commit `696a3c5`, evidence: `make verify`; [profile evidence](docs/evidence/kas-003-profiles.md).
 - [x] KAS-004 Implement `KubernetesAgentSandboxProvider.Acquire`. — completed 2026-09-20, commit `2820dbe`, evidence: `make verify`; [acquire evidence](docs/evidence/kas-004-acquire.md).
 - [x] KAS-005 Implement provider status translation from Kubernetes Agent Sandbox state to AR-neutral Sandbox status. — completed 2026-09-20, commit `86454b4`, evidence: `make verify`; [status evidence](docs/evidence/kas-005-status.md).
-- [x] KAS-006 Implement provider release/delete with idempotent semantics. — completed 2026-09-20, commit: this KAS-006 commit, evidence: `make verify`; [release evidence](docs/evidence/kas-006-release.md).
-- [ ] KAS-007 Implement provider suspend operation using supported upstream semantics.
+- [x] KAS-006 Implement provider release/delete with idempotent semantics. — completed 2026-09-20, commit `b00afb7`, evidence: `make verify`; [release evidence](docs/evidence/kas-006-release.md).
+- [x] KAS-007 Implement provider suspend operation using supported upstream semantics. — completed 2026-09-20, commit: this KAS-007 commit, evidence: `make verify`; [suspend evidence](docs/evidence/kas-007-suspend.md).
 - [ ] KAS-008 Implement provider resume operation using supported upstream semantics.
 - [ ] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile.
 - [ ] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding.
