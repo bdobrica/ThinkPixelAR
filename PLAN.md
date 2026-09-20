@@ -1578,8 +1578,10 @@ Implement:
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 
 The homelab-first RC scope and explicit smaller profiles are recorded in
-[ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). KAS-019–022 must
-record the actual ARM64 test envelope. Larger production qualification is future
+[ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). The repeatable IPv4 API/metadata denial
+checks and their scoped live evidence are in
+[the KAS-015 record](docs/evidence/kas-015-network-denial.md). KAS-019–022 must
+record the remaining ARM64 lifecycle and resource test envelope. Larger production qualification is future
 work described in the [infrastructure guide](docs/operations/rc-infrastructure.md),
 not an RC prerequisite.
 
