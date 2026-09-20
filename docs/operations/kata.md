@@ -196,3 +196,6 @@ specific to the recorded ARM64 artifacts. Review/update pins and rerun qualifica
 when changing artifacts; do not simply bypass mismatches. It prints selected
 infrastructure facts only. It does not certify the complete profile or supply
 production `EffectiveVerifier` evidence. See [KAS-021](../evidence/kas-021-live-isolation.md).
+
+Resource diagnostics, the canary process-limit installation and current scratch
+enforcement failures are documented in [the resource guide](kata-resource-checks.md).

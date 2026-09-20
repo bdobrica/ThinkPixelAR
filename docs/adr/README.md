@@ -33,3 +33,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0016: Compute reconciliation](0016-compute-reconciliation.md) — Accepted
 - [ADR-0017: Durable compute monitoring](0017-durable-compute-monitoring.md) — Accepted
 - [ADR-0018: Compute loss recovery](0018-compute-loss-recovery.md) — Accepted
+- [ADR-0019: Runtime-enforced process ceiling](0019-runtime-enforced-process-ceiling.md) — Accepted

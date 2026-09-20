@@ -136,8 +136,8 @@ Completion metadata format:
 - [x] KAS-018 Detect orphaned/missing Sandboxes and create explicit recovery work rather than silently marking Sessions terminal. — completed 2026-09-20, commit `e81fa99`; [fenced recovery evidence](docs/evidence/kas-018-compute-recovery.md); ADR-0018; persisted-binding monitoring, real PostgreSQL/race/migration tests and `make verify`.
 - [x] KAS-019 Add disposable-cluster integration suite for acquire/readiness/release/recreate. — completed 2026-09-20, commit `64aa323`; [live controller/Kata evidence](docs/evidence/kas-019-live-lifecycle.md); core controller installed; native readiness with secure-readiness withholding; `make verify`.
 - [x] KAS-020 Add suspend/resume integration tests where supported by the pinned upstream release. — completed 2026-09-20, commit `3da0f22`; [live native suspend/resume evidence](docs/evidence/kas-020-live-suspend-resume.md); race-enabled homelab suite and `make verify`.
-- [x] KAS-021 Run separate Kata-capable environment test proving the secure profile actually receives the intended isolation runtime. — completed 2026-09-20, commit: this KAS-021 commit; [host-correlated ARM64 KVM proof](docs/evidence/kas-021-live-isolation.md); negative probe tests and `make verify`.
-- [ ] KAS-022 Verify resource requests/limits and ephemeral-storage boundaries are physically applied.
+- [x] KAS-021 Run separate Kata-capable environment test proving the secure profile actually receives the intended isolation runtime. — completed 2026-09-20, commit `2c6da07`; [host-correlated ARM64 KVM proof](docs/evidence/kas-021-live-isolation.md); negative probe tests and `make verify`.
+- [ ] KAS-022 Verify resource requests/limits and ephemeral-storage boundaries are physically applied. — CPU/memory and hard process rlimit tested; [live scratch enforcement failures and next work](docs/evidence/kas-022-resource-findings.md) prevent qualification. ADR-0019 records the implemented canary PID fix; no paid infrastructure needed.
 - [ ] KAS-023 Document Kubernetes Agent Sandbox version/API assumptions and upstream compatibility policy.
 - [ ] KAS-024 Commit Phase 3 with cluster manifests and evidence.
 

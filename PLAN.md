@@ -1568,7 +1568,13 @@ see [live lifecycle evidence](docs/evidence/kas-019-live-lifecycle.md) and the
 [installation/test guide](docs/operations/agent-sandbox.md). Native suspend/resume also passes
 with preserved Sandbox identity/deadline and replacement Pods
 ([evidence](docs/evidence/kas-020-live-suspend-resume.md)). The runtime boundary now has [host-correlated KVM proof](docs/evidence/kas-021-live-isolation.md).
-Physical resource checks and final compatibility/evidence closure remain.
+Physical resource checks found scratch enforcement failures; see
+[KAS-022 findings](docs/evidence/kas-022-resource-findings.md). The implemented
+canary process ceiling is recorded in [ADR-0019](docs/adr/0019-runtime-enforced-process-ceiling.md).
+A physically bounded scratch implementation and measured overhead are required
+before resource qualification and Phase 3 closure; this needs an implementation
+fix on existing hardware, not paid infrastructure. Compatibility documentation
+can proceed independently.
 
 The homelab-first RC scope and explicit smaller profiles are recorded in
 [ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). The repeatable IPv4 API/metadata denial
