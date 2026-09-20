@@ -118,3 +118,8 @@ baseline-verify: verify image-smoke agentd-image-smoke ## Run the complete Phase
 test-kas-lifecycle: ## Run opted-in live Agent Sandbox lifecycle tests through a loopback API tunnel.
 	@test -n "$${THINKPIXELAR_TEST_KUBE_API}" || { echo 'THINKPIXELAR_TEST_KUBE_API is required'; exit 1; }
 	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveColdLifecycle$$' -count=1 -v
+
+.PHONY: test-kas-suspend-resume
+test-kas-suspend-resume: ## Run opted-in native suspend/resume against the live controller.
+	@test -n "$${THINKPIXELAR_TEST_KUBE_API}" || { echo 'THINKPIXELAR_TEST_KUBE_API is required'; exit 1; }
+	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveNativeSuspendResume$$' -count=1 -v

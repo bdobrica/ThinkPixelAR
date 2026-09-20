@@ -29,7 +29,11 @@ import (
 // This explicitly opted-in fixture tests lifecycle, not full profile qualification.
 // Template/network qualification callbacks are fixture-only; no effective verifier
 // is supplied, so AR must withhold READY despite upstream's Ready condition.
-func TestLiveColdLifecycle(t *testing.T) {
+func TestLiveColdLifecycle(t *testing.T) { runLiveLifecycle(t, false) }
+
+func TestLiveNativeSuspendResume(t *testing.T) { runLiveLifecycle(t, true) }
+
+func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	endpoint := os.Getenv("THINKPIXELAR_TEST_KUBE_API")
 	if endpoint == "" {
 		t.Skip("THINKPIXELAR_TEST_KUBE_API not set")
@@ -80,7 +84,15 @@ func TestLiveColdLifecycle(t *testing.T) {
 	}
 	immutable := true
 	create(schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, &v1.Secret{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}, ObjectMeta: metav1.ObjectMeta{Name: "bootstrap", Namespace: namespace}, Immutable: &immutable})
-	raw, err := os.ReadFile("../../../../docs/profiles/coding-homelab-arm64.json")
+	nodeObject, err := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "nodes"}).Get(ctx, node, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	architecture, found, err := unstructured.NestedString(nodeObject.Object, "status", "nodeInfo", "architecture")
+	if err != nil || !found || (architecture != "arm64" && architecture != "amd64") || nodeObject.GetLabels()["kubernetes.io/arch"] != architecture {
+		t.Fatal("unsupported or inconsistent node architecture")
+	}
+	raw, err := os.ReadFile("../../../../docs/profiles/coding-homelab-" + architecture + ".json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +108,7 @@ func TestLiveColdLifecycle(t *testing.T) {
 	request := acquireFixture(t)
 	request.Scope.SandboxID = id
 	request.Scope.AttemptID = id
-	request.Runtime = sandbox.Runtime{Image: "docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0", Architecture: "arm64", Entrypoint: []string{"sh", "-ec", "sleep 900"}}
+	request.Runtime = sandbox.Runtime{Image: "docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0", Architecture: architecture, Entrypoint: []string{"sh", "-ec", "sleep 900"}}
 	request.Profile, _, request.ProfileDigest, _, request.ImplementationDigest = mapper.Resolution()
 	request.Workspace.MountPath = "/workspace"
 	request.Deadline = time.Now().UTC().Add(10 * time.Minute).Truncate(time.Second)
@@ -174,6 +186,54 @@ func TestLiveColdLifecycle(t *testing.T) {
 			t.Fatalf("unqualified native readiness promoted: %+v %v", status, err)
 		}
 		t.Log("native readiness observed; secure readiness withheld:", handle.ProviderReference)
+
+		if nativeSuspend && generation == 0 {
+			pods := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "pods"}).Namespace(namespace)
+			before, e := pods.Get(ctx, name, metav1.GetOptions{})
+			if e != nil {
+				t.Fatal(e)
+			}
+			suspendOp := lifecycleOperation(request, "suspend", "suspend-"+string(id))
+			for range 2 {
+				if e = restarted.Suspend(ctx, request.Scope.TenantID, id, suspendOp); e != nil {
+					t.Fatal("suspend replay", e)
+				}
+			}
+			liveWait(t, ctx, func() bool {
+				state, e := restarted.Get(ctx, request.Scope.TenantID, id)
+				return e == nil && state.State == sandbox.Suspended
+			})
+			if _, e = pods.Get(ctx, name, metav1.GetOptions{}); !apierrors.IsNotFound(e) {
+				t.Fatal("suspended compute still exists", e)
+			}
+			resumeOp := lifecycleOperation(request, "resume", "resume-"+string(id))
+			for range 2 {
+				resumed, e := restarted.Resume(ctx, request.Scope.TenantID, id, resumeOp)
+				if e != nil || resumed.ProviderReference != handle.ProviderReference {
+					t.Fatal("resume identity/replay", e)
+				}
+			}
+			liveWait(t, ctx, func() bool {
+				state, e := restarted.Get(ctx, request.Scope.TenantID, id)
+				return e == nil && state.State == sandbox.Unknown && state.Reason == "EFFECTIVE_STATE_UNVERIFIED"
+			})
+			after, e := pods.Get(ctx, name, metav1.GetOptions{})
+			if e != nil || after.GetUID() == before.GetUID() {
+				t.Fatal("resume did not replace process/Pod", e)
+			}
+			saved, e := client.Resource(sandboxResource).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+			if e != nil {
+				t.Fatal(e)
+			}
+			var actual core.Sandbox
+			if e = runtime.DefaultUnstructuredConverter.FromUnstructured(saved.Object, &actual); e != nil {
+				t.Fatal(e)
+			}
+			if actual.Spec.ShutdownTime == nil || !actual.Spec.ShutdownTime.Time.Equal(request.Deadline) {
+				t.Fatal("resume changed absolute deadline")
+			}
+			t.Log("native suspension removed Pod; resume kept Sandbox UID and deadline and created new Pod:", before.GetUID(), after.GetUID())
+		}
 		operation := lifecycleOperation(request, "release", "release-"+string(id))
 		for range 2 {
 			if err = restarted.Release(ctx, request.Scope.TenantID, id, operation); err != nil {

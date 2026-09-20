@@ -64,7 +64,9 @@ Stop the tunnel/proxy afterward. The test-only HTTP path accepts loopback only;
 production client configuration still requires HTTPS. Local users able to reach
 the proxy inherit its operator access, so use it only on a trusted operator host.
 
-The fixture creates a unique restricted namespace, preinstalled deny-all policy,
+The fixture selects the explicit ARM64 or amd64 homelab profile from the target
+node’s observed architecture and matching node label. Only ARM64 has been live
+tested here. It creates a unique restricted namespace, preinstalled deny-all policy,
 two local-path PVCs, an empty immutable bootstrap fixture Secret, and bounded
 Kata sleep workloads. It explicitly exercises provider release; namespaces,
 policies, Secrets and PVCs remain for inspection. There is no broad teardown.
@@ -75,3 +77,9 @@ real PostgreSQL replay/fencing is tested separately in KAS-017/018. Fixture temp
 and network callbacks are not production qualification. No effective verifier is
 installed: upstream Ready must still yield AR UNKNOWN/EFFECTIVE_STATE_UNVERIFIED.
 Physical qualification is a separate gate, not inferred from lifecycle success.
+
+Use the same environment with `make test-kas-suspend-resume` for native provider
+suspension/resumption. It requires actual Pod absence before resume and verifies
+that Sandbox identity/deadline survive while the Pod identity changes. It also
+runs release/replacement checks. This does not perform Session checkpoint/restore
+or preserve a live harness process. See [KAS-020 evidence](../evidence/kas-020-live-suspend-resume.md).
