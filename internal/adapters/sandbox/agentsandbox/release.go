@@ -2,9 +2,6 @@ package agentsandbox
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"strconv"
 
@@ -14,9 +11,7 @@ import (
 )
 
 func LifecycleDigest(tenant, id primitives.ID, kind, operationID string) string {
-	b, _ := json.Marshal([]string{string(tenant), string(id), kind, operationID})
-	sum := sha256.Sum256(b)
-	return "sha256:" + hex.EncodeToString(sum[:])
+	return sandbox.LifecycleDigest(tenant, id, kind, operationID)
 }
 func (p *KubernetesAgentSandboxProvider) begin(ctx context.Context, tenant, id primitives.ID, kind string, op sandbox.Operation) (uint64, error) {
 	if op.ID == "" || len(op.ID) > 128 || op.Digest != LifecycleDigest(tenant, id, kind, op.ID) {

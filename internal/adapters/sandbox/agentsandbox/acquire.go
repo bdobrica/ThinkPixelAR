@@ -2,9 +2,6 @@ package agentsandbox
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"reflect"
 	"regexp"
@@ -12,7 +9,6 @@ import (
 
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
-	canonical "github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -50,17 +46,7 @@ func New(client dynamic.Interface, bindings sandbox.BindingStore, namespace stri
 // RequestDigest hashes the complete normalized request, excluding only its
 // supplied digest. Callers persist this identity before retrying an operation.
 func RequestDigest(r sandbox.AcquireRequest) (string, error) {
-	r.Operation.Digest = ""
-	b, err := json.Marshal(r)
-	if err != nil {
-		return "", sandbox.ErrInvalid
-	}
-	b, err = canonical.Transform(b)
-	if err != nil {
-		return "", sandbox.ErrInvalid
-	}
-	sum := sha256.Sum256(b)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+	return sandbox.RequestDigest(r)
 }
 
 func (p *KubernetesAgentSandboxProvider) Acquire(ctx context.Context, r sandbox.AcquireRequest) (sandbox.Handle, error) {

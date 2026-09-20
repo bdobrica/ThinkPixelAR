@@ -24,3 +24,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0007: Runtime Profile loading](0007-runtime-profile-loading.md)
 - [ADR-0008: Kata homelab substrate](0008-kata-homelab-substrate.md) — Accepted
 - [ADR-0009: Coding template mapping](0009-coding-template-mapping.md) — Accepted
+- [ADR-0010: Durable sandbox acquisition](0010-durable-sandbox-acquisition.md) — Accepted

@@ -123,8 +123,8 @@ Completion metadata format:
 - [x] KAS-007 Implement provider suspend operation using supported upstream semantics. — completed 2026-09-20, commit `afda458`, evidence: `make verify`; [suspend evidence](docs/evidence/kas-007-suspend.md).
 - [x] KAS-008 Implement provider resume operation using supported upstream semantics. — completed 2026-09-20, commit `8c86980`, evidence: `make verify`; [resume evidence](docs/evidence/kas-008-resume.md).
 - [x] KAS-008A Install and document Kata on the authorized ARM64 homelab workers. — completed 2026-09-20, commit `0dff888`; [live installation evidence](docs/evidence/kata-homelab-installation.md). This prerequisite does not close KAS-021/022.
-- [x] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile. — completed 2026-09-20, commit: this KAS-009 commit; [mapping evidence](docs/evidence/kas-009-template.md); `make verify`.
-- [ ] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding.
+- [x] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile. — completed 2026-09-20, commit `9934897`; [mapping evidence](docs/evidence/kas-009-template.md); `make verify`.
+- [x] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding. — completed 2026-09-20, commit: this KAS-010 commit; direct cold acquisition selected because claims require unqualified warm pools (ADR-0010); [PostgreSQL evidence](docs/evidence/kas-010-bindings.md); `make verify`.
 - [ ] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects.
 - [ ] KAS-012 Configure the high-isolation profile to select Kata through operator-controlled RuntimeClass mapping.
 - [ ] KAS-013 Enforce/verify no service-account token, host namespaces, hostPath, privileged mode, container-runtime sockets, or unnecessary capabilities in the secure profile.

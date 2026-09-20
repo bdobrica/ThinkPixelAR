@@ -50,7 +50,7 @@ func TestUpFromEmptyPostgreSQL(t *testing.T) {
 	wantTables := []string{
 		"attempts", "checkpoints", "cleanup_intents", "executions", "harness_bindings",
 		"idempotency_records", "outbox_messages", "reconciliation_work", "runtime_event_streams",
-		"runtime_events", "runtime_profile_resolution_snapshots", "sandbox_bindings", "schema_migrations",
+		"runtime_events", "runtime_profile_resolution_snapshots", "sandbox_binding_requests", "sandbox_bindings", "sandbox_operations", "schema_migrations",
 		"sessions", "tenants", "workspace_generations", "workspaces",
 	}
 	assertTableNames(t, ctx, db, wantTables)
@@ -136,4 +136,59 @@ func temporarySchema(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return fmt.Sprintf(`"migration_test_%s"`, hex.EncodeToString(suffix[:]))
+}
+
+func TestSandboxJournalUpgradeFromPhase2(t *testing.T) {
+	databaseURL := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("THINKPIXELAR_TEST_DATABASE_URL is not set")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	schema := temporarySchema(t)
+	if _, err = db.ExecContext(ctx, `CREATE SCHEMA `+schema); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _, _ = db.ExecContext(context.Background(), `DROP SCHEMA `+schema+` CASCADE`) }()
+	if _, err = db.ExecContext(ctx, `SET search_path TO `+schema); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ExecContext(ctx, `CREATE TABLE schema_migrations(version bigint PRIMARY KEY,name text NOT NULL,checksum character(64) NOT NULL,applied_at timestamptz NOT NULL,tool_version text NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	changes, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range changes {
+		if change.Version > 15 {
+			break
+		}
+		if err = apply(ctx, conn, change); err != nil {
+			_ = conn.Close()
+			t.Fatal(err)
+		}
+	}
+	_ = conn.Close()
+	before := readLedger(t, ctx, db)
+	if err = Up(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	after := readLedger(t, ctx, db)
+	if !reflect.DeepEqual(before, after[:15]) || len(after) != len(changes) {
+		t.Fatal("upgrade rewrote migration history")
+	}
+	if err = Up(ctx, db); err != nil {
+		t.Fatal("upgrade replay", err)
+	}
 }
