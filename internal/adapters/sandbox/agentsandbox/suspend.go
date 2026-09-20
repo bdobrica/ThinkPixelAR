@@ -3,6 +3,7 @@ package agentsandbox
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strconv"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
@@ -36,6 +37,18 @@ func (p *KubernetesAgentSandboxProvider) setMode(ctx context.Context, tenant, id
 	}
 	if mode == core.SandboxOperatingModeRunning && sb.Spec.ShutdownTime != nil && !sb.Spec.ShutdownTime.After(p.now()) {
 		return sandbox.Handle{}, sandbox.ErrConflict
+	}
+	if mode == core.SandboxOperatingModeRunning {
+		if sb.Spec.OperatingMode != core.SandboxOperatingModeSuspended && !(sb.Spec.OperatingMode == core.SandboxOperatingModeRunning && sb.Annotations["thinkpixel.io/operation-digest"] == op.Digest) {
+			return sandbox.Handle{}, sandbox.ErrConflict
+		}
+		expected, err := p.resolve(ctx, b.Request)
+		if err != nil {
+			return sandbox.Handle{}, sandbox.ErrUnsupported
+		}
+		if !reflect.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
+			return sandbox.Handle{}, sandbox.ErrIntegrity
+		}
 	}
 	annotations := map[string]string{"thinkpixel.io/operation-revision": strconv.FormatUint(revision, 10), "thinkpixel.io/operation-digest": op.Digest}
 	if sb.Spec.OperatingMode != mode || sb.Annotations["thinkpixel.io/operation-revision"] != annotations["thinkpixel.io/operation-revision"] {
