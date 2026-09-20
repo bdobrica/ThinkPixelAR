@@ -232,37 +232,9 @@ claims, templates and live qualification remain Phase 3 work.
 
 ### 4.5 Runtime Profiles
 
-Users and agent manifests select abstract Runtime Profiles, not Kubernetes implementation details.
-
-For example:
-
-    coding-medium-secure
-    coding-large-secure
-    tool-only-standard
-    gpu-isolated
-
-A Runtime Profile may resolve internally to:
-
-- SandboxProvider;
-- RuntimeClass;
-- CPU/memory/ephemeral-storage bounds;
-- storage profile;
-- network profile;
-- node constraints;
-- architecture;
-- GPU requirements;
-- suspend policy;
-- warm-pool eligibility.
-
-Public contracts must not require values such as:
-
-    runtimeClassName: kata-qemu
-
-Instead:
-
-    isolation_class: microvm-strong
-
-Operator configuration maps the abstract profile to the current implementation.
+Implemented configuration loading and atomic publication are recorded in
+[ADR-0007](docs/adr/0007-runtime-profile-loading.md). Provider mapping, effective
+verification and per-Execution authority intersection remain downstream work.
 
 ### 4.6 Kata isolation
 
@@ -1396,7 +1368,7 @@ Verify:
 - suspend/resume;
 - release;
 - persistent volume attachment;
-- Runtime Profile mapping;
+- Runtime Profile implementation-reference resolution and mapping;
 - security context;
 - resource limits;
 - loss/recreation.
@@ -1606,7 +1578,7 @@ Implement:
 - provider capability validation;
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
-- Runtime Profile mapping;
+- Runtime Profile implementation-reference resolution and mapping;
 - Sandbox acquire/status/suspend/resume/release;
 - Workspace attachment seam;
 - restricted security configuration;
