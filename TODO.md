@@ -138,8 +138,8 @@ Completion metadata format:
 - [x] KAS-020 Add suspend/resume integration tests where supported by the pinned upstream release. — completed 2026-09-20, commit `3da0f22`; [live native suspend/resume evidence](docs/evidence/kas-020-live-suspend-resume.md); race-enabled homelab suite and `make verify`.
 - [x] KAS-021 Run separate Kata-capable environment test proving the secure profile actually receives the intended isolation runtime. — completed 2026-09-20, commit `2c6da07`; [host-correlated ARM64 KVM proof](docs/evidence/kas-021-live-isolation.md); negative probe tests and `make verify`.
 - [ ] KAS-022 Verify resource requests/limits and ephemeral-storage boundaries are physically applied. — CPU/memory and hard process rlimit tested; [live scratch enforcement failures and next work](docs/evidence/kas-022-resource-findings.md) prevent qualification. ADR-0019 records the implemented canary PID fix; no paid infrastructure needed.
-- [ ] KAS-023 Document Kubernetes Agent Sandbox version/API assumptions and upstream compatibility policy.
-- [ ] KAS-024 Commit Phase 3 with cluster manifests and evidence.
+- [x] KAS-023 Document Kubernetes Agent Sandbox version/API assumptions and upstream compatibility policy. — completed 2026-09-20, commit: this KAS-023 commit; [compatibility evidence](docs/evidence/kas-023-upstream-compatibility.md), version/link checks, focused race tests and `make verify`.
+- [ ] KAS-024 Commit Phase 3 with cluster manifests and evidence. — requires KAS-022 enforcement fixes and remaining provider capability/discovery validation; do not promote partial infrastructure evidence to complete secure-profile qualification.
 
 ---
 

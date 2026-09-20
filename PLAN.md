@@ -1542,47 +1542,34 @@ later phases.
 
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
-The implemented connection boundary is recorded in
-[ADR-0005](docs/adr/0005-kubernetes-client-boundary.md); immutable coding-template
-mapping is recorded in [ADR-0009](docs/adr/0009-coding-template-mapping.md), and
-cold acquisition / durable operation ordering in
-[ADR-0010](docs/adr/0010-durable-sandbox-acquisition.md). The implemented Workspace
-attachment boundary is in [ADR-0011](docs/adr/0011-workspace-attachment-seam.md).
-The enforced security gate is recorded in
-[ADR-0013](docs/adr/0013-effective-sandbox-security.md); network enforcement hooks
-and the dedicated-namespace verifier are recorded in
-[ADR-0015](docs/adr/0015-sandbox-network-enforcement.md). Remaining work:
+Implemented substrate decisions are captured in [ADRs 0005–0019](docs/adr/README.md),
+including provider/Workspace boundaries, cold acquisition, effective security,
+durable reconciliation, recovery and the homelab process ceiling. Version/API
+assumptions and update requirements live in [supported versions](docs/supported-versions.md).
 
-Implement:
+Remaining Phase 3 work:
 
-- provider capability validation;
-- `SandboxProvider`;
-- Kubernetes Agent Sandbox adapter;
-- concrete qualification of Runtime Profile implementation references;
-- concrete infrastructure proof adapters behind the effective-state security gate;
-- service composition using durable provider, Workspace and bootstrap services;
-- physical isolation/resource qualification.
+- fix and physically verify scratch/resource boundaries from
+  [KAS-022 findings](docs/evidence/kas-022-resource-findings.md), including measured
+  VM/host overhead before promoting the candidate runtime mapping;
+- implement the provider capability/discovery validation required by the
+  SandboxProvider contract and bind it to profile admission;
+- reconcile the final implementation/evidence matrix and close KAS-024 only when
+  the required substrate checks pass.
 
-Cold acquisition/release/replacement now pass against the homelab controller;
-see [live lifecycle evidence](docs/evidence/kas-019-live-lifecycle.md) and the
-[installation/test guide](docs/operations/agent-sandbox.md). Native suspend/resume also passes
-with preserved Sandbox identity/deadline and replacement Pods
-([evidence](docs/evidence/kas-020-live-suspend-resume.md)). The runtime boundary now has [host-correlated KVM proof](docs/evidence/kas-021-live-isolation.md).
-Physical resource checks found scratch enforcement failures; see
-[KAS-022 findings](docs/evidence/kas-022-resource-findings.md). The implemented
-canary process ceiling is recorded in [ADR-0019](docs/adr/0019-runtime-enforced-process-ceiling.md).
-A physically bounded scratch implementation and measured overhead are required
-before resource qualification and Phase 3 closure; this needs an implementation
-fix on existing hardware, not paid infrastructure. Compatibility documentation
-can proceed independently.
+[Cold lifecycle](docs/evidence/kas-019-live-lifecycle.md),
+[native suspend/resume](docs/evidence/kas-020-live-suspend-resume.md),
+[host-correlated KVM execution](docs/evidence/kas-021-live-isolation.md) and
+[scoped network denial](docs/evidence/kas-015-network-denial.md) have live ARM64
+evidence. These do not yet establish complete secure-profile readiness. Concrete
+infrastructure proof and durable Workspace/bootstrap/authority service composition
+must be connected before the Phase 6 end-user admission path; missing proof remains
+fail-closed under ADR-0013.
 
-The homelab-first RC scope and explicit smaller profiles are recorded in
-[ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). The repeatable IPv4 API/metadata denial
-checks and their scoped live evidence are in
-[the KAS-015 record](docs/evidence/kas-015-network-denial.md). KAS-022 must
-record the remaining ARM64 resource test envelope. Larger production qualification is future
-work described in the [infrastructure guide](docs/operations/rc-infrastructure.md),
-not an RC prerequisite.
+Use the existing homelab for fixes and RC substrate tests. Larger production
+qualification is [explicit future work](docs/operations/rc-infrastructure.md)
+under ADR-0014, not a reason to purchase infrastructure or leave the homelab lane
+open. The present scratch failure needs an implementation fix on available hardware.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 

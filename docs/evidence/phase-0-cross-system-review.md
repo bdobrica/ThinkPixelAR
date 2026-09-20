@@ -89,3 +89,18 @@ No gap permits weakening tenancy, single writer, fresh authority, credential exc
 Used revision/status inspection; targeted source/OpenAPI search; official Agent Sandbox tag enumeration and shallow v1.0.0 checkout; `codex --version`; `codex app-server generate-json-schema`; generated-method inspection; diff/link/fence checks.
 
 Sources: local pinned EnterpriseBlueprints and ThinkPixelAG OpenAPI/source; [Agent Sandbox releases](https://github.com/kubernetes-sigs/agent-sandbox/releases) and v1.0.0 source/API; locally generated schemas from official Codex CLI 0.150.1. Official OpenAI App Server documentation must be rechecked when implementing the adapter.
+
+## Phase 3 disposition update — 2026-09-20
+
+This supplements the historical review above. ADR-0006 selected v1.0.0; the core
+controller was clean-installed on the existing ARM64 homelab. Cold lifecycle,
+native suspend/resume, scoped IPv4 API/metadata denial and host-correlated KVM
+execution now have [linked compatibility evidence](../supported-versions.md).
+Claims/warm pools were not selected; the initial deployment uses direct cold
+Sandbox acquisition under ADR-0010. No pre-v1 upgrade path was exercised.
+
+`PH0-KAS-001` remains partly open because [physical scratch enforcement failed](kas-022-resource-findings.md)
+and complete capability/admission composition is not yet implemented. Larger amd64,
+encrypted snapshots and production infrastructure are separately deferred under
+ADR-0014, not prerequisites for closing the homelab lane. Do not conflate those
+future tests with the present core enforcement failure.

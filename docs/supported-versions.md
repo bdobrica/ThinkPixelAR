@@ -2,7 +2,7 @@
 
 Status: Normative tested and candidate compatibility baseline.
 
-Last repository environment validation: 2026-09-01.
+Last repository and homelab scope review: 2026-09-20.
 
 ## Development toolchain
 
@@ -32,121 +32,141 @@ policy until Go `1.28` is released.
 
 ## Meaning of support
 
-ThinkPixelAR uses exact qualification pins. A component is **release-qualified** only after the required clean-cluster, lifecycle, recovery, storage, and isolation evidence passes with the exact patch versions and immutable artifacts recorded here. Source-level compatibility or an upstream support statement alone is insufficient.
+Compatibility claims apply to an exact tuple and a named test scope.
+`TESTED_HOMELAB_LIFECYCLE` covers the recorded controller operations;
+`TESTED_HOMELAB_ISOLATION` covers hardware-backed guest execution. Neither means
+`RELEASE_QUALIFIED`, complete secure-profile admission, or production support.
+The [KAS-022 failures](evidence/kas-022-resource-findings.md) currently prevent
+complete resource qualification. Passing source tests cannot override them.
 
-The Phase 0 values below are the **initial qualification baseline**. They freeze implementation targets and API contracts; they are not yet a claim that the empty repository has run the later Kubernetes/Kata end-to-end gates. Each row remains `PINNED_CANDIDATE` until its evidence link/digest is added by the implementation phase. Production release artifacts MUST NOT describe a candidate as tested.
+The initial Phase 0 candidates are historical input. ADR-0006 selects Agent
+Sandbox v1.0.0 and Kubernetes client modules v0.36.4; ADR-0014 selects existing
+ARM64 homelab hardware for RC work. Larger amd64/encrypted/snapshot-capable
+infrastructure is future production qualification, not an RC purchase requirement.
 
-Patch upgrades require the compatibility workflow below. Minor upgrades require an explicit review and a dedicated qualification lane before changing the default. Mutable tags such as `latest`, unpinned install URLs, or distribution-default versions are not support evidence.
+## Current substrate matrix
 
-## Initial qualification baseline
+| Component | Exact implementation / live tuple | Status and evidence |
+| --- | --- | --- |
+| Kubernetes client / server | Go modules `v0.36.4`; homelab K3s server/kubelets `v1.36.4+k3s1` | `TESTED_HOMELAB_LIFECYCLE`; [KAS-019](evidence/kas-019-live-lifecycle.md), [KAS-020](evidence/kas-020-live-suspend-resume.md). This does not qualify every upstream/distribution build of Kubernetes 1.36.4. |
+| Agent Sandbox | `v1.0.0`, source `bb72f49d79f009a960eed2ae6c32e1cc082399c5`; core `agents.x-k8s.io/v1beta1` | Core CRD/controller clean-installed and live-tested. Manifest checksum and controller index/platform digests are pinned in [installation assets](../deploy/agent-sandbox/) and [evidence](evidence/kas-019-live-lifecycle.md). |
+| Agent Sandbox extensions | `extensions.agents.x-k8s.io/v1beta1` API types from `v1.0.0` | `TESTED_SOURCE_ONLY`; immutable template mapping and API registration. Extension controller/CRDs are not installed or required by the selected direct cold path. |
+| Kata | `3.31.0`, QEMU, runtime-rs, reviewed ARM64 overrides | `TESTED_HOMELAB_ISOLATION`; [exact host-correlated artifact hashes](evidence/kas-021-live-isolation.md). Complete resource qualification failed; diagnostic handlers are not AR defaults. |
+| Container runtime | containerd `2.3.4-k3s1.36`, CRI `runtime.v1`, config schema 3, shim v2 | Live tuple from K3s, superseding the historical upstream 2.3.1 candidate for this lane. Not a claim for arbitrary containerd builds. |
+| Host | ARM64 Raspberry Pi workers; Linux `6.18.39+rpt-rpi-v8`, hardware KVM | Existing three-worker homelab; installation probes on all workers, detailed KAS-021/022 canary on worker02. Start with one sandbox per worker; overhead/capacity remains unqualified. |
+| CNI / policy | K3s-packaged networking and network-policy controller from `v1.36.4+k3s1` | [Scoped IPv4 TCP denial evidence](evidence/kas-015-network-denial.md). This does not qualify IPv6, DNS identity or arbitrary network classes. |
+| Local Workspace fixture | K3s `local-path`, node-local RWO PVCs | Lifecycle attachment only; unencrypted, no snapshot/fork or cross-node durability. PVC requested size is not a hard quota. Full WorkspaceProvider/bounded-storage work remains. |
+| amd64 PC profile | `coding-homelab-amd64` | Schema/template support; no live amd64 evidence yet. Requires compatible Linux/KVM and a separately tested tuple. |
+| Larger secure profile | `coding-medium-secure` | Future deployment target. [Required infrastructure and tests](operations/rc-infrastructure.md); not an RC infrastructure prerequisite. |
 
-| Component | Exact version/API pin | Status | Rationale and required evidence |
-| --- | --- | --- | --- |
-| Kubernetes | `v1.36.4` | `PINNED_CANDIDATE` | Supported Kubernetes branch and the dependency generation explicitly targeted by Agent Sandbox `v0.5.x`. Run conformance/integration on the exact server and kubelet patch; record node/control-plane images and digests. |
-| Kubernetes Agent Sandbox | `v1.0.0`; core `agents.x-k8s.io/v1beta1`; extensions `extensions.agents.x-k8s.io/v1beta1` | `PINNED_CANDIDATE` | KAS-002 selects exact v1.0.0 API source and Kubernetes client modules v0.36.4; see ADR-0006. `PH0-KAS-001` still requires live qualification; no production support claim. |
-| Kata Containers | `3.31.0`; containerd shim v2; `runtime-rs` default; QEMU initial VMM | `PINNED_CANDIDATE` | Current reviewed immutable release. Qualify `amd64` first and `arm64` before advertising it; record kernel/rootfs/hypervisor/agent/runtime artifact digests and effective RuntimeClass handler. |
-| Container runtime | containerd `2.3.1`; CRI `runtime.v1`; config schema accepted by the selected distribution; shim v2 | `PINNED_CANDIDATE` | Current reviewed LTS line/patch and Kata integration substrate. Qualify exact distribution build/config and runtime handler; upstream semantic version alone is insufficient. |
-| CSI snapshot controller/client | external-snapshotter `v8.6.0`; `snapshot.storage.k8s.io/v1` | `PINNED_CANDIDATE` | Current reviewed GA snapshot API/controller line. Install CRDs/controller by immutable image digest and qualify against the selected CSI driver. VolumeGroupSnapshot is not required. |
-| CSI attach sidecar (when required by driver) | external-attacher `v4.12.0`; CSI spec minimum `1.0.0` | `PINNED_CANDIDATE` | Current reviewed GA release with Kubernetes 1.36 recommended upstream. Driver packaging may own this sidecar; evidence records its effective version/digest rather than duplicating it. |
-| CSI storage driver | Operator-selected, exact vendor/version pin required per deployment profile | `UNSELECTED_BLOCKING_QUALIFICATION` | AR remains vendor-neutral, but standalone MVP evidence must select one real CSI driver/version and record provisioner, node plugin, sidecars, StorageClass, VolumeSnapshotClass, topology, and capabilities. No generic compatibility claim substitutes for this. |
+The source/deployment pin remains Kubernetes 1.36.4. Kubernetes 1.37 and other
+patches/distributions need a separate compatibility run; no compatibility or
+incompatibility is inferred from a release number alone. No complete tuple is
+currently release-qualified.
 
-### Why Kubernetes 1.37 is not the initial pin
+## Agent Sandbox API assumptions
 
-Kubernetes `1.37.0` was released on 2026-08-26. At this review, Agent Sandbox's documented dependency upgrade explicitly supports Kubernetes 1.36, while no release evidence reviewed here qualifies `v0.5.5` plus Kata/storage on Kubernetes 1.37. ThinkPixelAR therefore pins `1.36.2` for its initial test lane and lists `1.37.0` as `EVALUATE_AFTER_BASELINE`, not supported. This is intentional conservatism, not a claim that 1.37 is incompatible.
+The following reflects the implemented v1.0.0 adapter and accepted ADRs, not a
+claim to support every upstream API feature.
 
-## Kubernetes Agent Sandbox feature matrix
-
-Review update 2026-08-28: official tags now include `v0.5.6` and `v1.0.0`. The v1 source retains `v1beta1`, removes `v1alpha1`, and changes/clarifies Service, shutdown and managed NetworkPolicy behavior. See the [Phase 0 cross-system review](evidence/phase-0-cross-system-review.md). The table below preserves prior v0.5.5 analysis as historical input, not current support evidence.
-
-| Feature | Upstream surface | RC disposition | Qualification requirement |
-| --- | --- | --- | --- |
-| Core Sandbox | `agents.x-k8s.io/v1beta1` `Sandbox` | Required | Create, readiness translation, effective-spec verification, loss/recreate, release, restart/idempotency. |
-| SandboxTemplate | `extensions.agents.x-k8s.io/v1beta1` `SandboxTemplate` | Required for reusable profile mapping | Immutable digest/profile mapping, forbidden-field rejection, update behavior. |
-| SandboxClaim | `extensions.agents.x-k8s.io/v1beta1` `SandboxClaim` | Required where used by initial acquisition path | Targeted cold claim, adoption identity, duplicate/restart safety, release. Do not rely on deprecated `v1alpha1` fields. |
-| Suspend/resume | `Sandbox` lifecycle/conditions in `v0.5.5` | Required if used; otherwise release+replacement implements logical suspension | Inspect the boolean `Suspended` condition; do not infer suspension from condition presence. Verify volume/process/network semantics and controller restart. |
-| SandboxWarmPool | `extensions.agents.x-k8s.io/v1beta1` `SandboxWarmPool` | Deferred optimization | Not on correctness critical path. Before enablement, prove no tenant/session/process/environment/credential/vendor-state residue and safe fallback to cold acquisition. |
-| Router/SDK data-plane operations | Optional upstream router/clients | Not selected by ARC-015 | ARC-019 selects authenticated AR↔`agentd` transport. No unauthenticated router is accepted implicitly. |
-| Snapshot extensions/examples | Provider/cloud specific | Not canonical AR checkpoint API | May inform adapters; WorkspaceProvider/Checkpoint contracts remain AR-owned and vendor-neutral. |
-
-Agent Sandbox release `v0.5.4` changed `Suspended` condition semantics: the condition is consistently present and clients inspect its `status`. The initial adapter targets the corrected behavior inherited by `v0.5.5`. Releases `v0.5.0` and `v0.5.1` are explicitly unsupported because upstream documented a warm-claim reconciliation race; upgrades from `v0.4.x` follow upstream's `v0.5.2+` migration procedure before reaching the pin.
-
-## Kata and containerd matrix
-
-| Capability | Initial requirement |
+| Surface | AR behavior and compatibility obligation |
 | --- | --- |
-| CRI | Kubernetes and kubelet use CRI `runtime.v1`; deprecated CRI v1alpha2 is not a target. |
-| Runtime integration | containerd shim v2, exact Kata runtime handler configured by the operator and selected only through abstract `microvm-strong`. |
-| VMM | QEMU initial qualification. Cloud Hypervisor/Firecracker variants require separate Runtime Profile and evidence; they are not aliases. |
-| Architecture | `amd64` initial required lane. `arm64` is advertised only after separate hardware/virtualization and full e2e evidence. |
-| Host virtualization | Hardware virtualization and `/dev/kvm` (or provider-supported equivalent) available to trusted Kata runtime components, never directly to the sandbox workload. |
-| Guest artifacts | Kernel, root filesystem/image, `kata-agent`, runtime/shim, hypervisor, firmware/config are pinned by digest/package provenance in evidence. |
-| Isolation proof | Effective Sandbox Pod uses intended RuntimeClass/handler; process/namespace/mount/device/network probes demonstrate guest boundary; `kata-runtime check`/runtime diagnostics pass on every eligible node. |
-| Security defaults | No service-account token, host namespace, hostPath, privileged workload, runtime socket, excess capability, metadata/API egress, or unbounded resources. Kata does not replace these controls. |
-| Upgrade | Drain/replace nodes; do not mutate runtime artifacts beneath a live Sandbox. Existing Session continuity resumes from durable state after qualified replacement. |
+| Core Sandbox | Direct cold create/get/update/delete in the configured namespace. Stable AR reservation precedes create; replay retains the exact native UID. Bound-but-missing compute becomes recovery work rather than silent recreation. |
+| Backing Pod | Same name as Sandbox; verify controller owner reference and Sandbox UID. Do not depend on the removed `agents.x-k8s.io/pod-name` annotation. |
+| Conditions | Inspect status and matching `observedGeneration`. A present but false `Suspended` condition is not suspension. Unknown or unavailable physical state is not absence. Native Ready alone is not secure AR READY. |
+| Suspend/resume | `spec.operatingMode` is desired state. Confirm true suspension and actual Pod absence; resume preserves Sandbox UID and absolute shutdown deadline, with a new Pod. This does not implement Session checkpoint/restore or preserve authority. |
+| Deadline / release | Set absolute shutdown time. Delete only the owned UID with resource-version precondition and foreground propagation; confirm absence separately. Workspace PVCs remain outside provider deletion ownership. |
+| Service | Explicitly disabled for outbound agentd transport (ADR-0002). No router, upstream sandboxd or SDK execution endpoint is selected. |
+| SandboxTemplate | Immutable adapter-local typed mapping; direct acquisition uses its blueprint. Source support does not require installing the extension controller. |
+| SandboxClaim / warm pool | Not used. ADR-0010 selects direct cold acquisition because claims require a warm-pool reference. No claim adoption, pool residue or warm capacity is qualified. |
+| Network | AR preinstalls/verifies an explicit dedicated-namespace policy. Upstream managed-policy defaults are not implicit permission for Internet access. |
+| Workspace / bootstrap | Caller-resolved PVC attachments and a dedicated read-only bootstrap reference; no provider-created Workspace or copied Kubernetes credential. Live tests use an empty fixture Secret. |
+| Legacy alpha API | Unsupported. Only beta types are registered; no conversion webhook, alpha fallback or in-place migration is implemented by AR. |
 
-ThinkPixelAR does not expose the concrete handler name (for example `kata-qemu`) in its public API. Operator configuration maps `microvm-strong` to the exact installed handler and AR records the effective mapping digest.
+The provider-neutral [SandboxProvider contract](contracts/sandbox-provider.md)
+remains authoritative. Startup capability/discovery validation and production
+service composition are still implementation work; operator version checking is
+not a substitute for those future admission guards. The present live fixtures
+intentionally withhold secure readiness without an effective verifier.
 
-## CSI feature matrix
+## Storage capability policy
 
-| Storage capability | Kubernetes/API level | RC requirement | Driver qualification |
-| --- | --- | --- | --- |
-| Dynamic PVC provisioning | core `v1` PVC/StorageClass, CSI driver | Required | Create/bind/mount/restart/delete; exact capacity and topology; idempotent cleanup. |
-| Session Workspace mount | filesystem volume, `ReadWriteOnce` minimum | Required | Survives Sandbox/Pod/node replacement as promised by selected backend; no cross-Session attach; mount at `/workspace`. |
-| Vendor state mount | same Workspace volume or separately governed durable volume | Required | `/state/<vendor>` boundary, permissions, checkpoint inclusion, credential exclusion. |
-| VolumeSnapshot | `snapshot.storage.k8s.io/v1`, external-snapshotter `v8.6.0` | Required for the initial snapshot-backed checkpoint provider | Crash consistency/application quiesce, readiness, restore, deletion policy, integrity/provenance, controller restart. |
-| Restore PVC from snapshot | core PVC `dataSource` → `VolumeSnapshot` | Required with snapshot provider | Same-tenant/namespace binding, requested capacity, topology, independent lifecycle, failed/partial restore cleanup. |
-| PVC clone | core PVC `dataSource` → PVC; CSI driver-specific | Capability-gated, not assumed | Source bound/available, same namespace, compatible VolumeMode/capacity/storage backend, independent writes/deletion. ARC-024 decides RC fork requirement. |
-| Volume expansion | CSI driver/filesystem-specific | Optional; never implicit | Only explicit operator operation; no silent resource-envelope widening. |
-| `ReadWriteOncePod` | driver/sidecar/Kubernetes support | Preferred defense in depth | Verify scheduling and attach behavior. AR single-writer fencing remains authoritative even if unavailable. |
-| Multi-writer (`ReadWriteMany`) | driver-specific | Not required | Does not permit concurrent mutable Executions; requires separate security/correctness review. |
-| Group snapshots | `groupsnapshot.storage.k8s.io/v1` in external-snapshotter `v8.6.0` | Not required | Future capability only; no dependency in checkpoint semantics. |
-| Cross-namespace data source | feature/policy dependent | Forbidden initially | Source and destination remain in the Session's controlled namespace boundary. |
-| Generic/CSI ephemeral volumes | Kubernetes stable but driver-specific | Not a durable Workspace | May serve bounded scratch storage only and is excluded from Session durability claims. |
+Storage requirements come from the immutable profile. The homelab profiles select
+single-writer local storage, no encryption requirement and disabled snapshots.
+The original larger profile still requires its stronger backend. A disabled
+capability must fail explicitly rather than silently select weaker storage.
 
-VolumeSnapshot GA API support does not mean a selected CSI driver implements safe snapshot/restore for ThinkPixelAR. Driver/controller versions, sidecars, backend configuration, filesystem quiescing, topology, encryption, deletion policy, and restore behavior are a single qualified tuple.
+| Capability | Qualification required before use |
+| --- | --- |
+| Workspace / vendor-state PVC | Exact namespace/name/UID, topology, actual bounded capacity, ownership/fencing, mount identity and promised restart durability. RWO alone is not AR's single-writer fence. |
+| Snapshot / restore | Selected driver and backend, `snapshot.storage.k8s.io/v1`, quiescing, integrity, same-tenant restore, deletion policy, outage and restart behavior. Not required by snapshot-disabled homelab profiles. |
+| RWOP / clone / fork | Explicit driver/sidecar support and adversarial concurrency/independent-write tests. Never inferred from a generic API version. |
+| Expansion / cross-node restore | Explicit profile/operator action and separately qualified backend; no silent resource widening or local-volume roaming claim. |
 
-## Compatibility policy
+Historical future-backend candidates remain external-snapshotter `v8.6.0` and
+external-attacher `v4.12.0` where required by the selected driver. They are not
+installed, tested or required by the current homelab lane. Select exact driver,
+sidecar, backend and immutable artifact pins together before enabling them.
 
-### Exact pins and skew
+## Upstream compatibility and upgrade policy
 
-- Control-plane/server, kubelet, Agent Sandbox controller/CRDs, containerd, Kata artifacts, CSI driver/sidecars, and snapshot CRDs/controllers are recorded by exact version plus immutable image/package digest in evidence.
-- ThinkPixelAR supports only tuples present in this document and their linked evidence. Arbitrary mixes inside semver ranges are unqualified.
-- `kubectl` skew follows Kubernetes policy for operators, but AR's generated client dependency and server discovery are tested against the exact server pin.
-- Agent Sandbox API discovery must serve `v1beta1`; deprecated `v1alpha1` is not used by AR.
-- Unknown fields/states/conditions and missing required capabilities fail closed. AR does not parse version strings to guess features.
+Exact Go module pins, CRDs, release manifest checksum, controller image index and
+platform manifests, Kata installer/guest/VMM artifacts, runtime configuration,
+K3s packaging, CNI and storage behavior form one evidence tuple. A semver range,
+RuntimeClass name or successful Pod startup does not qualify a substitution.
 
-### Patch update procedure
+For every proposed patch or minor update:
 
-1. Review upstream release notes, security advisories, API/CRD/schema diffs, images, SBOM/provenance, and transitive compatibility.
-2. Pin artifacts/checksums/digests in a proposed change; never update a floating manifest.
-3. Run clean install and upgrade/rollback tests where supported.
-4. Run PostgreSQL-independent provider conformance, Kubernetes lifecycle/restart/loss/reconcile, storage snapshot/restore, effective-profile security, and Kata adversarial e2e lanes.
-5. Record environment, exact artifacts, commands, results, known deviations, performance baseline, and commit.
-6. Change the status to `RELEASE_QUALIFIED` only after required gates pass.
+1. Review upstream release/security notes and diff API types, CRD schemas/defaults,
+   RBAC, conditions, naming, shutdown, network policy and stored-version behavior.
+2. Pin new source/artifact digests and render from checked-in source; review the
+   output. Never apply an unpinned remote manifest or hand-edit generated artifacts.
+3. Run adapter API/translation/security/replay tests, real PostgreSQL reconciliation
+   tests, then `make verify`.
+4. On the same free homelab or another explicitly selected test lane, run clean
+   install, cold lifecycle, native suspend/resume if used, network denial, host KVM
+   correlation and physical resource/storage checks. Requalify changed configuration
+   even when its release version stays the same.
+5. Before supporting an upgrade path, test it separately with retained objects,
+   controller/AR restarts, ambiguous responses and exact cleanup ownership. Prepare
+   an actual data/CRD migration and rollback procedure; do not infer downgrade safety.
+6. Record the exact tested scope, failures and evidence. Preserve old Execution
+   resolution snapshots; new configuration must not mutate their authority or limits.
+   Promote only passing capabilities. Core isolation failures remain blockers.
 
-A critical security fix may remove support immediately. It never authorizes an untested automatic upgrade underneath live Sessions.
+A minor/major change also needs explicit API conversion and stored-object review,
+performance/capacity comparison, and an ADR if it changes an accepted assumption.
+Security fixes can remove support but cannot authorize an untested automatic
+upgrade under active workloads. Pause scheduling and replace compute safely before
+changing runtime artifacts; Session continuity is a separate AR responsibility.
 
-### Minor update procedure
+### Existing pre-v1 Agent Sandbox clusters
 
-Minor changes require all patch steps plus explicit API conversion/migration review, fresh cluster qualification, upgrade from the previous supported tuple, stored-object migration/rollback plan, performance/capacity comparison, and an ADR if public/domain assumptions change.
+The homelab was a fresh core-controller install, **not an upgrade rehearsal**.
+The upstream v1 release removes alpha APIs and conversion webhooks. Existing
+pre-v0.5 installations must first reach the documented v0.5.2+ migration path;
+rewrite stored resources to beta and verify `status.storedVersions` before v1.
+Inspect every installed core/extension CRD, including retained resources. Follow
+the upstream migration and cleanup instructions with backups and a tested rollback
+plan; the AR renderer is not a migration tool. See the
+[v1.0.0 release and migration requirements](https://github.com/kubernetes-sigs/agent-sandbox/releases/tag/v1.0.0).
 
-## Required qualification environments
+The repository does not claim tested v0.5→v1 upgrades or compatibility with an
+existing deployment merely because it serves beta endpoints. Optional extension
+components need their own install/conformance evidence before AR starts using them.
 
-1. **Disposable functional cluster:** Kubernetes `v1.36.2`, Agent Sandbox `v0.5.5`, selected CNI and CSI tuple; validates cold lifecycle, claims/templates, Workspace, snapshot/restore, controller/AR restart, and node loss.
-2. **Kata-capable security cluster:** same versions plus containerd `2.3.1` and Kata `3.31.0` QEMU on hardware virtualization; validates effective runtime, hostile probes, network/credential boundaries, complete compute replacement, and resume.
-3. **Upgrade cluster:** previous supported tuple to proposed tuple with active/idled/suspended Sessions and cleanup/orphan checks.
+## Required lanes and current limits
 
-Kind without Kata may run fast functional/provider tests but cannot qualify `microvm-strong` or the secure coding profile.
+- Existing ARM64 homelab: current low-cost lifecycle/isolation lane; resource and
+  complete profile admission gaps are recorded above. Fix those on available
+  infrastructure; they are not waived as production-only work.
+- amd64 Linux PC: optional separate live lane using the explicit smaller profile,
+  hardware virtualization and qualified bounded storage/networking.
+- Larger production/HA lane: future work on the infrastructure described in
+  [the infrastructure guide](operations/rc-infrastructure.md). Encrypted snapshot
+  restore, cross-node durability, disruption/capacity and upgrade evidence belong
+  to the capabilities actually enabled there.
 
-## Upstream sources reviewed
-
-- Go release history and support policy: <https://go.dev/doc/devel/release>
-- Go `1.26.7` archive metadata: <https://go.dev/dl/?mode=json&include=all>
-- PostgreSQL 18.6 release and Docker Official Image: <https://www.postgresql.org/about/news/postgresql-186-1711-1615-1519-1424-and-19-beta-3-released-3365/> and <https://hub.docker.com/_/postgres>
-- Kubernetes releases and patch support: <https://kubernetes.io/releases/> and <https://kubernetes.io/releases/1.37/>
-- Kubernetes storage snapshot/clone concepts: <https://kubernetes.io/docs/concepts/storage/volume-snapshots/> and <https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/>
-- Kubernetes Agent Sandbox releases (`v0.5.5`) and API migration: <https://github.com/kubernetes-sigs/agent-sandbox/releases/tag/v0.5.5> and <https://github.com/kubernetes-sigs/agent-sandbox/blob/main/docs/api-migration-guide.md>
-- Kata Containers releases and installation: <https://github.com/kata-containers/kata-containers/releases/tag/3.31.0> and <https://github.com/kata-containers/kata-containers/blob/main/docs/installation.md>
-- containerd releases/support policy: <https://github.com/containerd/containerd/releases/tag/v2.3.1> and <https://github.com/containerd/containerd/blob/main/RELEASES.md>
-- CSI snapshotter `v8.6.0`: <https://github.com/kubernetes-csi/external-snapshotter/releases/tag/v8.6.0>
-- CSI attacher `v4.12.0`: <https://github.com/kubernetes-csi/external-attacher/releases/tag/v4.12.0>
+Kind without Kata can exercise provider functionality but cannot establish a
+hardware-virtualized secure boundary. Phase 3 substrate tests are not an end-user
+release: Phase 6 remains the first standalone usable milestone.
