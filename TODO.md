@@ -114,7 +114,7 @@ Completion metadata format:
 
 ## Phase 3 — Kubernetes Agent Sandbox substrate
 
-- [ ] KAS-001 Implement Kubernetes client/configuration port with in-cluster and development kubeconfig modes and bounded API timeouts.
+- [x] KAS-001 Implement Kubernetes client/configuration port with in-cluster and development kubeconfig modes and bounded API timeouts. — completed 2026-09-20, commit: this KAS-001 commit, evidence: `make verify`; [client evidence](docs/evidence/kas-001-client.md).
 - [ ] KAS-002 Add Kubernetes Agent Sandbox API dependency at the exact Phase 0 pin without exposing its types outside the adapter.
 - [ ] KAS-003 Implement Runtime Profile configuration loader and validation.
 - [ ] KAS-004 Implement `KubernetesAgentSandboxProvider.Acquire`.

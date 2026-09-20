@@ -1617,9 +1617,12 @@ later phases.
 
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
+The implemented connection boundary is recorded in
+[ADR-0005](docs/adr/0005-kubernetes-client-boundary.md). Remaining work:
+
 Implement:
 
-- Kubernetes client/configuration;
+- Kubernetes Agent Sandbox API dependency and capability validation;
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
 - Runtime Profile mapping;

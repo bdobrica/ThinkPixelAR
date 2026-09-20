@@ -70,6 +70,9 @@ overrides with production-safe validation and secret-redacted diagnostics.
 See the [configuration reference](docs/configuration.md) for precedence,
 defaults, and supported variables.
 
+Kubernetes adapter connection settings are documented in the
+[Kubernetes configuration reference](docs/kubernetes-configuration.md).
+
 ## Documentation
 
 - [Documentation index](docs/README.md)

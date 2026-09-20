@@ -18,3 +18,5 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0002: Use outbound mTLS gRPC for the initial agentd transport](0002-agentd-outbound-mtls-grpc-transport.md) — Accepted
 - [ADR-0003: Gate Session fork on qualified storage and adapter capabilities](0003-capability-gated-session-fork.md) — Accepted
 - [ADR-0004: Exclude a durable workflow engine from MVP and RC](0004-no-temporal-in-mvp-rc.md) — Accepted
+
+- [ADR-0005: Kubernetes client boundary](0005-kubernetes-client-boundary.md)
