@@ -30,3 +30,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0013: Effective sandbox security](0013-effective-sandbox-security.md) — Accepted
 - [ADR-0014: Homelab-first release candidate](0014-homelab-first-release-candidate.md) — Accepted
 - [ADR-0015: Sandbox network enforcement](0015-sandbox-network-enforcement.md) — Accepted
+- [ADR-0016: Compute reconciliation](0016-compute-reconciliation.md) — Accepted

@@ -744,23 +744,10 @@ AR additionally uses its own Session/Execution generation checks to prevent stal
 
 ### 4.30 Reconciliation model
 
-The initial runtime is reconciliation-based.
-
-Conceptually:
-
-```mermaid
-flowchart TB
-    DESIRED[Desired Session / Execution state] --> RECONCILE["reconcile()"]
-    AUTHORITY[External authority state] --> RECONCILE
-    PERSISTED[Persisted AR state] --> RECONCILE
-    SANDBOX[Actual Kubernetes Sandbox state] --> RECONCILE
-    HARNESS[Observed harness state] --> RECONCILE
-    RECONCILE --> ACTIONS[Minimal idempotent actions]
-```
-
-Reconcilers must be restart-safe.
-
-Every external action has a stable logical operation identity where supported.
+The implemented compute reconciliation boundary is recorded in
+[ADR-0016](docs/adr/0016-compute-reconciliation.md). Durable worker scheduling and
+recovery effects follow in KAS-017/018; harness and Session restore orchestration
+remain in their later phases.
 
 ### 4.31 Temporal decision
 
@@ -1573,7 +1560,7 @@ Implement:
 - concrete qualification of Runtime Profile implementation references;
 - concrete infrastructure proof adapters behind the effective-state security gate;
 - service composition using durable provider, Workspace and bootstrap services;
-- lifecycle reconciliation.
+- durable reconciliation worker scheduling and recovery effects.
 
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 
