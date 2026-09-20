@@ -156,3 +156,18 @@ for exact observations and artifact hashes. The observed QEMU guest allocation
 was 2560 MiB for the small probe, while the chart advertises only 160 MiB fixed
 memory overhead. Measure actual host/guest accounting before production
 admission; neither that overhead nor the secure coding profile is qualified yet.
+
+## AR runtime-reference mapping
+
+[Runtime mapping](../../deploy/kata/runtime-mapping.json) binds the abstract
+`kata-qemu-3-31` reference to this installation. Feed operator mappings into the
+adapter's `NewKataRuntimeResolver`; its `Resolve` reads the actual RuntimeClass
+and returns a digest of the mapping, observed UID and independent qualification
+evidence. This library is not yet an automatically enabled service configuration.
+The qualification callback must use trusted host/guest evidence; returning a
+digest because the RuntimeClass exists is invalid.
+
+The supplied mapping is ARM64-only and intentionally cannot admit the existing
+amd64 coding profile. Its candidate qualification reference and installer-default
+overhead remain unqualified. A production mapping requires completed evidence and
+must be combined with the separate storage/network admission checks.

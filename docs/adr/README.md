@@ -26,3 +26,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0009: Coding template mapping](0009-coding-template-mapping.md) — Accepted
 - [ADR-0010: Durable sandbox acquisition](0010-durable-sandbox-acquisition.md) — Accepted
 - [ADR-0011: Workspace attachment seam](0011-workspace-attachment-seam.md) — Accepted
+- [ADR-0012: Operator Kata runtime mapping](0012-operator-kata-runtime-mapping.md) — Accepted

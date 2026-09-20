@@ -125,8 +125,8 @@ Completion metadata format:
 - [x] KAS-008A Install and document Kata on the authorized ARM64 homelab workers. — completed 2026-09-20, commit `0dff888`; [live installation evidence](docs/evidence/kata-homelab-installation.md). This prerequisite does not close KAS-021/022.
 - [x] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile. — completed 2026-09-20, commit `9934897`; [mapping evidence](docs/evidence/kas-009-template.md); `make verify`.
 - [x] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding. — completed 2026-09-20, commit `104dcf2`; direct cold acquisition selected because claims require unqualified warm pools (ADR-0010); [PostgreSQL evidence](docs/evidence/kas-010-bindings.md); `make verify`.
-- [x] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects. — completed 2026-09-20, commit: this KAS-011 commit; [attachment evidence](docs/evidence/kas-011-attachments.md); `make verify`.
-- [ ] KAS-012 Configure the high-isolation profile to select Kata through operator-controlled RuntimeClass mapping.
+- [x] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects. — completed 2026-09-20, commit `8227c9d`; [attachment evidence](docs/evidence/kas-011-attachments.md); `make verify`.
+- [x] KAS-012 Configure the high-isolation profile to select Kata through operator-controlled RuntimeClass mapping. — completed 2026-09-20, commit: this KAS-012 commit; [mapping evidence](docs/evidence/kas-012-runtimeclass.md); `make verify`; physical qualification remains KAS-021/022.
 - [ ] KAS-013 Enforce/verify no service-account token, host namespaces, hostPath, privileged mode, container-runtime sockets, or unnecessary capabilities in the secure profile.
 - [ ] KAS-014 Add NetworkPolicy/egress enforcement hooks for Runtime Profile network classes.
 - [ ] KAS-015 Add metadata-service and Kubernetes API denial tests for the secure coding profile.

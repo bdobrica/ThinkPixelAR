@@ -240,8 +240,9 @@ verification and per-Execution authority intersection remain downstream work.
 
 The installed ARM64 homelab substrate and its operator-owned runtime configuration
 are recorded in [ADR-0008](docs/adr/0008-kata-homelab-substrate.md) and the
-[Kata runbook](docs/operations/kata.md). Remaining work is profile-to-runtime
-mapping and full secure-profile qualification: effective security, egress,
+[Kata runbook](docs/operations/kata.md). Operator runtime-reference mapping is in
+[ADR-0012](docs/adr/0012-operator-kata-runtime-mapping.md). Remaining work is
+full secure-profile qualification: effective security, egress,
 Workspace storage, process limits, resource overhead and amd64 validation.
 
 ### 4.7 Runtime authority port
