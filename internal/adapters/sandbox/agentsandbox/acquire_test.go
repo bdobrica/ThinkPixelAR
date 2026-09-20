@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -16,15 +17,18 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	core "sigs.k8s.io/agent-sandbox/api/v1beta1"
 )
 
 type testBindings struct {
-	mu   sync.Mutex
-	b    *sandbox.Binding
-	fail bool
+	mu         sync.Mutex
+	b          *sandbox.Binding
+	fail       bool
+	revision   uint64
+	operations map[string]testOperation
 }
 
 func (s *testBindings) Reserve(_ context.Context, r sandbox.AcquireRequest) (sandbox.Binding, error) {
@@ -83,12 +87,15 @@ func testBlueprint(_ context.Context, r sandbox.AcquireRequest) (core.SandboxBlu
 }
 
 type testAPI struct {
-	mu           sync.Mutex
-	object       map[string]any
-	pod          map[string]any
-	unavailable  bool
-	creates      int
-	loseResponse bool
+	mu            sync.Mutex
+	object        map[string]any
+	pod           map[string]any
+	unavailable   bool
+	creates       int
+	loseResponse  bool
+	deletes       int
+	patches       int
+	deleteOptions metav1.DeleteOptions
 }
 
 func (a *testAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +125,39 @@ func (a *testAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(a.object)
 		return
 	}
+	if r.Method == "PATCH" {
+		if a.object == nil {
+			w.WriteHeader(404)
+			return
+		}
+		var patch map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&patch)
+		pm := patch["metadata"].(map[string]any)
+		m := a.object["metadata"].(map[string]any)
+		if pm["uid"] != m["uid"] || pm["resourceVersion"] != m["resourceVersion"] {
+			w.WriteHeader(409)
+			return
+		}
+		a.patches++
+		m["resourceVersion"] = strconv.Itoa(a.patches + 1)
+		for k, v := range pm["annotations"].(map[string]any) {
+			m["annotations"].(map[string]any)[k] = v
+		}
+		a.object["spec"].(map[string]any)["operatingMode"] = patch["spec"].(map[string]any)["operatingMode"]
+		_ = json.NewEncoder(w).Encode(a.object)
+		return
+	}
+	if r.Method == "DELETE" {
+		if a.object == nil {
+			w.WriteHeader(404)
+			return
+		}
+		_ = json.NewDecoder(r.Body).Decode(&a.deleteOptions)
+		a.deletes++
+		a.object = nil
+		_, _ = w.Write([]byte(`{"kind":"Status","apiVersion":"v1","status":"Success"}`))
+		return
+	}
 	if r.Method != "POST" {
 		w.WriteHeader(405)
 		return
@@ -133,6 +173,7 @@ func (a *testAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	a.creates++
 	a.object["metadata"].(map[string]any)["uid"] = "provider-uid-1"
+	a.object["metadata"].(map[string]any)["resourceVersion"] = "1"
 	if a.loseResponse {
 		a.loseResponse = false
 		w.WriteHeader(504)

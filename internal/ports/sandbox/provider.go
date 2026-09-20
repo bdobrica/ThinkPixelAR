@@ -113,3 +113,11 @@ type Status struct {
 	ProviderGeneration string
 	Effective          EffectiveFacts
 }
+
+// LifecycleStore records immutable operation identities and elects the latest
+// desired mutation with a monotonically increasing revision. Replays of an
+// operation superseded by a newer mutation fail with ErrConflict. Admission and
+// cleanup ownership checks are part of this durable transaction.
+type LifecycleStore interface {
+	BeginOperation(context.Context, primitives.ID, primitives.ID, string, Operation) (uint64, error)
+}
