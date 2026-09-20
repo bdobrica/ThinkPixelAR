@@ -1557,7 +1557,9 @@ The implemented connection boundary is recorded in
 [ADR-0005](docs/adr/0005-kubernetes-client-boundary.md); immutable coding-template
 mapping is recorded in [ADR-0009](docs/adr/0009-coding-template-mapping.md), and
 cold acquisition / durable operation ordering in
-[ADR-0010](docs/adr/0010-durable-sandbox-acquisition.md). Remaining work:
+[ADR-0010](docs/adr/0010-durable-sandbox-acquisition.md). The implemented Workspace
+attachment boundary is in [ADR-0011](docs/adr/0011-workspace-attachment-seam.md).
+Remaining work:
 
 Implement:
 
@@ -1567,8 +1569,7 @@ Implement:
 - concrete qualification of Runtime Profile implementation references;
 - concrete effective-state verifier for secure readiness (including mandatory
   platform control for the `none` network class);
-- service composition using durable binding storage and qualified attachment resolution;
-- Workspace attachment seam;
+- service composition using durable provider, Workspace and bootstrap services;
 - restricted security configuration;
 - lifecycle reconciliation.
 
