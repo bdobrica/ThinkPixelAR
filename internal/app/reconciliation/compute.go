@@ -36,7 +36,8 @@ func (c *Compute) Reconcile(ctx context.Context, tenant, id primitives.ID) (sand
 	switch intent.Desired {
 	case sandbox.ComputeRunning:
 		if !intent.Current {
-			return sandbox.ComputeObservation{}, sandbox.ErrConflict
+			observed = recovery("FENCED_COMPUTE")
+			break
 		}
 		if err = c.authority.CheckCompute(ctx, r.Scope); err != nil {
 			return sandbox.ComputeObservation{}, sandbox.ErrPermission

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"regexp"
 	"time"
 
@@ -57,6 +58,20 @@ func loadCompute(ctx context.Context, tx *sql.Tx, tenant, id primitives.ID) (san
 	if err = tx.QueryRowContext(ctx, `SELECT state_version FROM sandbox_bindings WHERE tenant_id=$1 AND sandbox_binding_id=$2`, tenant, id).Scan(&intent.Version); err != nil {
 		return intent, err
 	}
+
+	if revision == 0 && b.ProviderReference != "" {
+		var cleanup sandbox.Operation
+		err = tx.QueryRowContext(ctx, `SELECT cleanup_operation_id,request_digest FROM cleanup_intents WHERE tenant_id=$1 AND owner_type='sandbox-binding' AND owner_id=$2 AND target_type='sandbox' AND provider_kind=$3 AND external_reference=$4 AND ownership_proof_digest=$5 AND state IN ('PENDING','CONFIRMED')`, tenant, id, b.Request.Profile.Implementation.ProviderKind, b.ProviderReference, b.Request.Operation.Digest).Scan(&cleanup.ID, &cleanup.Digest)
+		if err == nil {
+			if cleanup.Digest != sandbox.LifecycleDigest(tenant, id, "release", cleanup.ID) {
+				return intent, sandbox.ErrIntegrity
+			}
+			intent.Desired, intent.Operation, intent.ReleaseAuthorized = sandbox.ComputeReleased, cleanup, true
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return intent, err
+		}
+		err = nil
+	}
 	if revision > 0 {
 		var kind string
 		err = tx.QueryRowContext(ctx, `SELECT kind,operation_id,request_digest FROM sandbox_operations WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND revision=$3`, tenant, id, revision).Scan(&kind, &intent.Operation.ID, &intent.Operation.Digest)
@@ -94,10 +109,10 @@ func (s *SandboxBindings) RecordCompute(ctx context.Context, expected sandbox.Co
 		if err != nil {
 			return err
 		}
-		if current.Version != expected.Version || current.Revision != expected.Revision || current.Operation != expected.Operation || current.Desired != expected.Desired || current.Binding.Request.Operation != expected.Binding.Request.Operation || current.Binding.ProviderReference != expected.Binding.ProviderReference {
+		if (current.Desired == sandbox.ComputeRunning && current.Current != expected.Current) || current.Version != expected.Version || current.Revision != expected.Revision || current.Operation != expected.Operation || current.Desired != expected.Desired || current.Binding.Request.Operation != expected.Binding.Request.Operation || current.Binding.ProviderReference != expected.Binding.ProviderReference {
 			return sandbox.ErrConflict
 		}
-		if current.Desired == sandbox.ComputeRunning && !current.Current || current.Desired == sandbox.ComputeReleased && !current.ReleaseAuthorized {
+		if current.Desired == sandbox.ComputeRunning && !current.Current && !(observed.RecoveryRequired && observed.Code == "FENCED_COMPUTE" && !expected.Current) || current.Desired == sandbox.ComputeReleased && !current.ReleaseAuthorized {
 			return sandbox.ErrConflict
 		}
 		if current.Desired == sandbox.ComputeRunning && (observed.State == sandbox.Released || observed.State == sandbox.Releasing) || current.Desired == sandbox.ComputeReleased && observed.State != sandbox.Released && observed.State != sandbox.Releasing && observed.State != sandbox.Unknown {
@@ -118,6 +133,9 @@ func (s *SandboxBindings) RecordCompute(ctx context.Context, expected sandbox.Co
 		_, err = tx.ExecContext(ctx, `UPDATE sandbox_bindings SET state=$3,reason=$4,effective_facts_digest=$5,observed_at=$6,updated_at=$6,state_version=state_version+1 WHERE tenant_id=$1 AND sandbox_binding_id=$2`, scope.TenantID, scope.SandboxID, observed.State, observed.Code, facts, now)
 		if err != nil {
 			return err
+		}
+		if observed.RecoveryRequired {
+			return recordComputeRecovery(ctx, tx, current, observed, now)
 		}
 		if observed.State == sandbox.Released {
 			_, err = tx.ExecContext(ctx, `UPDATE cleanup_intents SET state='CONFIRMED',state_version=state_version+1,attempts=attempts+1,last_error_code=NULL,confirmed_at=$3,updated_at=$3 WHERE tenant_id=$1 AND cleanup_operation_id=$2 AND owner_type='sandbox-binding' AND owner_id=$4 AND state='PENDING'`, scope.TenantID, current.Operation.ID, now, scope.SandboxID)

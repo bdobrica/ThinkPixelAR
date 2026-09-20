@@ -65,6 +65,7 @@ func TestComputeReconciliation(t *testing.T) {
 		action              string
 	}{
 		{"ambiguous acquisition", func(f *fixture) { f.getErr = sandbox.ErrNotFound }, sandbox.Provisioning, "ACQUIRE_ACCEPTED", false, false, "acquire"},
+		{"fenced orphan", func(f *fixture) { f.intent.Current = false }, sandbox.Unknown, "FENCED_COMPUTE", false, true, ""},
 		{"bound missing", func(f *fixture) { f.getErr = sandbox.ErrNotFound; f.intent.Binding.ProviderReference = "opaque" }, sandbox.Unknown, "BOUND_COMPUTE_MISSING", false, true, ""},
 		{"outage", func(f *fixture) { f.getErr = errors.New("sensitive provider payload") }, sandbox.Unknown, "PROVIDER_UNAVAILABLE", false, false, ""},
 		{"timeout after create", func(f *fixture) { f.getErr = sandbox.ErrNotFound; f.actionErr = sandbox.ErrTimeout }, sandbox.Unknown, "PROVIDER_UNAVAILABLE", false, false, "acquire"},
@@ -106,7 +107,7 @@ func TestComputeReconciliation(t *testing.T) {
 	}
 }
 func TestComputeFencesAndRecordCAS(t *testing.T) {
-	for _, kind := range []string{"stale", "authority", "cleanup", "tenant", "cas"} {
+	for _, kind := range []string{"authority", "cleanup", "tenant", "cas"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newFixture()
 			tenant := f.intent.Binding.Request.Scope.TenantID

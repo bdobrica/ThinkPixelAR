@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 17 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 18 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -25,7 +25,8 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[13].Version != 14 || got[13].Name != "reconciliation_work_claims" ||
 		got[14].Version != 15 || got[14].Name != "cleanup_intents" ||
 		got[15].Version != 16 || got[15].Name != "sandbox_operation_journal" ||
-		got[16].Version != 17 || got[16].Name != "binding_trigger_dispatch" {
+		got[16].Version != 17 || got[16].Name != "binding_trigger_dispatch" ||
+		got[17].Version != 18 || got[17].Name != "degraded_execution_association" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
