@@ -2,7 +2,7 @@ package agentsandbox
 
 import (
 	"context"
-	"reflect"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
@@ -33,7 +33,7 @@ func (p *KubernetesAgentSandboxProvider) Resume(ctx context.Context, tenant, id 
 	if err != nil {
 		return sandbox.Handle{}, sandbox.ErrUnsupported
 	}
-	if !reflect.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
+	if !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
 		return sandbox.Handle{}, sandbox.ErrIntegrity
 	}
 	return p.setMode(ctx, tenant, id, "resume", core.SandboxOperatingModeRunning, op)

@@ -3,6 +3,7 @@ package agentsandbox
 import (
 	"context"
 	"errors"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"reflect"
 	"regexp"
 	"time"
@@ -65,6 +66,12 @@ func (p *KubernetesAgentSandboxProvider) Acquire(ctx context.Context, r sandbox.
 	if blueprint.Service == nil || *blueprint.Service || len(blueprint.VolumeClaimTemplates) != 0 || len(blueprint.PodTemplate.Spec.Containers) == 0 {
 		return sandbox.Handle{}, sandbox.ErrIntegrity
 	}
+	if r.Profile.IsolationClass == "confidential-strong" {
+		return sandbox.Handle{}, sandbox.ErrUnsupported
+	}
+	if r.Profile.IsolationClass == "microvm-strong" && !secureBlueprint(r, blueprint.PodTemplate.Spec) {
+		return sandbox.Handle{}, sandbox.ErrIntegrity
+	}
 	binding, err := p.bindings.Reserve(ctx, r)
 	if err != nil {
 		return sandbox.Handle{}, err
@@ -97,7 +104,7 @@ func (p *KubernetesAgentSandboxProvider) Acquire(ctx context.Context, r sandbox.
 		return sandbox.Handle{}, sandbox.ErrConflict
 	}
 	var observed core.Sandbox
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(existing.Object, &observed); err != nil || !reflect.DeepEqual(observed.Spec.SandboxBlueprint, blueprint) {
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(existing.Object, &observed); err != nil || !apiequality.Semantic.DeepEqual(observed.Spec.SandboxBlueprint, blueprint) {
 		return sandbox.Handle{}, sandbox.ErrIntegrity
 	}
 	reference := p.namespace + "/" + name + "/" + string(existing.GetUID())

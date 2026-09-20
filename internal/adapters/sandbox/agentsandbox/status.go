@@ -2,7 +2,7 @@ package agentsandbox
 
 import (
 	"context"
-	"reflect"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"strconv"
 	"strings"
 
@@ -73,7 +73,7 @@ func (p *KubernetesAgentSandboxProvider) Get(ctx context.Context, tenant, id pri
 	result.State, result.Reason = translateState(sb, pod)
 	if result.State == sandbox.Ready {
 		expected, e := p.resolve(ctx, b.Request)
-		if e != nil || !reflect.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
+		if e != nil || !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
 			return sandbox.Status{State: sandbox.Unknown}, sandbox.ErrIntegrity
 		}
 		if p.verify == nil || pod == nil || b.ProviderReference == "" {

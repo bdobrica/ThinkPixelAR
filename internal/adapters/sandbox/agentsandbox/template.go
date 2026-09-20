@@ -68,7 +68,7 @@ func NewCodingTemplate(document []byte, config CodingTemplateConfig, qualify Val
 	}
 	var name string
 	err = registry.Reload([][]byte{document}, func(p runtimeprofile.Profile) ([]byte, error) {
-		if p.Implementation != config.References || p.Implementation.ProviderKind != "kubernetes-agent-sandbox" || p.IsolationClass != "microvm-strong" || p.Platform.OS != "linux" || p.Platform.GPUAllowed || p.Resources.GPU.Count != 0 || p.Security.SeccompClass != "runtime-default" || p.Lifecycle.WarmPoolEligible || p.Storage.WorkspaceMount != "/workspace" || p.Storage.VendorStateRoot != "/state" || config.TempBytes > p.Resources.EphemeralStorage.Limit {
+		if p.Implementation != config.References || p.Implementation.ProviderKind != "kubernetes-agent-sandbox" || p.IsolationClass != "microvm-strong" || p.Platform.OS != "linux" || p.Platform.GPUAllowed || p.Resources.GPU.Count != 0 || p.Security.SeccompClass != "runtime-default" || p.Network.DNSPolicy != "trusted-only" || p.Lifecycle.WarmPoolEligible || p.Storage.WorkspaceMount != "/workspace" || p.Storage.VendorStateRoot != "/state" || config.TempBytes > p.Resources.EphemeralStorage.Limit {
 			return nil, sandbox.ErrUnsupported
 		}
 		// Pass independent values: qualification may not mutate the saved mapping.

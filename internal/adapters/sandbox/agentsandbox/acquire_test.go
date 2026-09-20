@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeprofile"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -82,8 +82,22 @@ func acquireFixture(t *testing.T) sandbox.AcquireRequest {
 	return r
 }
 func testBlueprint(_ context.Context, r sandbox.AcquireRequest) (core.SandboxBlueprint, error) {
-	f := false
-	return core.SandboxBlueprint{Service: &f, PodTemplate: core.PodTemplate{Spec: v1.PodSpec{Containers: []v1.Container{{Name: "agent", Image: r.Runtime.Image, Command: r.Runtime.Entrypoint}}}}}, nil
+	raw, err := json.Marshal(r.Profile)
+	if err != nil {
+		return core.SandboxBlueprint{}, err
+	}
+	config := CodingTemplateConfig{References: r.Profile.Implementation, RuntimeClass: "test-kata", NodeSelector: map[string]string{"test": "qualified"}, UserID: 65532, GroupID: 65532, TempBytes: 1 << 30, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
+	template, err := NewCodingTemplate(raw, config, func(runtimeprofile.Profile, CodingTemplateConfig) error { return nil })
+	if err != nil {
+		return core.SandboxBlueprint{}, err
+	}
+	r.Profile, _, r.ProfileDigest, _, r.ImplementationDigest = template.Resolution()
+	r.Workspace.MountPath = "/workspace"
+	mapped, err := template.Render(r, CodingVolumes{AttachmentReference: r.Workspace.Reference, BootstrapReference: r.BootstrapReference, WorkspaceClaim: "workspace", StateClaim: "state", BootstrapSecret: "bootstrap"})
+	if err != nil {
+		return core.SandboxBlueprint{}, err
+	}
+	return mapped.Spec.SandboxBlueprint, nil
 }
 
 type testAPI struct {

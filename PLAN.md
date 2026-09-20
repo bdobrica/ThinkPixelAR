@@ -1560,7 +1560,8 @@ mapping is recorded in [ADR-0009](docs/adr/0009-coding-template-mapping.md), and
 cold acquisition / durable operation ordering in
 [ADR-0010](docs/adr/0010-durable-sandbox-acquisition.md). The implemented Workspace
 attachment boundary is in [ADR-0011](docs/adr/0011-workspace-attachment-seam.md).
-Remaining work:
+The enforced security gate is recorded in
+[ADR-0013](docs/adr/0013-effective-sandbox-security.md). Remaining work:
 
 Implement:
 
@@ -1568,15 +1569,19 @@ Implement:
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
 - concrete qualification of Runtime Profile implementation references;
-- concrete effective-state verifier for secure readiness (including mandatory
-  platform control for the `none` network class);
+- concrete infrastructure proof adapters behind the effective-state security gate;
 - service composition using durable provider, Workspace and bootstrap services;
-- restricted security configuration;
 - lifecycle reconciliation.
 
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 
-The homelab now runs Kata on three ARM64 workers; see the [installation evidence](docs/evidence/kata-homelab-installation.md). KAS-021/022 must still separately prove the complete high-isolation Runtime Profile.
+The homelab now runs Kata on three ARM64 workers; see the [installation evidence](docs/evidence/kata-homelab-installation.md). Per the user-selected validation scope (2026-09-20), KAS-019–022 use the ARM64
+homelab. Phase evidence must describe the tested envelope and transfer full
+amd64/encrypted-snapshot production qualification into explicit future production
+qualification with a concrete infrastructure specification, not RC blockers.
+The RC path uses existing homelab hardware, an explicit smaller profile and
+documented storage/recovery/capacity limits, without added infrastructure costs. Untested guarantees
+must not be represented as proven.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
