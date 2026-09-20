@@ -1575,13 +1575,11 @@ Implement:
 
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 
-The homelab now runs Kata on three ARM64 workers; see the [installation evidence](docs/evidence/kata-homelab-installation.md). Per the user-selected validation scope (2026-09-20), KAS-019–022 use the ARM64
-homelab. Phase evidence must describe the tested envelope and transfer full
-amd64/encrypted-snapshot production qualification into explicit future production
-qualification with a concrete infrastructure specification, not RC blockers.
-The RC path uses existing homelab hardware, an explicit smaller profile and
-documented storage/recovery/capacity limits, without added infrastructure costs. Untested guarantees
-must not be represented as proven.
+The homelab-first RC scope and explicit smaller profiles are recorded in
+[ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). KAS-019–022 must
+record the actual ARM64 test envelope. Larger production qualification is future
+work described in the [infrastructure guide](docs/operations/rc-infrastructure.md),
+not an RC prerequisite.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 

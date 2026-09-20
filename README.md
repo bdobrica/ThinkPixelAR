@@ -169,4 +169,5 @@ Project-specific implementation status, supported versions, and release qualific
 
 Licensed under the terms in [LICENSE](LICENSE).
 
-Homelab operators: [Kata installation and ARM64 configuration](docs/operations/kata.md).
+Homelab operators: [Kata installation](docs/operations/kata.md) and
+[RC profiles, limits, and infrastructure](docs/operations/rc-infrastructure.md).

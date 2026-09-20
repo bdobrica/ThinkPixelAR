@@ -180,3 +180,20 @@ func TestOfflineProfileRetainsMandatoryPlatformDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestHomelabProfilesAreExplicitAndSchemaValid(t *testing.T) {
+	for _, arch := range []string{"arm64", "amd64"} {
+		raw, err := os.ReadFile("../../../docs/profiles/coding-homelab-" + arch + ".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := registry(t)
+		if err = r.Reload([][]byte{raw}, accepted); err != nil {
+			t.Fatal(err)
+		}
+		p, _, _, _, _, ok := r.Lookup("coding-homelab-" + arch)
+		if !ok || p.IsolationClass != "microvm-strong" || p.Platform.Architectures[0] != arch || p.Resources.Memory.Limit != 536870912 || p.Storage.SnapshotClass != "disabled" || p.Storage.EncryptionRequired || p.Network.Profile != "none" || p.Security.ServiceAccountToken || p.Lifecycle.WarmPoolEligible {
+			t.Fatal("homelab profile scope drift")
+		}
+	}
+}
