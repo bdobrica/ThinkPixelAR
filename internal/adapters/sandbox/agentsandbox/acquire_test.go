@@ -205,7 +205,7 @@ func providerFixture(t *testing.T, a *testAPI, b *testBindings) *KubernetesAgent
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e := New(c, b, "sandboxes", testBlueprint)
+	p, e := New(c, b, "sandboxes", testBlueprint, WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }))
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -128,8 +128,8 @@ Completion metadata format:
 - [x] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects. — completed 2026-09-20, commit `8227c9d`; [attachment evidence](docs/evidence/kas-011-attachments.md); `make verify`.
 - [x] KAS-012 Configure the high-isolation profile to select Kata through operator-controlled RuntimeClass mapping. — completed 2026-09-20, commit `dd0b35a`; [mapping evidence](docs/evidence/kas-012-runtimeclass.md); `make verify`; physical qualification remains KAS-021/022.
 - [x] KAS-013 Enforce/verify no service-account token, host namespaces, hostPath, privileged mode, container-runtime sockets, or unnecessary capabilities in the secure profile. — completed 2026-09-20, commit `b6cc6af`; [security evidence](docs/evidence/kas-013-security.md); `make verify`.
-- [x] KAS-013A Add explicit homelab RC profiles and document future production infrastructure without making it an RC blocker. — completed 2026-09-20, commit: this KAS-013A commit; ADR-0014; profile schema/race tests and `make verify`; live limits remain KAS-022.
-- [ ] KAS-014 Add NetworkPolicy/egress enforcement hooks for Runtime Profile network classes.
+- [x] KAS-013A Add explicit homelab RC profiles and document future production infrastructure without making it an RC blocker. — completed 2026-09-20, commit `5adc795`; ADR-0014; profile schema/race tests and `make verify`; live limits remain KAS-022.
+- [x] KAS-014 Add NetworkPolicy/egress enforcement hooks for Runtime Profile network classes. — completed 2026-09-20, commit: this KAS-014 commit; [network hook evidence](docs/evidence/kas-014-network-hooks.md); focused race tests and `make verify`.
 - [ ] KAS-015 Add metadata-service and Kubernetes API denial tests for the secure coding profile.
 - [ ] KAS-016 Implement AR reconciler for desired Session/Execution state against actual Sandbox state.
 - [ ] KAS-017 Make sandbox acquisition/release reconciliation restart-safe and idempotent.

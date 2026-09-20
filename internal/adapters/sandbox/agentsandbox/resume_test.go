@@ -27,6 +27,11 @@ func TestResumePreservesIdentityAndNeverReacquiresMissingCompute(t *testing.T) {
 	a.mu.Lock()
 	a.object["status"] = map[string]any{"conditions": []any{map[string]any{"type": "Suspended", "status": "True", "observedGeneration": int64(0)}}}
 	a.mu.Unlock()
+	p.network = func(context.Context, sandbox.AcquireRequest, string) error { return sandbox.ErrIntegrity }
+	if _, err := p.Resume(ctx, r.Scope.TenantID, r.Scope.SandboxID, op); !errors.Is(err, sandbox.ErrIntegrity) || a.patches != 1 {
+		t.Fatal("resumed through failed network gate", err)
+	}
+	p.network = func(context.Context, sandbox.AcquireRequest, string) error { return nil }
 	for range 2 {
 		h, err := p.Resume(ctx, r.Scope.TenantID, r.Scope.SandboxID, op)
 		if err != nil || h.ProviderReference != original.ProviderReference || h.SandboxID != original.SandboxID || h.State != sandbox.Resuming {

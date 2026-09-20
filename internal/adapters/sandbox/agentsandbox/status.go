@@ -72,6 +72,9 @@ func (p *KubernetesAgentSandboxProvider) Get(ctx context.Context, tenant, id pri
 	}
 	result.State, result.Reason = translateState(sb, pod)
 	if result.State == sandbox.Ready {
+		if err := p.checkNetwork(ctx, b.Request); err != nil {
+			return sandbox.Status{State: sandbox.Unknown}, err
+		}
 		expected, e := p.resolve(ctx, b.Request)
 		if e != nil || !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
 			return sandbox.Status{State: sandbox.Unknown}, sandbox.ErrIntegrity

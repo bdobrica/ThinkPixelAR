@@ -39,6 +39,9 @@ func (p *KubernetesAgentSandboxProvider) setMode(ctx context.Context, tenant, id
 		return sandbox.Handle{}, sandbox.ErrConflict
 	}
 	if mode == core.SandboxOperatingModeRunning {
+		if err := p.checkNetwork(ctx, b.Request); err != nil {
+			return sandbox.Handle{}, err
+		}
 		if sb.Spec.OperatingMode != core.SandboxOperatingModeSuspended && !(sb.Spec.OperatingMode == core.SandboxOperatingModeRunning && sb.Annotations["thinkpixel.io/operation-digest"] == op.Digest) {
 			return sandbox.Handle{}, sandbox.ErrConflict
 		}

@@ -1561,7 +1561,9 @@ cold acquisition / durable operation ordering in
 [ADR-0010](docs/adr/0010-durable-sandbox-acquisition.md). The implemented Workspace
 attachment boundary is in [ADR-0011](docs/adr/0011-workspace-attachment-seam.md).
 The enforced security gate is recorded in
-[ADR-0013](docs/adr/0013-effective-sandbox-security.md). Remaining work:
+[ADR-0013](docs/adr/0013-effective-sandbox-security.md); network enforcement hooks
+and the dedicated-namespace verifier are recorded in
+[ADR-0015](docs/adr/0015-sandbox-network-enforcement.md). Remaining work:
 
 Implement:
 

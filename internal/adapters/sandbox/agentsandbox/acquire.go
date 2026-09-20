@@ -31,6 +31,7 @@ type KubernetesAgentSandboxProvider struct {
 	namespace string
 	now       func() time.Time
 	verify    EffectiveVerifier
+	network   NetworkEnforcer
 }
 
 func New(client dynamic.Interface, bindings sandbox.BindingStore, namespace string, resolve BlueprintResolver, options ...Option) (*KubernetesAgentSandboxProvider, error) {
@@ -72,12 +73,18 @@ func (p *KubernetesAgentSandboxProvider) Acquire(ctx context.Context, r sandbox.
 	if r.Profile.IsolationClass == "microvm-strong" && !secureBlueprint(r, blueprint.PodTemplate.Spec) {
 		return sandbox.Handle{}, sandbox.ErrIntegrity
 	}
+	if r.Profile.IsolationClass != "container-standard" && p.network == nil {
+		return sandbox.Handle{}, sandbox.ErrUnsupported
+	}
 	binding, err := p.bindings.Reserve(ctx, r)
 	if err != nil {
 		return sandbox.Handle{}, err
 	}
 	if !reflect.DeepEqual(binding.Request, r) {
 		return sandbox.Handle{}, sandbox.ErrConflict
+	}
+	if err := p.checkNetwork(ctx, r); err != nil {
+		return sandbox.Handle{}, err
 	}
 	name := "ar-" + string(r.Scope.SandboxID)
 	annotations := map[string]string{"thinkpixel.io/acquire-digest": digest, "thinkpixel.io/attempt": string(r.Scope.AttemptID)}

@@ -71,6 +71,11 @@ func TestGetFailsClosedWithoutEffectiveEvidenceAndDistinguishesOutage(t *testing
 	if err != nil || status.State != sandbox.Ready {
 		t.Fatalf("verified readiness: %+v %v", status, err)
 	}
+	p.network = func(context.Context, sandbox.AcquireRequest, string) error { return sandbox.ErrIntegrity }
+	status, err = p.Get(ctx, r.Scope.TenantID, r.Scope.SandboxID)
+	if !errors.Is(err, sandbox.ErrIntegrity) || status.State != sandbox.Unknown {
+		t.Fatal("network drift reported READY", err)
+	}
 	a.mu.Lock()
 	a.unavailable = true
 	a.mu.Unlock()

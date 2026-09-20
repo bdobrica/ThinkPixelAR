@@ -29,3 +29,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0012: Operator Kata runtime mapping](0012-operator-kata-runtime-mapping.md) — Accepted
 - [ADR-0013: Effective sandbox security](0013-effective-sandbox-security.md) — Accepted
 - [ADR-0014: Homelab-first release candidate](0014-homelab-first-release-candidate.md) — Accepted
+- [ADR-0015: Sandbox network enforcement](0015-sandbox-network-enforcement.md) — Accepted
