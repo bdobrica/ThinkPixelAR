@@ -1561,9 +1561,12 @@ Implement:
 - concrete qualification of Runtime Profile implementation references;
 - concrete infrastructure proof adapters behind the effective-state security gate;
 - service composition using durable provider, Workspace and bootstrap services;
-- live lifecycle and physical isolation/resource qualification.
+- live native suspend/resume and physical isolation/resource qualification.
 
-Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
+Cold acquisition/release/replacement now pass against the homelab controller;
+see [live lifecycle evidence](docs/evidence/kas-019-live-lifecycle.md) and the
+[installation/test guide](docs/operations/agent-sandbox.md). Native suspend/resume
+and physical isolation/resource checks remain before Phase 3 closure.
 
 The homelab-first RC scope and explicit smaller profiles are recorded in
 [ADR-0014](docs/adr/0014-homelab-first-release-candidate.md). The repeatable IPv4 API/metadata denial

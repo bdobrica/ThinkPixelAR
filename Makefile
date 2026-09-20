@@ -113,3 +113,8 @@ openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 verify: hygiene hygiene-test versions-check fmt-check static test-unit test-race vulnerability license build openapi-check ## Run the local and CI source verification gate.
 
 baseline-verify: verify image-smoke agentd-image-smoke ## Run the complete Phase 1 source and image baseline.
+
+.PHONY: test-kas-lifecycle
+test-kas-lifecycle: ## Run opted-in live Agent Sandbox lifecycle tests through a loopback API tunnel.
+	@test -n "$${THINKPIXELAR_TEST_KUBE_API}" || { echo 'THINKPIXELAR_TEST_KUBE_API is required'; exit 1; }
+	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveColdLifecycle$$' -count=1 -v
