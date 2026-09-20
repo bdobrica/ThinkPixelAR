@@ -20,3 +20,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0004: Exclude a durable workflow engine from MVP and RC](0004-no-temporal-in-mvp-rc.md) — Accepted
 
 - [ADR-0005: Kubernetes client boundary](0005-kubernetes-client-boundary.md)
+- [ADR-0006: Agent Sandbox v1 API pin](0006-agent-sandbox-v1-api-pin.md)

@@ -17,7 +17,7 @@ ServiceAccount. Development files are trusted operator input and may invoke
 credential plugins. Neither mode falls back to another credential source.
 TLS verification is required. No credentials should be committed or printed.
 
-The official client is pinned to `v0.36.2`. Requests are rate limited to 10 QPS
+The official client is pinned to `v0.36.4`. Requests are rate limited to 10 QPS
 with burst 20 and bounded by an HTTP timeout and caller context. Cluster RBAC
 must scope the caller to its intended resources; the namespace configuration
 alone is not authorization. Native API errors are translated by consuming

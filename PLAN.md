@@ -226,28 +226,9 @@ A second production backend is explicitly not required to prove the abstraction.
 
 ### 4.4 Kubernetes Agent Sandbox usage
 
-The adapter should use upstream sandbox lifecycle primitives rather than duplicate them.
-
-The exact supported upstream API version is pinned in `docs/supported-versions.md`.
-
-The implementation should evaluate and use, where appropriate:
-
-- `Sandbox`;
-- `SandboxTemplate`;
-- `SandboxClaim`;
-- `SandboxWarmPool`.
-
-Warm pools are an optimization and must not block the first working stateful Session.
-
-ThinkPixelAR remains responsible for higher-level semantics such as:
-
-- Session identity;
-- agent/harness lifecycle;
-- workspace association;
-- authority binding;
-- checkpoints;
-- normalized events;
-- restart/recovery behavior.
+The implemented API dependency and version-selection decision are in
+[ADR-0006](docs/adr/0006-agent-sandbox-v1-api-pin.md). Lifecycle mapping,
+claims, templates and live qualification remain Phase 3 work.
 
 ### 4.5 Runtime Profiles
 
@@ -1622,7 +1603,7 @@ The implemented connection boundary is recorded in
 
 Implement:
 
-- Kubernetes Agent Sandbox API dependency and capability validation;
+- provider capability validation;
 - `SandboxProvider`;
 - Kubernetes Agent Sandbox adapter;
 - Runtime Profile mapping;
