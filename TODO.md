@@ -121,7 +121,8 @@ Completion metadata format:
 - [x] KAS-005 Implement provider status translation from Kubernetes Agent Sandbox state to AR-neutral Sandbox status. — completed 2026-09-20, commit `86454b4`, evidence: `make verify`; [status evidence](docs/evidence/kas-005-status.md).
 - [x] KAS-006 Implement provider release/delete with idempotent semantics. — completed 2026-09-20, commit `b00afb7`, evidence: `make verify`; [release evidence](docs/evidence/kas-006-release.md).
 - [x] KAS-007 Implement provider suspend operation using supported upstream semantics. — completed 2026-09-20, commit `afda458`, evidence: `make verify`; [suspend evidence](docs/evidence/kas-007-suspend.md).
-- [x] KAS-008 Implement provider resume operation using supported upstream semantics. — completed 2026-09-20, commit: this KAS-008 commit, evidence: `make verify`; [resume evidence](docs/evidence/kas-008-resume.md).
+- [x] KAS-008 Implement provider resume operation using supported upstream semantics. — completed 2026-09-20, commit `8c86980`, evidence: `make verify`; [resume evidence](docs/evidence/kas-008-resume.md).
+- [x] KAS-008A Install and document Kata on the authorized ARM64 homelab workers. — completed 2026-09-20, commit: this Kata installation commit; [live installation evidence](docs/evidence/kata-homelab-installation.md). This prerequisite does not close KAS-021/022.
 - [ ] KAS-009 Implement SandboxTemplate mapping for the initial coding Runtime Profile.
 - [ ] KAS-010 Implement SandboxClaim-based acquisition where appropriate and persist stable AR↔sandbox binding.
 - [ ] KAS-011 Add Workspace attachment/materialization seam without embedding CSI types into domain objects.

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Preserve the pinned QEMU firmware search path in the suffixed installation.
+exec /opt/kata-ar331/bin/qemu-system-aarch64 "$@" -L /opt/kata-ar331/share/kata-qemu/qemu/

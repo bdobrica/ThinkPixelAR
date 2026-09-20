@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: thinkpixelar-kata-check
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: thinkpixelar-kata-check
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kata-guest-check-v3
+  namespace: thinkpixelar-kata-check
+spec:
+  runtimeClassName: kata-qemu-runtime-rs-ar331
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  restartPolicy: Never
+  activeDeadlineSeconds: 3600
+  terminationGracePeriodSeconds: 5
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: probe
+      image: docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+      command: [sh, -ec]
+      args:
+        - |
+          uname -srmo
+          test ! -e /var/run/secrets/kubernetes.io/serviceaccount/token
+          test ! -e /dev/kvm
+          id
+          cat /proc/self/status | grep -E '^(CapEff|NoNewPrivs|Seccomp):'
+          grep -Eq "^CapEff:[[:space:]]+0000000000000000$" /proc/self/status
+          grep -Eq "^NoNewPrivs:[[:space:]]+1$" /proc/self/status
+          grep -Eq "^Seccomp:[[:space:]]+2$" /proc/self/status
+          sleep 3600
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+          ephemeral-storage: 64Mi
+        limits:
+          cpu: "1"
+          memory: 512Mi
+          ephemeral-storage: 128Mi

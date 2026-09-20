@@ -1,0 +1,16 @@
+# Kata 3.31.0 kata-deploy multi-install prefix correction for ARM64.
+# Operator-owned drop-in; do not modify generated 10-installation-prefix.toml.
+[hypervisor.qemu]
+path = "/opt/kata-ar331/bin/qemu-system-aarch64-ar331"
+kernel = "/opt/kata-ar331/share/kata-containers/vmlinux.container"
+image = "/opt/kata-ar331/share/kata-containers/kata-containers.img"
+initrd = ""
+firmware = "/opt/kata-ar331/share/aavmf/AAVMF_CODE.fd"
+firmware_volume = ""
+virtio_fs_daemon = "/opt/kata-ar331/libexec/virtiofsd"
+valid_hypervisor_paths = ["/opt/kata-ar331/bin/qemu-system-aarch64-ar331"]
+valid_virtio_fs_daemon_paths = ["/opt/kata-ar331/libexec/virtiofsd"]
+enable_annotations = []
+
+[runtime]
+disable_guest_seccomp = false

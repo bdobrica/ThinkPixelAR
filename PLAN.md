@@ -238,28 +238,11 @@ verification and per-Execution authority intersection remain downstream work.
 
 ### 4.6 Kata isolation
 
-Kata is the preferred initial backend for high-risk arbitrary-code execution.
-
-The Runtime Profile determines whether Kata is required.
-
-ThinkPixelAR does not claim that every agent requires a microVM. Lower-risk profiles may eventually use standard hardened containers or another runtime.
-
-For the primary coding-agent profile:
-
-- no privileged containers;
-- no host PID;
-- no host network;
-- no host IPC;
-- no `hostPath`;
-- no Docker/container runtime socket;
-- no Kubernetes service-account token unless explicitly required by a trusted profile;
-- dropped Linux capabilities;
-- seccomp;
-- read-only root filesystem where compatible;
-- bounded writable volumes;
-- explicit CPU/memory/storage limits;
-- metadata-service access blocked;
-- default-restricted egress.
+The installed ARM64 homelab substrate and its operator-owned runtime configuration
+are recorded in [ADR-0008](docs/adr/0008-kata-homelab-substrate.md) and the
+[Kata runbook](docs/operations/kata.md). Remaining work is profile-to-runtime
+mapping and full secure-profile qualification: effective security, egress,
+Workspace storage, process limits, resource overhead and amd64 validation.
 
 ### 4.7 Runtime authority port
 
@@ -1587,7 +1570,7 @@ Implement:
 
 Exit when a disposable cluster proves sandbox lifecycle and replacement behavior.
 
-A Kata-capable environment must separately prove the high-isolation Runtime Profile.
+The homelab now runs Kata on three ARM64 workers; see the [installation evidence](docs/evidence/kata-homelab-installation.md). KAS-021/022 must still separately prove the complete high-isolation Runtime Profile.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 

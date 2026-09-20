@@ -1,0 +1,31 @@
+# Trusted node installer, never an agent workload. See docs/operations/kata.md.
+k8sDistribution: k3s
+image:
+  reference: quay.io/kata-containers/kata-deploy@sha256:643471067559cbde3258a62eb60840ce435383d9a6dae7a803bd9418eb81be8b
+imagePullPolicy: IfNotPresent
+nodeSelector:
+  thinkpixel.io/kata-install: "3.31.0"
+  kubernetes.io/arch: arm64
+snapshotter:
+  setup: []
+shims:
+  disableAll: true
+  qemu-runtime-rs:
+    enabled: true
+    runtimeClass:
+      nodeSelector:
+        thinkpixel.io/kata-configured: "3.31.0"
+        thinkpixel.io/kata-install: "3.31.0"
+        kubernetes.io/arch: arm64
+defaultShim:
+  arm64: qemu-runtime-rs
+runtimeClasses:
+  createDefault: false
+env:
+  multiInstallSuffix: ar331
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+verification:
+  pod: ""

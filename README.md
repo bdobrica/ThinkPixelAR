@@ -168,3 +168,5 @@ Project-specific implementation status, supported versions, and release qualific
 ## License
 
 Licensed under the terms in [LICENSE](LICENSE).
+
+Homelab operators: [Kata installation and ARM64 configuration](docs/operations/kata.md).
