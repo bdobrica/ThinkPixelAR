@@ -48,7 +48,7 @@ func TestUpFromEmptyPostgreSQL(t *testing.T) {
 		t.Fatalf("migrate from empty: %v", err)
 	}
 	wantTables := []string{
-		"attempts", "checkpoints", "cleanup_intents", "executions", "harness_bindings",
+		"agentd_credential_state", "agentd_credentials", "attempts", "checkpoints", "cleanup_intents", "executions", "harness_bindings",
 		"idempotency_records", "outbox_messages", "reconciliation_work", "runtime_event_streams",
 		"runtime_events", "runtime_profile_resolution_snapshots", "sandbox_binding_requests", "sandbox_bindings", "sandbox_operations", "schema_migrations",
 		"sessions", "tenants", "workspace_generations", "workspaces",

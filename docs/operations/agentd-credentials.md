@@ -75,3 +75,14 @@ All test CA/leaf keys are generated in memory. Tests verify actual X.509 chains,
 EKU separation, key pairs, identity, TTL and authority bounds, denial, stale and
 concurrent renewal, registration failure, best-effort clearing and CA overlap.
 No cluster configuration, credential deployment or live issuer has been changed.
+
+## Durable registry checkpoint
+
+[ADR-0026](../adr/0026-durable-agentd-credential-registry.md) adds PostgreSQL
+credential registration, one-time bootstrap consumption and connection checks.
+Apply migration 19 using the explicit migration command before composing
+`postgres.NewAgentdCredentials`. The registry stores only IDs/digests/validity.
+It is not an authority adapter: the current provider/Run checks, proof-consumption
+cleanup transaction, frame admission and protected delivery remain AGD-005 work.
+Do not expose registry methods directly to sandbox requests or treat a registry
+lookup as current authority. No running listener is enabled by the migration.
