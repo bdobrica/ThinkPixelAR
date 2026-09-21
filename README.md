@@ -38,7 +38,9 @@ See the [repository alignment contract](ALIGNMENT.md), [system context](docs/arc
 Development uses the exact Go version in `.go-version` (currently `1.26.7`).
 The package scaffold follows the domain, application, port, and adapter
 boundaries in `PLAN.md`. Install the pinned OpenAPI tooling
-with `make deps`, then run the stable local/CI gate with `make verify`. Use
+with `make deps` and install `protoc 3.21.12` (the distro `protobuf-compiler`
+package where it provides that version), then run the stable local/CI gate with
+`make verify`. `make generate` regenerates OpenAPI and agentd Protobuf artifacts. Use
 `make help` to list the focused commands. The full gate downloads the exactly
 pinned Go analysis tools and current vulnerability database, so it requires
 network access on a clean cache. Build output is written below `.cache/bin`.

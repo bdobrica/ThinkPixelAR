@@ -50,6 +50,7 @@ test-db-restart-replay: db-up ## Test durable work replay after process restart 
 
 generate: ## Regenerate committed artifacts.
 	$(NPM) run openapi:generate
+	./scripts/agentd-protocol.sh generate
 
 fmt: ## Format Go source files.
 	$(GO) fmt ./...
@@ -110,7 +111,7 @@ agentd-image-smoke: agentd-image ## Run the supervisor image as non-root with a 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
 
-verify: hygiene hygiene-test versions-check fmt-check static test-unit test-race vulnerability license build openapi-check ## Run the local and CI source verification gate.
+verify: agentd-protocol-check hygiene hygiene-test versions-check fmt-check static test-unit test-race vulnerability license build openapi-check ## Run the local and CI source verification gate.
 
 baseline-verify: verify image-smoke agentd-image-smoke ## Run the complete Phase 1 source and image baseline.
 
@@ -128,3 +129,7 @@ test-kas-suspend-resume: ## Run opted-in native suspend/resume against the live 
 test-kas-capabilities: ## Validate pinned live Kubernetes and Agent Sandbox capabilities without creating workloads.
 	@test -n "$$THINKPIXELAR_TEST_KUBE_API" || (echo 'Set THINKPIXELAR_TEST_KUBE_API to a trusted loopback API tunnel'; exit 1)
 	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveCapabilities$$' -count=1 -v
+
+.PHONY: agentd-protocol-check
+agentd-protocol-check: ## Check generated agentd Protobuf artifacts for drift.
+	./scripts/agentd-protocol.sh check

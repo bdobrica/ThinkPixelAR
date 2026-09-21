@@ -172,3 +172,12 @@ components need their own install/conformance evidence before AR starts using th
 Kind without Kata can exercise provider functionality but cannot establish a
 hardware-virtualized secure boundary. Phase 3 substrate tests are not an end-user
 release: Phase 6 remains the first standalone usable milestone.
+
+## Agentd protocol generation
+
+The `thinkpixel.agentd.v1` schema uses `protoc 3.21.12` and
+`protoc-gen-go v1.36.12`, matching the already pinned Go Protobuf runtime.
+The compiler is a build-only tool; generation checks its exact upstream version.
+CI installs the distro compiler and fails if the version differs. The generated
+service descriptor defines bidirectional `Connect`; gRPC runtime/stub selection
+belongs to AGD-003. No gRPC transport qualification is claimed by AGD-001.

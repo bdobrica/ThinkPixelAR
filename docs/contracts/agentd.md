@@ -265,7 +265,10 @@ The AR↔`agentd` protocol is versioned independently from HarnessAdapter and ve
 - Replacement tests proving old Sandbox/connection/process frames cannot mutate after Attempt fencing.
 - Adapter conformance suite through the real `agentd` path, not only an in-process mock.
 
-## Deferred transport selection
+## Concrete wire contract
 
-This contract specifies authentication, binding, reconnect, replay, size, backpressure, and failure requirements. ARC-019 selects the concrete AR↔`agentd` transport using the pinned Kubernetes Agent Sandbox capabilities. No HTTP, gRPC, WebSocket, router, Service, direct Pod IP, port-forward, or reverse-connect mechanism is implicitly approved by ARC-018.
-
+[ADR-0002](../adr/0002-agentd-outbound-mtls-grpc-transport.md) selects outbound
+mTLS gRPC. The versioned source is [agentd.proto](../../api/agentd/v1/agentd.proto);
+its [wire reference](agentd-protocol.md) defines compatibility and generation.
+The schema/handshake implementation does not yet establish authenticated streams
+or authorize launch; those remain separately gated implementation steps.

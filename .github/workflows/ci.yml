@@ -49,6 +49,9 @@ jobs:
       - name: Create isolated temporary directories
         run: mkdir -p "$GOCACHE" "$GOMODCACHE" "$TMPDIR" "$npm_config_cache"
 
+      - name: Install Protobuf compiler (exact upstream version checked by generation gate)
+        run: sudo apt-get update && sudo apt-get install --yes protobuf-compiler
+
       - name: Install locked build dependencies
         run: make deps
 

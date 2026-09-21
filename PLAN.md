@@ -406,20 +406,10 @@ AR must remain safe if `agentd` lies or is compromised.
 
 ### 4.13 Sandbox transport
 
-Communication between the AR control plane and `agentd` must use an authenticated, sandbox-scoped transport.
-
-The initial transport is selected in Phase 0 based on Kubernetes Agent Sandbox capabilities.
-
-Requirements:
-
-- one sandbox cannot impersonate another;
-- credentials are short-lived and sandbox-scoped;
-- replay is bounded;
-- connection loss is recoverable;
-- protocol messages are size limited;
-- backpressure is explicit;
-- transport authentication does not create authority to external enterprise systems;
-- diagnostics never expose secrets.
+The transport decision is [ADR-0002](docs/adr/0002-agentd-outbound-mtls-grpc-transport.md).
+The implemented versioned schema and compatibility handshake are recorded in
+[ADR-0022](docs/adr/0022-agentd-protocol-handshake.md). Transport authentication,
+credential lifecycle and durable connection/fence composition remain Phase 4 work.
 
 ### 4.14 Workspace model
 
@@ -1553,7 +1543,12 @@ under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-Implement:
+The v1 wire schema and compatibility handshake are implemented under ADR-0022.
+Next is AGD-002 process configuration, followed by authenticated transport and
+credential/binding checks before harness lifecycle. Compatibility alone cannot
+authorize a connection or launch.
+
+Remaining implementation:
 
 - sandbox-local supervisor;
 - authenticated AR↔agentd transport;

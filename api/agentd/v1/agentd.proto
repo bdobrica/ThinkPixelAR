@@ -1,0 +1,158 @@
+syntax = "proto3";
+package thinkpixel.agentd.v1;
+option go_package = "github.com/bdobrica/ThinkPixelAR/api/agentd/v1;agentdv1";
+
+// Agentd initiates Connect. TLS identity and persisted AR state, never payload
+// identity, authorize acceptance. Handshake completes before application frames.
+service AgentTransport {
+  rpc Connect(stream Envelope) returns (stream Envelope);
+}
+
+message VersionRange {
+  uint32 major = 1;
+  uint32 minimum_minor = 2;
+  uint32 maximum_minor = 3;
+}
+message Binding {
+  string tenant_id = 1;
+  string session_id = 2;
+  string execution_id = 3;
+  string attempt_id = 4;
+  string sandbox_binding_id = 5;
+  uint64 session_generation = 6;
+}
+message Limits {
+  uint32 frame_bytes = 1;
+  uint32 command_bytes = 2;
+  uint32 event_bytes = 3;
+  uint32 diagnostic_bytes = 4;
+  uint32 mutating_inflight = 5;
+  uint32 readonly_inflight = 6;
+  uint32 buffered_events = 7;
+  uint32 buffered_bytes = 8;
+  uint32 heartbeat_interval_ms = 9;
+  uint32 liveness_window_ms = 10;
+}
+message Hello {
+  VersionRange versions = 1;
+  Binding binding = 2;
+  bytes challenge = 3; // 32 bytes supplied by trusted bootstrap/connection setup.
+  string build_digest = 4;
+  string adapter_kind = 5;
+  string adapter_digest = 6;
+  repeated string supported_capabilities = 7;
+  repeated string required_capabilities = 8;
+  Limits limits = 9;
+  bytes bootstrap_proof = 10; // Transport verifies/consumes; never part of evidence.
+}
+message Welcome {
+  uint32 major = 1;
+  uint32 minor = 2;
+  Binding binding = 3;
+  bytes challenge = 4;
+  string connection_id = 5;
+  uint64 connection_epoch = 6;
+  repeated string capabilities = 7;
+  Limits limits = 8;
+  string negotiation_digest = 9;
+  string build_digest = 10;
+  string adapter_kind = 11;
+  string adapter_digest = 12;
+}
+message Envelope {
+  uint32 major = 1;
+  uint32 minor = 2;
+  string connection_id = 3;
+  uint64 connection_epoch = 4;
+  string message_id = 5;
+  uint64 sequence = 6;
+  Binding binding = 7;
+  string harness_handle = 8;
+  string operation_id = 9;
+  string request_digest = 10;
+  int64 sent_unix_ms = 11;
+  int64 deadline_unix_ms = 12;
+  oneof body {
+    Hello hello = 20;
+    Welcome welcome = 21;
+    Command command = 22;
+    Observation observation = 23;
+    Acknowledgement acknowledgement = 24;
+    Heartbeat heartbeat = 25;
+    Rotation rotation = 26;
+    Failure failure = 27;
+  }
+}
+// Commands reference trusted preconfigured launch/state selections. No arbitrary
+// shell, argv, filesystem path, environment map or enterprise credential field.
+message Command {
+  enum Kind {
+    UNSPECIFIED = 0;
+    START = 1;
+    STOP = 2;
+    RESTART = 3;
+    INTERRUPT = 4;
+    STATUS = 5;
+    PREPARE_CHECKPOINT = 6;
+    EXECUTE = 7;
+    SIGNAL = 8;
+  }
+  Kind kind = 1;
+  string configuration_digest = 2;
+  string payload_schema = 3;
+  bytes payload = 4; // Adapter-negotiated schema; never an unrestricted command.
+  string artifact_reference = 5; // Mutually exclusive with inline payload.
+}
+message Observation {
+  enum Kind {
+    UNSPECIFIED = 0;
+    PROCESS_STATUS = 1;
+    CANDIDATE_EVENT = 2;
+    CHECKPOINT_PREPARED = 3;
+    DIAGNOSTIC = 4;
+  }
+  Kind kind = 1;
+  string payload_schema = 2;
+  bytes payload = 3;
+  string artifact_reference = 4;
+}
+message Acknowledgement {
+  string message_id = 1;
+  string request_digest = 2;
+  uint64 accepted_sequence = 3;
+  uint32 event_credit = 4;
+}
+message Heartbeat {
+  enum ProcessState {
+    UNSPECIFIED = 0;
+    ABSENT = 1;
+    STARTING = 2;
+    RUNNING = 3;
+    STOPPING = 4;
+    EXITED = 5;
+    FAILED = 6;
+  }
+  ProcessState process_state = 1;
+  uint64 last_accepted_sequence = 2;
+  uint64 last_produced_sequence = 3;
+  string active_operation_id = 4;
+}
+message Rotation {
+  enum Kind { UNSPECIFIED = 0; REQUEST = 1; ISSUED = 2; }
+  Kind kind = 1;
+  bytes certificate_pem = 2;
+  bytes private_key_pem = 3; // Ephemeral transport secret; never logged/persisted.
+  int64 expires_unix_ms = 4;
+}
+message Failure {
+  enum Code {
+    UNSPECIFIED = 0;
+    INCOMPATIBLE = 1;
+    STALE = 2;
+    MALFORMED = 3;
+    LIMIT_EXCEEDED = 4;
+    UNAVAILABLE = 5;
+    OUTCOME_UNKNOWN = 6;
+  }
+  Code code = 1; // Closed safe codes; no attacker-controlled error text.
+}

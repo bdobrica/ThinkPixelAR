@@ -139,13 +139,13 @@ Completion metadata format:
 - [x] KAS-021 Run separate Kata-capable environment test proving the secure profile actually receives the intended isolation runtime. — completed 2026-09-20, commit `2c6da07`; [host-correlated ARM64 KVM proof](docs/evidence/kas-021-live-isolation.md); negative probe tests and `make verify`.
 - [x] KAS-022 Verify resource requests/limits and ephemeral-storage boundaries are physically applied. — completed 2026-09-21, commit `05cf542`; [bounded scratch/compute evidence](docs/evidence/kas-022-bounded-resources.md), ADR-0020, race-enabled live lifecycle/suspend checks and `make verify`; scoped homelab substrate, not complete end-user admission.
 - [x] KAS-023 Document Kubernetes Agent Sandbox version/API assumptions and upstream compatibility policy. — completed 2026-09-20, commit `848e4b3`; [compatibility evidence](docs/evidence/kas-023-upstream-compatibility.md), version/link checks, focused race tests and `make verify`.
-- [x] KAS-024 Commit Phase 3 with cluster manifests and evidence. — completed 2026-09-21, this KAS-024 commit; ADR-0021, [Phase 3 evidence](docs/phase-3-evidence.md); capability drift/failure tests, race-enabled homelab lifecycle/discovery, real PostgreSQL integration and `make verify`. Substrate completion does not claim complete end-user secure admission.
+- [x] KAS-024 Commit Phase 3 with cluster manifests and evidence. — completed 2026-09-21, commit `b43ac56`; ADR-0021, [Phase 3 evidence](docs/phase-3-evidence.md); capability drift/failure tests, race-enabled homelab lifecycle/discovery, real PostgreSQL integration and `make verify`. Substrate completion does not claim complete end-user secure admission.
 
 ---
 
 ## Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-- [ ] AGD-001 Define versioned AR↔agentd protocol schema and compatibility handshake.
+- [x] AGD-001 Define versioned AR↔agentd protocol schema and compatibility handshake. — completed 2026-09-21, this AGD-001 commit; ADR-0022, [protocol evidence](docs/evidence/agd-001-protocol.md); generated drift/wire compatibility, handshake race/fuzz tests and `make verify`. Authentication remains AGD-003–005.
 - [ ] AGD-002 Implement `thinkpixel-agentd` process lifecycle and configuration with no Kubernetes credentials.
 - [ ] AGD-003 Implement sandbox-scoped authenticated transport selected in Phase 0.
 - [ ] AGD-004 Add certificate/token issuance/rotation or equivalent sandbox-scoped authentication mechanism.
