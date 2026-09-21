@@ -1,6 +1,8 @@
 # KAS-022 — resource findings and remaining enforcement gap
 
-Date: 2026-09-20. **KAS-022 remains incomplete.** These are bounded diagnostic
+Date: 2026-09-20. Historical failed configuration; superseded for the fixed
+scratch lane by [2026-09-21 evidence](kas-022-bounded-resources.md).
+**KAS-022 was incomplete at this test point.** These are bounded diagnostic
 results on the existing ARM64 homelab, not a qualified complete Runtime Profile.
 No additional infrastructure was purchased or requested.
 

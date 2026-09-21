@@ -1,16 +1,17 @@
 {
   "reference": "kata-qemu-3-31",
   "kata_version": "3.31.0",
-  "runtime_class": "kata-qemu-runtime-rs-ar331",
-  "handler": "kata-qemu-runtime-rs-ar331",
-  "architectures": ["arm64"],
+  "runtime_class": "kata-qemu-runtime-rs-ar331-bounded",
+  "handler": "kata-qemu-runtime-rs-ar331-bounded",
+  "architectures": [
+    "arm64"
+  ],
   "node_selector": {
-    "katacontainers.io/kata-runtime": "true",
-    "kubernetes.io/arch": "arm64",
+    "kubernetes.io/hostname": "k3spi-02",
     "thinkpixel.io/kata-configured": "3.31.0",
-    "thinkpixel.io/kata-install": "3.31.0"
+    "kubernetes.io/arch": "arm64"
   },
   "overhead_cpu_millis": 250,
-  "overhead_memory_bytes": 167772160,
-  "qualification_reference": "homelab-kata-331-arm64-candidate"
+  "overhead_memory_bytes": 2415919104,
+  "qualification_reference": "homelab-kas022-arm64-runtime-resources-v1"
 }

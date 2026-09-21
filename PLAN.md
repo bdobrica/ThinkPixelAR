@@ -1542,16 +1542,13 @@ later phases.
 
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
-Implemented substrate decisions are captured in [ADRs 0005–0019](docs/adr/README.md),
+Implemented substrate decisions are captured in [ADRs 0005–0020](docs/adr/README.md),
 including provider/Workspace boundaries, cold acquisition, effective security,
 durable reconciliation, recovery and the homelab process ceiling. Version/API
 assumptions and update requirements live in [supported versions](docs/supported-versions.md).
 
 Remaining Phase 3 work:
 
-- fix and physically verify scratch/resource boundaries from
-  [KAS-022 findings](docs/evidence/kas-022-resource-findings.md), including measured
-  VM/host overhead before promoting the candidate runtime mapping;
 - implement the provider capability/discovery validation required by the
   SandboxProvider contract and bind it to profile admission;
 - reconcile the final implementation/evidence matrix and close KAS-024 only when
@@ -1569,7 +1566,9 @@ fail-closed under ADR-0013.
 Use the existing homelab for fixes and RC substrate tests. Larger production
 qualification is [explicit future work](docs/operations/rc-infrastructure.md)
 under ADR-0014, not a reason to purchase infrastructure or leave the homelab lane
-open. The present scratch failure needs an implementation fix on available hardware.
+open. The implemented bounded scratch path and measured resource envelope are recorded
+in [ADR-0020](docs/adr/0020-bounded-ephemeral-scratch.md) and
+[KAS-022 evidence](docs/evidence/kas-022-bounded-resources.md).
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 

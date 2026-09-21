@@ -100,7 +100,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	if err = json.Unmarshal(raw, &profile); err != nil {
 		t.Fatal(err)
 	}
-	cfg := CodingTemplateConfig{References: profile.Implementation, RuntimeClass: runtimeClass, NodeSelector: map[string]string{"kubernetes.io/hostname": node}, UserID: 65532, GroupID: 65532, TempBytes: 32 << 20, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
+	cfg := CodingTemplateConfig{ScratchStorageClass: os.Getenv("THINKPIXELAR_TEST_SCRATCH_CLASS"), References: profile.Implementation, RuntimeClass: runtimeClass, NodeSelector: map[string]string{"kubernetes.io/hostname": node}, UserID: 65532, GroupID: 65532, TempBytes: 32 << 20, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
 	mapper, err := NewCodingTemplate(raw, cfg, func(runtimeprofile.Profile, CodingTemplateConfig) error { return nil })
 	if err != nil {
 		t.Fatal(err)
@@ -129,6 +129,35 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	enforce, err := NewNamespaceNetworkEnforcer(client, NamespaceNetworkBinding{request.ProfileDigest, request.ImplementationDigest, policy}, func(context.Context, sandbox.AcquireRequest, *networking.NetworkPolicy) error { return nil })
 	if err != nil {
 		t.Fatal(err)
+	}
+	seenScratch := map[string]bool{}
+	checkScratch := func(name string) {
+		t.Helper()
+		if cfg.ScratchStorageClass == "" {
+			return
+		}
+		u, e := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "pods"}).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		if e != nil {
+			t.Fatal(e)
+		}
+		pod := &v1.Pod{}
+		if e = runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, pod); e != nil {
+			t.Fatal(e)
+		}
+		verify, e := NewScratchVerifier(client, func(_ context.Context, _ *v1.Pod, claim *v1.PersistentVolumeClaim, pv *v1.PersistentVolume) error {
+			if seenScratch[string(pv.UID)] {
+				t.Fatal("scratch backing reused across Pods")
+			}
+			seenScratch[string(pv.UID)] = true
+			t.Log("fresh scratch identity:", claim.UID, pv.Name, pv.UID)
+			return nil // Fixture checks API identity; host physical proof is separate.
+		})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = verify(ctx, pod); e != nil {
+			t.Fatal("scratch ownership", e)
+		}
 	}
 	var original string
 	for generation := range 2 {
@@ -185,6 +214,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 		if err != nil || status.State != sandbox.Unknown || status.Reason != "EFFECTIVE_STATE_UNVERIFIED" {
 			t.Fatalf("unqualified native readiness promoted: %+v %v", status, err)
 		}
+		checkScratch(name)
 		t.Log("native readiness observed; secure readiness withheld:", handle.ProviderReference)
 
 		if nativeSuspend && generation == 0 {
@@ -232,6 +262,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			if actual.Spec.ShutdownTime == nil || !actual.Spec.ShutdownTime.Time.Equal(request.Deadline) {
 				t.Fatal("resume changed absolute deadline")
 			}
+			checkScratch(name)
 			t.Log("native suspension removed Pod; resume kept Sandbox UID and deadline and created new Pod:", before.GetUID(), after.GetUID())
 		}
 		operation := lifecycleOperation(request, "release", "release-"+string(id))
@@ -246,6 +277,12 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 		})
 		if _, err = restarted.Acquire(ctx, request); !errors.Is(err, sandbox.ErrNotFound) {
 			t.Fatal("recreated released identity", err)
+		}
+		if cfg.ScratchStorageClass != "" {
+			liveWait(t, ctx, func() bool {
+				_, e := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}).Namespace(namespace).Get(ctx, name+"-tmp", metav1.GetOptions{})
+				return apierrors.IsNotFound(e)
+			})
 		}
 		t.Log("release confirmed:", handle.ProviderReference)
 	}

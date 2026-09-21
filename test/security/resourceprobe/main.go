@@ -75,7 +75,7 @@ func main() {
 		}
 		runtime.KeepAlive(blocks)
 		panic("memory ceiling did not kill the probe")
-	case "disk":
+	case "disk", "disk-bound":
 		file, err := os.Create("/tmp/probe-fill")
 		if err != nil {
 			panic(err)
@@ -91,11 +91,39 @@ func main() {
 			written += n
 			if err != nil {
 				fmt.Printf("bytes=%d error=%v\n", written, err)
+				if os.Args[1] == "disk-bound" {
+					if !errors.Is(err, unix.ENOSPC) || written > 32<<20 {
+						panic("scratch ceiling failed")
+					}
+					other, e := os.Create("/tmp/probe-second")
+					if e != nil {
+						panic(e)
+					}
+					// Consume a possible final partial block, then require aggregate exhaustion.
+					_, e = other.Write(make([]byte, 8192))
+					_ = other.Close()
+					if !errors.Is(e, unix.ENOSPC) {
+						panic("second file bypassed aggregate bound")
+					}
+					if e = file.Close(); e != nil {
+						panic(e)
+					}
+					if e = os.Remove("/tmp/probe-fill"); e != nil {
+						panic(e)
+					}
+					if e = os.WriteFile("/tmp/probe-recovered", []byte("space reclaimed"), 0600); e != nil {
+						panic(e)
+					}
+					fmt.Println("aggregate ENOSPC and capacity recovery passed")
+				}
 				return
 			}
 		}
 		if err := file.Sync(); err != nil {
 			panic(err)
+		}
+		if os.Args[1] == "disk-bound" {
+			panic("scratch allowed writes above hard capacity")
 		}
 		fmt.Printf("bytes=%d awaiting kubelet eviction\n", written)
 	default:

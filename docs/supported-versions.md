@@ -36,8 +36,9 @@ Compatibility claims apply to an exact tuple and a named test scope.
 `TESTED_HOMELAB_LIFECYCLE` covers the recorded controller operations;
 `TESTED_HOMELAB_ISOLATION` covers hardware-backed guest execution. Neither means
 `RELEASE_QUALIFIED`, complete secure-profile admission, or production support.
-The [KAS-022 failures](evidence/kas-022-resource-findings.md) currently prevent
-complete resource qualification. Passing source tests cannot override them.
+The [fixed KAS-022 lane](evidence/kas-022-bounded-resources.md) now proves bounded
+scratch and compute resources on the homelab. Earlier emptyDir failures remain
+unqualified; full end-user admission still needs complete composed proof.
 
 The initial Phase 0 candidates are historical input. ADR-0006 selects Agent
 Sandbox v1.0.0 and Kubernetes client modules v0.36.4; ADR-0014 selects existing
@@ -51,9 +52,9 @@ infrastructure is future production qualification, not an RC purchase requiremen
 | Kubernetes client / server | Go modules `v0.36.4`; homelab K3s server/kubelets `v1.36.4+k3s1` | `TESTED_HOMELAB_LIFECYCLE`; [KAS-019](evidence/kas-019-live-lifecycle.md), [KAS-020](evidence/kas-020-live-suspend-resume.md). This does not qualify every upstream/distribution build of Kubernetes 1.36.4. |
 | Agent Sandbox | `v1.0.0`, source `bb72f49d79f009a960eed2ae6c32e1cc082399c5`; core `agents.x-k8s.io/v1beta1` | Core CRD/controller clean-installed and live-tested. Manifest checksum and controller index/platform digests are pinned in [installation assets](../deploy/agent-sandbox/) and [evidence](evidence/kas-019-live-lifecycle.md). |
 | Agent Sandbox extensions | `extensions.agents.x-k8s.io/v1beta1` API types from `v1.0.0` | `TESTED_SOURCE_ONLY`; immutable template mapping and API registration. Extension controller/CRDs are not installed or required by the selected direct cold path. |
-| Kata | `3.31.0`, QEMU, runtime-rs, reviewed ARM64 overrides | `TESTED_HOMELAB_ISOLATION`; [exact host-correlated artifact hashes](evidence/kas-021-live-isolation.md). Complete resource qualification failed; diagnostic handlers are not AR defaults. |
+| Kata | `3.31.0`, QEMU, runtime-rs, reviewed ARM64 overrides | `TESTED_HOMELAB_ISOLATION`; [exact host-correlated artifact hashes](evidence/kas-021-live-isolation.md). The bounded runtime-rs handler and physically bounded scratch now pass the scoped [resource lane](evidence/kas-022-bounded-resources.md); the Go comparison remains unqualified. |
 | Container runtime | containerd `2.3.4-k3s1.36`, CRI `runtime.v1`, config schema 3, shim v2 | Live tuple from K3s, superseding the historical upstream 2.3.1 candidate for this lane. Not a claim for arbitrary containerd builds. |
-| Host | ARM64 Raspberry Pi workers; Linux `6.18.39+rpt-rpi-v8`, hardware KVM | Existing three-worker homelab; installation probes on all workers, detailed KAS-021/022 canary on worker02. Start with one sandbox per worker; overhead/capacity remains unqualified. |
+| Host | ARM64 Raspberry Pi workers; Linux `6.18.39+rpt-rpi-v8`, hardware KVM | Existing three-worker homelab; installation probes on all workers, detailed KAS-021/022 canary on worker02. The bounded worker02 lane uses the measured conservative overhead from KAS-022; broader density remains unqualified. |
 | CNI / policy | K3s-packaged networking and network-policy controller from `v1.36.4+k3s1` | [Scoped IPv4 TCP denial evidence](evidence/kas-015-network-denial.md). This does not qualify IPv6, DNS identity or arbitrary network classes. |
 | Local Workspace fixture | K3s `local-path`, node-local RWO PVCs | Lifecycle attachment only; unencrypted, no snapshot/fork or cross-node durability. PVC requested size is not a hard quota. Full WorkspaceProvider/bounded-storage work remains. |
 | amd64 PC profile | `coding-homelab-amd64` | Schema/template support; no live amd64 evidence yet. Requires compatible Linux/KVM and a separately tested tuple. |
@@ -157,8 +158,8 @@ components need their own install/conformance evidence before AR starts using th
 
 ## Required lanes and current limits
 
-- Existing ARM64 homelab: current low-cost lifecycle/isolation lane; resource and
-  complete profile admission gaps are recorded above. Fix those on available
+- Existing ARM64 homelab: current low-cost lifecycle/isolation/resource lane; complete profile
+  admission gaps are recorded above. Fix those on available
   infrastructure; they are not waived as production-only work.
 - amd64 Linux PC: optional separate live lane using the explicit smaller profile,
   hardware virtualization and qualified bounded storage/networking.

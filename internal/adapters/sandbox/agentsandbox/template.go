@@ -27,6 +27,7 @@ type CodingTemplateConfig struct {
 	NodeSelector        map[string]string             `json:"node_selector"`
 	UserID              int64                         `json:"user_id"`
 	GroupID             int64                         `json:"group_id"`
+	ScratchStorageClass string                        `json:"scratch_storage_class,omitempty"`
 	TempBytes           int64                         `json:"temp_bytes"`
 	QualificationDigest string                        `json:"qualification_digest"`
 }
@@ -50,6 +51,9 @@ type CodingTemplate struct {
 }
 
 func NewCodingTemplate(document []byte, config CodingTemplateConfig, qualify ValidateQualification) (*CodingTemplate, error) {
+	if config.ScratchStorageClass != "" && !dnsName(config.ScratchStorageClass) {
+		return nil, sandbox.ErrInvalid
+	}
 	if qualify == nil || !dnsName(config.RuntimeClass) || config.UserID <= 0 || config.GroupID <= 0 || config.TempBytes <= 0 || !shaDigest.MatchString(config.QualificationDigest) {
 		return nil, sandbox.ErrInvalid
 	}
@@ -130,6 +134,12 @@ func (t *CodingTemplate) Render(r sandbox.AcquireRequest, volumes CodingVolumes)
 		return v1.ResourceList{v1.ResourceCPU: *resource.NewMilliQuantity(cpu, resource.DecimalSI), v1.ResourceMemory: *resource.NewQuantity(memory, resource.BinarySI), v1.ResourceEphemeralStorage: *resource.NewQuantity(ephemeral, resource.BinarySI)}
 	}
 	labels := map[string]string{"thinkpixel.io/sandbox": string(r.Scope.SandboxID), "thinkpixel.io/attempt": string(r.Scope.AttemptID)}
+	scratch := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{SizeLimit: resource.NewQuantity(t.config.TempBytes, resource.BinarySI)}}
+	if t.config.ScratchStorageClass != "" {
+		// The Kubernetes ephemeral-volume controller owns this per-Pod claim.
+		// It never references or clones durable Workspace/vendor data.
+		scratch = v1.VolumeSource{Ephemeral: &v1.EphemeralVolumeSource{VolumeClaimTemplate: &v1.PersistentVolumeClaimTemplate{Spec: scratchClaim(t.config.ScratchStorageClass, t.config.TempBytes)}}}
+	}
 	spec := v1.PodSpec{
 		RuntimeClassName: &runtimeClass, NodeSelector: selectors, AutomountServiceAccountToken: &f, EnableServiceLinks: &f,
 		RestartPolicy: v1.RestartPolicyNever, TerminationGracePeriodSeconds: &grace,
@@ -142,7 +152,7 @@ func (t *CodingTemplate) Render(r sandbox.AcquireRequest, volumes CodingVolumes)
 		Volumes: []v1.Volume{
 			{Name: "workspace", VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: volumes.WorkspaceClaim}}},
 			{Name: "state", VolumeSource: v1.VolumeSource{PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{ClaimName: volumes.StateClaim}}},
-			{Name: "tmp", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{SizeLimit: resource.NewQuantity(t.config.TempBytes, resource.BinarySI)}}},
+			{Name: "tmp", VolumeSource: scratch},
 			{Name: "bootstrap", VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{SecretName: volumes.BootstrapSecret, DefaultMode: &mode, Optional: &f}}},
 		},
 	}
@@ -154,3 +164,12 @@ func (t *CodingTemplate) Render(r sandbox.AcquireRequest, volumes CodingVolumes)
 	}}, nil
 }
 func dnsName(s string) bool { return len(s) > 0 && len(validation.IsDNS1123Subdomain(s)) == 0 }
+
+// scratchClaim admits only fresh, single-writer filesystem capacity. StorageClass
+// qualification must prove a hard backing bound; a PVC request alone cannot.
+func scratchClaim(storageClass string, bytes int64) v1.PersistentVolumeClaimSpec {
+	mode := v1.PersistentVolumeFilesystem
+	return v1.PersistentVolumeClaimSpec{StorageClassName: &storageClass, VolumeMode: &mode,
+		AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+		Resources:   v1.VolumeResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: *resource.NewQuantity(bytes, resource.BinarySI)}}}
+}

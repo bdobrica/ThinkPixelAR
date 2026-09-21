@@ -62,7 +62,7 @@ func NewSecureEffectiveVerifier(resolve BlueprintResolver, infrastructure Infras
 			return fail, sandbox.ErrIntegrity
 		}
 		for _, volume := range actual.Volumes {
-			if volume.HostPath != nil || volume.CSI != nil || volume.Projected != nil || volume.Ephemeral != nil {
+			if volume.HostPath != nil || volume.CSI != nil || volume.Projected != nil || volume.Ephemeral != nil && (volume.Name != "tmp" || !safeScratch(volume.VolumeSource, b.Request.Profile.Resources.EphemeralStorage.Limit)) {
 				return fail, sandbox.ErrIntegrity
 			}
 		}
@@ -136,21 +136,21 @@ func secureBlueprint(r sandbox.AcquireRequest, p v1.PodSpec) bool {
 			return false
 		}
 		sources[volume.Name] = volume.VolumeSource
-		allowed := v1.VolumeSource{PersistentVolumeClaim: volume.PersistentVolumeClaim, Secret: volume.Secret, EmptyDir: volume.EmptyDir}
+		allowed := v1.VolumeSource{PersistentVolumeClaim: volume.PersistentVolumeClaim, Secret: volume.Secret, EmptyDir: volume.EmptyDir, Ephemeral: volume.Ephemeral}
 		if !apiequality.Semantic.DeepEqual(volume.VolumeSource, allowed) {
 			return false
 		}
 		switch volume.Name {
 		case "workspace", "state":
-			if volume.PersistentVolumeClaim == nil || volume.PersistentVolumeClaim.ReadOnly || !dnsName(volume.PersistentVolumeClaim.ClaimName) || volume.Secret != nil || volume.EmptyDir != nil {
+			if volume.PersistentVolumeClaim == nil || volume.PersistentVolumeClaim.ReadOnly || !dnsName(volume.PersistentVolumeClaim.ClaimName) || volume.Secret != nil || volume.EmptyDir != nil || volume.Ephemeral != nil {
 				return false
 			}
 		case "bootstrap":
-			if volume.Secret == nil || !dnsName(volume.Secret.SecretName) || volume.PersistentVolumeClaim != nil || volume.EmptyDir != nil {
+			if volume.Secret == nil || !dnsName(volume.Secret.SecretName) || volume.PersistentVolumeClaim != nil || volume.EmptyDir != nil || volume.Ephemeral != nil {
 				return false
 			}
 		case "tmp":
-			if volume.EmptyDir == nil || volume.EmptyDir.SizeLimit == nil || volume.EmptyDir.SizeLimit.Value() <= 0 || volume.EmptyDir.SizeLimit.Value() > r.Profile.Resources.EphemeralStorage.Limit || volume.Secret != nil || volume.PersistentVolumeClaim != nil {
+			if !safeScratch(volume.VolumeSource, r.Profile.Resources.EphemeralStorage.Limit) {
 				return false
 			}
 		default:
@@ -166,4 +166,25 @@ func secureBlueprint(r sandbox.AcquireRequest, p v1.PodSpec) bool {
 		seen[mount.Name] = true
 	}
 	return sources["workspace"].PersistentVolumeClaim.ClaimName != sources["state"].PersistentVolumeClaim.ClaimName
+}
+
+func safeScratch(source v1.VolumeSource, ceiling int64) bool {
+	if source.Secret != nil || source.PersistentVolumeClaim != nil {
+		return false
+	}
+	if source.Ephemeral == nil {
+		return source.EmptyDir != nil && source.EmptyDir.SizeLimit != nil && source.EmptyDir.SizeLimit.Value() > 0 && source.EmptyDir.SizeLimit.Value() <= ceiling
+	}
+	if source.EmptyDir != nil || source.Ephemeral.VolumeClaimTemplate == nil {
+		return false
+	}
+	claim := source.Ephemeral.VolumeClaimTemplate
+	capacity := claim.Spec.Resources.Requests.Storage().Value()
+	if capacity <= 0 || capacity > ceiling || claim.Spec.StorageClassName == nil || !dnsName(*claim.Spec.StorageClassName) {
+		return false
+	}
+	expected := &v1.PersistentVolumeClaimTemplate{Spec: scratchClaim(*claim.Spec.StorageClassName, capacity)}
+	// Reject clone/snapshot sources, arbitrary existing volumes, selectors,
+	// metadata, expansion attributes and all unreviewed fields.
+	return apiequality.Semantic.DeepEqual(claim, expected)
 }

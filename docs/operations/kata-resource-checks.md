@@ -1,9 +1,11 @@
 # Kata resource diagnostics on the homelab
 
-**Diagnostic only; KAS-022 is not qualified.** Read the
-[observed failures](../evidence/kas-022-resource-findings.md) before using these
-assets. AR's existing runtime mapping is unchanged and secure readiness still
-requires complete independent proof.
+Historical emptyDir diagnostics; the fixed scratch/runtime-rs lane is documented
+in [bounded scratch](bounded-scratch.md) and [KAS-022 closure](../evidence/kas-022-bounded-resources.md).
+The Go comparison remains unqualified. Read the
+[historical failures](../evidence/kas-022-resource-findings.md) before using these
+assets. AR's mapping now selects the bounded runtime-rs resource lane; secure readiness
+still requires complete independent proof.
 
 ## What was installed
 
@@ -31,9 +33,9 @@ an old container does not replace its saved spec. See the
 
 The [diagnostic RuntimeClass](../../deploy/kata/bounded-runtimeclass.json) is pinned
 to worker02. For the Go comparison, change both its metadata name and handler to
-`kata-qemu-ar331-bounded` when generating a separate manifest. Do not select either
-as the AR default or copy these selectors to other workers without qualification.
-The 2304 MiB overhead is a candidate reservation, not a measured guarantee.
+`kata-qemu-ar331-bounded` when generating a separate manifest. The bounded runtime-rs class is now selected for the measured KAS-022 lane.
+Do not select the Go comparison or copy selectors to other workers without
+qualification. See the closure record for measured overhead and its scope.
 
 ## Reproduce bounded probes
 
