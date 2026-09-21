@@ -35,6 +35,8 @@ golang.org/x/sys	v0.47.0	BSD-3-Clause
 golang.org/x/term	v0.45.0	BSD-3-Clause
 golang.org/x/text	v0.41.0	BSD-3-Clause
 golang.org/x/time	v0.14.0	BSD-3-Clause
+google.golang.org/genproto/googleapis/rpc	v0.0.0-20260803160001-6ac0973c030d	Apache-2.0
+google.golang.org/grpc	v1.83.2	Apache-2.0
 google.golang.org/protobuf	v1.36.12	BSD-3-Clause
 gopkg.in/inf.v0	v0.9.1	BSD-3-Clause
 k8s.io/api	v0.36.4	Apache-2.0

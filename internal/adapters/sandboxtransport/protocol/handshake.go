@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
+	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -26,16 +27,7 @@ var namePattern = regexp.MustCompile(`^[a-z][a-z0-9.-]{0,63}$`)
 // Expected is derived by the caller from authenticated binding and immutable
 // materialization evidence. It must never be constructed from Hello identity.
 // This helper neither consumes bootstrap proofs nor accepts a transport stream.
-type Expected struct {
-	Binding               *agentdv1.Binding
-	Challenge             []byte
-	BuildDigest           string
-	AdapterKind           string
-	AdapterDigest         string
-	SupportedCapabilities []string
-	RequiredCapabilities  []string
-	Limits                *agentdv1.Limits
-}
+type Expected = sandboxtransport.Expectations
 
 func HardLimits() *agentdv1.Limits {
 	return &agentdv1.Limits{FrameBytes: MaxFrameBytes, CommandBytes: 256 << 10, EventBytes: 256 << 10, DiagnosticBytes: 16 << 10, MutatingInflight: 1, ReadonlyInflight: 32, BufferedEvents: 256, BufferedBytes: 16 << 20, HeartbeatIntervalMs: 10000, LivenessWindowMs: 30000}
@@ -174,4 +166,9 @@ func known(m protoreflect.Message) bool {
 		return ok
 	})
 	return ok
+}
+
+// KnownFields rejects unknown fields recursively at the closed v1 boundary.
+func KnownFields(m proto.Message) bool {
+	return m != nil && m.ProtoReflect().IsValid() && known(m.ProtoReflect())
 }

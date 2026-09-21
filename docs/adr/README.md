@@ -38,3 +38,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0021: Sandbox capability discovery](0021-sandbox-capability-discovery.md) — Accepted
 - [ADR-0022: Agentd protocol and compatibility handshake](0022-agentd-protocol-handshake.md) — Accepted
 - [ADR-0023: Agentd read-only bootstrap and process startup](0023-agentd-readonly-bootstrap.md) — Accepted
+- [ADR-0024: Agentd authenticated gRPC channel](0024-agentd-authenticated-grpc-channel.md) — Accepted

@@ -270,5 +270,6 @@ The AR↔`agentd` protocol is versioned independently from HarnessAdapter and ve
 [ADR-0002](../adr/0002-agentd-outbound-mtls-grpc-transport.md) selects outbound
 mTLS gRPC. The versioned source is [agentd.proto](../../api/agentd/v1/agentd.proto);
 its [wire reference](agentd-protocol.md) defines compatibility and generation.
-The schema/handshake implementation does not yet establish authenticated streams
-or authorize launch; those remain separately gated implementation steps.
+The authenticated adapter and its mandatory trusted admission seam are documented
+in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). Issuance, durable
+binding composition and harness launch remain separately gated implementation steps.

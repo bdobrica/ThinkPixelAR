@@ -69,8 +69,8 @@ values. Reserve removed fields and names; breaking evolution uses a new package.
 ## Generation and checks
 
 Install `protoc 3.21.12`, then use `make generate`. The script obtains the exact
-`protoc-gen-go v1.36.12` from the existing pinned module using a temporary binary
-directory, removes it afterward, and never vendors tool executables. Generated
+`protoc-gen-go v1.36.12` and `protoc-gen-go-grpc v1.6.2` from their pinned modules
+using a temporary binary directory, removes it afterward, and never vendors tool executables. Generated
 files are not hand edited. `make agentd-protocol-check` regenerates into a temporary
 directory and compares output; it is included in `make verify` and CI.
 
@@ -80,3 +80,13 @@ Focused checks:
 go test -race ./api/agentd/v1 ./internal/adapters/sandboxtransport/protocol
 go test ./internal/adapters/sandboxtransport/protocol -run '^$' -fuzz FuzzHandshake -fuzztime 5s -parallel 2
 ```
+
+## Authenticated adapter
+
+AGD-003 supplies generated gRPC bindings and the authenticated channel described
+in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). Its mandatory
+trusted admission port resolves by certificate identity and verifies bootstrap,
+current authority and durable epoch. Frame checks run before delivery. The initial
+channel accepts only bootstrap connections, rejects rotation pending AGD-004,
+and does not implement application replay/epoch persistence itself. The
+[runbook](../operations/agentd-transport.md) records exact bounds and composition.

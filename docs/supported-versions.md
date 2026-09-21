@@ -179,5 +179,7 @@ The `thinkpixel.agentd.v1` schema uses `protoc 3.21.12` and
 `protoc-gen-go v1.36.12`, matching the already pinned Go Protobuf runtime.
 The compiler is a build-only tool; generation checks its exact upstream version.
 CI installs the distro compiler and fails if the version differs. The generated
-service descriptor defines bidirectional `Connect`; gRPC runtime/stub selection
-belongs to AGD-003. No gRPC transport qualification is claimed by AGD-001.
+service uses `protoc-gen-go-grpc v1.6.2` and runtime `google.golang.org/grpc v1.83.2`.
+[AGD-003 evidence](evidence/agd-003-transport.md) records real loopback TLS/gRPC
+qualification. Production issuer, binding composition and homelab deployment are
+not qualified by those local tests.

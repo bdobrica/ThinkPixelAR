@@ -2,8 +2,9 @@
 
 The sandbox-local binary now requires closed bootstrap configuration. It is still
 an incremental Phase 4 implementation: a configured process waits in
-`awaiting_transport` and does not launch a harness or claim Ready. Authenticated
-transport is AGD-003–005; process commands follow in AGD-006.
+`awaiting_transport` and does not launch a harness or claim Ready. The [authenticated transport adapter](agentd-transport.md) is implemented;
+issuance and trusted binding composition remain AGD-004/005. Process commands
+follow in AGD-006.
 
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox

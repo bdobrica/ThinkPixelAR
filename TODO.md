@@ -146,8 +146,8 @@ Completion metadata format:
 ## Phase 4 — `thinkpixel-agentd` and sandbox transport
 
 - [x] AGD-001 Define versioned AR↔agentd protocol schema and compatibility handshake. — completed 2026-09-21, commit `b334a9f`; ADR-0022, [protocol evidence](docs/evidence/agd-001-protocol.md); generated drift/wire compatibility, handshake race/fuzz tests and `make verify`. Authentication remains AGD-003–005.
-- [x] AGD-002 Implement `thinkpixel-agentd` process lifecycle and configuration with no Kubernetes credentials. — completed 2026-09-21, this AGD-002 commit; ADR-0023, [startup evidence](docs/evidence/agd-002-startup.md); configuration/lifecycle race tests, actual hardened image smoke and `make verify`. Harness launch remains gated on later authenticated transport/commands.
-- [ ] AGD-003 Implement sandbox-scoped authenticated transport selected in Phase 0.
+- [x] AGD-002 Implement `thinkpixel-agentd` process lifecycle and configuration with no Kubernetes credentials. — completed 2026-09-21, commit `8a11a6e`; ADR-0023, [startup evidence](docs/evidence/agd-002-startup.md); configuration/lifecycle race tests, actual hardened image smoke and `make verify`. Harness launch remains gated on later authenticated transport/commands.
+- [x] AGD-003 Implement sandbox-scoped authenticated transport selected in Phase 0. — completed 2026-09-21, this AGD-003 commit; ADR-0024, [transport evidence](docs/evidence/agd-003-transport.md); real TCP/mTLS race tests, generated drift and `make verify`. Trusted issuance/binding composition remains AGD-004/005; no permissive default admission.
 - [ ] AGD-004 Add certificate/token issuance/rotation or equivalent sandbox-scoped authentication mechanism.
 - [ ] AGD-005 Ensure one sandbox cannot authenticate as another SandboxBinding.
 - [ ] AGD-006 Implement bounded start/stop/restart commands for harness processes.

@@ -8,7 +8,7 @@ It owns Session continuity, bounded Execution materialization, sandbox lifecycle
 
 ## Status
 
-Architecture, engineering foundations, persistence and the homelab Kubernetes/Kata substrate are implemented. See [Phase 3 evidence](docs/phase-3-evidence.md). Supervisor/transport and harness implementation are next, tracked in [TODO.md](TODO.md) and sequenced in [PLAN.md](PLAN.md).
+Architecture, engineering foundations, persistence and the homelab Kubernetes/Kata substrate are implemented. See [Phase 3 evidence](docs/phase-3-evidence.md). Supervisor/transport implementation is underway; harness integration follows, tracked in [TODO.md](TODO.md) and sequenced in [PLAN.md](PLAN.md).
 
 No release-qualified runtime is available yet. Candidate dependency versions in the [compatibility baseline](docs/supported-versions.md) are not claims of completed deployment or security qualification.
 
@@ -65,7 +65,8 @@ Build the distinct sandbox-supervisor baseline with `make agentd-image` and
 smoke-test it with `make agentd-image-smoke`; override its tag with
 `AGENTD_IMAGE=registry/name:tag`. This image contains only `thinkpixel-agentd`,
 not a vendor harness. It now requires [read-only bootstrap configuration](docs/operations/agentd.md)
-and waits for the forthcoming authenticated transport. Vendor agent images remain
+and waits for transport identity/admission composition. The
+[authenticated transport adapter](docs/operations/agentd-transport.md) is implemented. Vendor agent images remain
 separate Phase 5 artifacts.
 
 Typed process configuration supports strict JSON files and environment
