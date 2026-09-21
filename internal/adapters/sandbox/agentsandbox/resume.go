@@ -33,7 +33,7 @@ func (p *KubernetesAgentSandboxProvider) Resume(ctx context.Context, tenant, id 
 	if err != nil {
 		return sandbox.Handle{}, sandbox.ErrUnsupported
 	}
-	if !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
+	if expected.PodTemplate.ObjectMeta.Annotations[capabilityAnnotation] != p.capabilityDigest || !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
 		return sandbox.Handle{}, sandbox.ErrIntegrity
 	}
 	return p.setMode(ctx, tenant, id, "resume", core.SandboxOperatingModeRunning, op)

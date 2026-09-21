@@ -35,3 +35,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0018: Compute loss recovery](0018-compute-loss-recovery.md) — Accepted
 - [ADR-0019: Runtime-enforced process ceiling](0019-runtime-enforced-process-ceiling.md) — Accepted
 - [ADR-0020: Bounded ephemeral scratch](0020-bounded-ephemeral-scratch.md) — Accepted
+- [ADR-0021: Sandbox capability discovery](0021-sandbox-capability-discovery.md) — Accepted

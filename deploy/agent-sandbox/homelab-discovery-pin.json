@@ -1,0 +1,6 @@
+{
+  "server_version": "v1.36.4+k3s1",
+  "crd_spec_digest": "sha256:8585683179711c07eb8c8406859f39430b23c91b3959a9350a17d7f44082f427",
+  "controller_namespace": "agent-sandbox-system",
+  "controller_name": "agent-sandbox-controller"
+}

@@ -83,3 +83,49 @@ suspension/resumption. It requires actual Pod absence before resume and verifies
 that Sandbox identity/deadline survive while the Pod identity changes. It also
 runs release/replacement checks. This does not perform Session checkpoint/restore
 or preserve a live harness process. See [KAS-020 evidence](../evidence/kas-020-live-suspend-resume.md).
+
+## Required capability discovery
+
+After installation, derive the expected schema from the reviewed rendered
+manifest using operator credentials. This performs client/server dry-runs and
+reads the installed CRD resourceVersion; it does not modify the cluster or use
+its current spec as the expected schema.
+
+```sh
+python3 deploy/agent-sandbox/discovery-pin.py \
+  --manifest /tmp/agent-sandbox-install.yaml \
+  --server-version v1.36.4+k3s1 > /tmp/discovery-pin.json
+```
+
+Review and retain the resulting pin as trusted operator configuration. The
+checked-in `deploy/agent-sandbox/homelab-discovery-pin.json` records this homelab's
+normalized v1.0.0 CRD. Set `THINKPIXELAR_TEST_DISCOVERY_PIN` to a different reviewed
+file when testing another supported installation; lifecycle tests otherwise use
+the checked-in pin. An unsupported server/schema/controller fails before fixture
+creation. `make test-kas-capabilities` runs only read-only live discovery through
+the same loopback test endpoint.
+
+Service composition uses `kubernetes.Connection.Discovery` and `.Client` with
+`NewCapabilityDiscovery`, resolves once to select the immutable implementation,
+sets `CodingTemplateConfig.CapabilityDigest`, and supplies the resolver and digest
+through `WithCapabilities`. Subsequent operations resolve again and reject drift;
+do not silently regenerate an existing implementation's expected digest. Discovery
+requires trusted control-plane GET access to non-resource URLs `/version`,
+`/api/v1`, `/apis/agents.x-k8s.io/v1beta1`, CRD
+`sandboxes.agents.x-k8s.io` and Deployment
+`agent-sandbox-system/agent-sandbox-controller`, in addition to lifecycle access.
+API discovery advertises available verbs; it is not an RBAC authorization grant.
+
+For the physically bounded homelab lane, first prepare fresh slots using the
+[bounded scratch runbook](bounded-scratch.md), then set:
+
+```sh
+export THINKPIXELAR_TEST_RUNTIME_CLASS=kata-qemu-runtime-rs-ar331-bounded
+export THINKPIXELAR_TEST_SCRATCH_CLASS=ar-bounded-scratch-v1
+```
+
+The two lifecycle tests together consume five fresh scratch slots. They verify
+new PVC/PV identities after compute replacement and scratch-PVC removal after
+release. Retained PVs are not automatically recycled. The durable Workspace
+fixture PVCs still use local-path and are not storage-capacity qualification.
+See [ADR-0021](../adr/0021-sandbox-capability-discovery.md) for discovery semantics.

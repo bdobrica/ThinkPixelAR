@@ -66,6 +66,9 @@ func NewSecureEffectiveVerifier(resolve BlueprintResolver, infrastructure Infras
 				return fail, sandbox.ErrIntegrity
 			}
 		}
+		if pod.Annotations[capabilityAnnotation] != expected.PodTemplate.ObjectMeta.Annotations[capabilityAnnotation] {
+			return fail, sandbox.ErrIntegrity
+		}
 		for key, value := range expected.PodTemplate.ObjectMeta.Labels {
 			if pod.Labels[key] != value {
 				return fail, sandbox.ErrIntegrity

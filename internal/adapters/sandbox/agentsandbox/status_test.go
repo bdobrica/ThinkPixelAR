@@ -71,6 +71,15 @@ func TestGetFailsClosedWithoutEffectiveEvidenceAndDistinguishesOutage(t *testing
 	if err != nil || status.State != sandbox.Ready {
 		t.Fatalf("verified readiness: %+v %v", status, err)
 	}
+	originalCapabilities := p.capabilities
+	p.capabilities = func(context.Context) (sandbox.Capabilities, error) {
+		return sandbox.Capabilities{}, sandbox.ErrUnavailable
+	}
+	status, err = p.Get(ctx, r.Scope.TenantID, r.Scope.SandboxID)
+	if !errors.Is(err, sandbox.ErrUnavailable) || status.State != sandbox.Unknown {
+		t.Fatal("discovery outage reported readiness", err)
+	}
+	p.capabilities = originalCapabilities
 	p.network = func(context.Context, sandbox.AcquireRequest, string) error { return sandbox.ErrIntegrity }
 	status, err = p.Get(ctx, r.Scope.TenantID, r.Scope.SandboxID)
 	if !errors.Is(err, sandbox.ErrIntegrity) || status.State != sandbox.Unknown {

@@ -104,3 +104,13 @@ and complete capability/admission composition is not yet implemented. Larger amd
 encrypted snapshots and production infrastructure are separately deferred under
 ADR-0014, not prerequisites for closing the homelab lane. Do not conflate those
 future tests with the present core enforcement failure.
+
+## Phase 3 closure supplement — 2026-09-21
+
+`PH0-KAS-001` is closed for the selected homelab substrate scope by the
+[bounded scratch/resource fix](kas-022-bounded-resources.md), required live
+capability discovery (ADR-0021), and [Phase 3 evidence](../phase-3-evidence.md).
+The earlier scratch failure remains historical evidence. Production amd64,
+encrypted CSI snapshots and unselected upstream upgrade paths are not qualified.
+End-user secure admission still requires Phase 6 service composition; this
+closure does not substitute isolated substrate proofs for that admission gate.

@@ -12,3 +12,4 @@ Phase and release verification summaries live here. Evidence must be reproducibl
 - [Phase 2 authoritative persistence and domain state](../phase-2-evidence.md)
 - [Phase 0 cross-system review](phase-0-cross-system-review.md)
 - [Phase 0 exit evidence](phase-0-exit.md)
+- [Phase 3 Kubernetes Agent Sandbox substrate](../phase-3-evidence.md)

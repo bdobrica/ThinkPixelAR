@@ -25,13 +25,15 @@ import (
 type BlueprintResolver func(context.Context, sandbox.AcquireRequest) (core.SandboxBlueprint, error)
 
 type KubernetesAgentSandboxProvider struct {
-	client    dynamic.Interface
-	bindings  sandbox.BindingStore
-	resolve   BlueprintResolver
-	namespace string
-	now       func() time.Time
-	verify    EffectiveVerifier
-	network   NetworkEnforcer
+	client           dynamic.Interface
+	bindings         sandbox.BindingStore
+	resolve          BlueprintResolver
+	namespace        string
+	now              func() time.Time
+	verify           EffectiveVerifier
+	network          NetworkEnforcer
+	capabilities     CapabilityResolver
+	capabilityDigest string
 }
 
 func New(client dynamic.Interface, bindings sandbox.BindingStore, namespace string, resolve BlueprintResolver, options ...Option) (*KubernetesAgentSandboxProvider, error) {
@@ -59,10 +61,16 @@ func (p *KubernetesAgentSandboxProvider) Acquire(ctx context.Context, r sandbox.
 	if err != nil || digest != r.Operation.Digest {
 		return sandbox.Handle{}, sandbox.ErrConflict
 	}
+	if err := p.checkCapabilities(ctx, r); err != nil {
+		return sandbox.Handle{}, err
+	}
 	// Resolve and validate before reserving or making a Kubernetes mutation.
 	blueprint, err := p.resolve(ctx, r)
 	if err != nil {
 		return sandbox.Handle{}, sandbox.ErrUnsupported
+	}
+	if blueprint.PodTemplate.ObjectMeta.Annotations[capabilityAnnotation] != p.capabilityDigest {
+		return sandbox.Handle{}, sandbox.ErrConflict
 	}
 	if blueprint.Service == nil || *blueprint.Service || len(blueprint.VolumeClaimTemplates) != 0 || len(blueprint.PodTemplate.Spec.Containers) == 0 {
 		return sandbox.Handle{}, sandbox.ErrIntegrity

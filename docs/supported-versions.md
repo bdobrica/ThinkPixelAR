@@ -85,10 +85,11 @@ claim to support every upstream API feature.
 | Legacy alpha API | Unsupported. Only beta types are registered; no conversion webhook, alpha fallback or in-place migration is implemented by AR. |
 
 The provider-neutral [SandboxProvider contract](contracts/sandbox-provider.md)
-remains authoritative. Startup capability/discovery validation and production
-service composition are still implementation work; operator version checking is
-not a substitute for those future admission guards. The present live fixtures
-intentionally withhold secure readiness without an effective verifier.
+remains authoritative. [ADR-0021](adr/0021-sandbox-capability-discovery.md) implements
+bounded live discovery before acquisition, native mode changes and secure READY.
+The trusted schema/controller capability digest is bound into the immutable
+template configuration. Production service composition remains Phase 6 work;
+live fixtures intentionally withhold secure readiness without an effective verifier.
 
 ## Storage capability policy
 

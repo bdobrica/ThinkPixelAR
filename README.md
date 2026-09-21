@@ -8,7 +8,7 @@ It owns Session continuity, bounded Execution materialization, sandbox lifecycle
 
 ## Status
 
-ThinkPixelAR is in architecture and implementation planning. Phase 0 contracts and decisions are complete; implementation work is tracked in [TODO.md](TODO.md) and sequenced in [PLAN.md](PLAN.md).
+Architecture, engineering foundations, persistence and the homelab Kubernetes/Kata substrate are implemented. See [Phase 3 evidence](docs/phase-3-evidence.md). Supervisor/transport and harness implementation are next, tracked in [TODO.md](TODO.md) and sequenced in [PLAN.md](PLAN.md).
 
 No release-qualified runtime is available yet. Candidate dependency versions in the [compatibility baseline](docs/supported-versions.md) are not claims of completed deployment or security qualification.
 
@@ -37,8 +37,7 @@ See the [repository alignment contract](ALIGNMENT.md), [system context](docs/arc
 
 Development uses the exact Go version in `.go-version` (currently `1.26.7`).
 The package scaffold follows the domain, application, port, and adapter
-boundaries in `PLAN.md`; command and deployment directories are reserved for
-their later engineering-foundation items. Install the pinned OpenAPI tooling
+boundaries in `PLAN.md`. Install the pinned OpenAPI tooling
 with `make deps`, then run the stable local/CI gate with `make verify`. Use
 `make help` to list the focused commands. The full gate downloads the exactly
 pinned Go analysis tools and current vulnerability database, so it requires
@@ -55,7 +54,7 @@ are development-only. The default URL is
 `postgres://thinkpixelar:thinkpixelar-development-only@127.0.0.1:55432/thinkpixelar`;
 set `THINKPIXELAR_POSTGRES_PORT` to change the host port. Schema changes run
 separately through `make migrate` and are never applied automatically by API
-replicas. The migration engine and first schema arrive in DB-001.
+replicas.
 
 Build the baseline service container with `make image`. Run `make image-smoke`
 to verify that it starts as a non-root process with a read-only filesystem and
@@ -71,7 +70,9 @@ See the [configuration reference](docs/configuration.md) for precedence,
 defaults, and supported variables.
 
 Kubernetes adapter connection settings are documented in the
-[Kubernetes configuration reference](docs/kubernetes-configuration.md).
+[Kubernetes configuration reference](docs/kubernetes-configuration.md). Homelab
+setup is documented in the [Agent Sandbox](docs/operations/agent-sandbox.md),
+[Kata](docs/operations/kata.md) and [bounded scratch](docs/operations/bounded-scratch.md) runbooks.
 
 ## Documentation
 

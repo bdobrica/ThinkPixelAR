@@ -123,3 +123,8 @@ test-kas-lifecycle: ## Run opted-in live Agent Sandbox lifecycle tests through a
 test-kas-suspend-resume: ## Run opted-in native suspend/resume against the live controller.
 	@test -n "$${THINKPIXELAR_TEST_KUBE_API}" || { echo 'THINKPIXELAR_TEST_KUBE_API is required'; exit 1; }
 	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveNativeSuspendResume$$' -count=1 -v
+
+.PHONY: test-kas-capabilities
+test-kas-capabilities: ## Validate pinned live Kubernetes and Agent Sandbox capabilities without creating workloads.
+	@test -n "$$THINKPIXELAR_TEST_KUBE_API" || (echo 'Set THINKPIXELAR_TEST_KUBE_API to a trusted loopback API tunnel'; exit 1)
+	$(GO) test -race ./internal/adapters/sandbox/agentsandbox -run '^TestLiveCapabilities$$' -count=1 -v

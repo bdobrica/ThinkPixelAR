@@ -227,23 +227,23 @@ A second production backend is explicitly not required to prove the abstraction.
 ### 4.4 Kubernetes Agent Sandbox usage
 
 The implemented API dependency and version-selection decision are in
-[ADR-0006](docs/adr/0006-agent-sandbox-v1-api-pin.md). Lifecycle mapping,
-claims, templates and live qualification remain Phase 3 work.
+[ADR-0006](docs/adr/0006-agent-sandbox-v1-api-pin.md). Implemented lifecycle, template and scoped live qualification evidence is in
+[Phase 3 evidence](docs/phase-3-evidence.md); claims/warm pools are deferred by ADR-0010.
 
 ### 4.5 Runtime Profiles
 
 Implemented configuration loading and atomic publication are recorded in
-[ADR-0007](docs/adr/0007-runtime-profile-loading.md). Provider mapping, effective
-verification and per-Execution authority intersection remain downstream work.
+[ADR-0007](docs/adr/0007-runtime-profile-loading.md). Provider mapping and effective-verification guards are implemented in Phase 3.
+Per-Execution authority intersection and service composition remain Phase 6 work.
 
 ### 4.6 Kata isolation
 
 The installed ARM64 homelab substrate and its operator-owned runtime configuration
 are recorded in [ADR-0008](docs/adr/0008-kata-homelab-substrate.md) and the
 [Kata runbook](docs/operations/kata.md). Operator runtime-reference mapping is in
-[ADR-0012](docs/adr/0012-operator-kata-runtime-mapping.md). Remaining work is
-full secure-profile qualification: effective security, egress,
-Workspace storage, process limits, resource overhead and amd64 validation.
+[ADR-0012](docs/adr/0012-operator-kata-runtime-mapping.md). Scoped substrate qualification is recorded in [Phase 3 evidence](docs/phase-3-evidence.md).
+Complete secure admission requires Phase 6 composition; production amd64 and
+encrypted storage qualification follow ADR-0014.
 
 ### 4.7 Runtime authority port
 
@@ -1542,33 +1542,14 @@ later phases.
 
 ### Phase 3 — Kubernetes Agent Sandbox substrate
 
-Implemented substrate decisions are captured in [ADRs 0005–0020](docs/adr/README.md),
-including provider/Workspace boundaries, cold acquisition, effective security,
-durable reconciliation, recovery and the homelab process ceiling. Version/API
-assumptions and update requirements live in [supported versions](docs/supported-versions.md).
+Completed for the homelab substrate scope; see [Phase 3 evidence](docs/phase-3-evidence.md)
+and [ADRs 0005–0021](docs/adr/README.md) for implemented decisions.
 
-Remaining Phase 3 work:
-
-- implement the provider capability/discovery validation required by the
-  SandboxProvider contract and bind it to profile admission;
-- reconcile the final implementation/evidence matrix and close KAS-024 only when
-  the required substrate checks pass.
-
-[Cold lifecycle](docs/evidence/kas-019-live-lifecycle.md),
-[native suspend/resume](docs/evidence/kas-020-live-suspend-resume.md),
-[host-correlated KVM execution](docs/evidence/kas-021-live-isolation.md) and
-[scoped network denial](docs/evidence/kas-015-network-denial.md) have live ARM64
-evidence. These do not yet establish complete secure-profile readiness. Concrete
-infrastructure proof and durable Workspace/bootstrap/authority service composition
-must be connected before the Phase 6 end-user admission path; missing proof remains
-fail-closed under ADR-0013.
-
-Use the existing homelab for fixes and RC substrate tests. Larger production
-qualification is [explicit future work](docs/operations/rc-infrastructure.md)
-under ADR-0014, not a reason to purchase infrastructure or leave the homelab lane
-open. The implemented bounded scratch path and measured resource envelope are recorded
-in [ADR-0020](docs/adr/0020-bounded-ephemeral-scratch.md) and
-[KAS-022 evidence](docs/evidence/kas-022-bounded-resources.md).
+Next: Phase 4 supervisor/transport, Phase 5 harness, then Phase 6 durable
+Workspace/bootstrap/authority and effective-infrastructure service composition.
+Missing effective proof continues to withhold secure READY. Larger production
+qualification remains [documented future work](docs/operations/rc-infrastructure.md)
+under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 

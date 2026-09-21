@@ -52,6 +52,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
+	capabilityResolver, capabilities := liveDiscovery(t, ctx, client, endpoint)
 	id, err := primitives.NewID(time.Now())
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +101,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	if err = json.Unmarshal(raw, &profile); err != nil {
 		t.Fatal(err)
 	}
-	cfg := CodingTemplateConfig{ScratchStorageClass: os.Getenv("THINKPIXELAR_TEST_SCRATCH_CLASS"), References: profile.Implementation, RuntimeClass: runtimeClass, NodeSelector: map[string]string{"kubernetes.io/hostname": node}, UserID: 65532, GroupID: 65532, TempBytes: 32 << 20, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
+	cfg := CodingTemplateConfig{CapabilityDigest: capabilities.Digest, ScratchStorageClass: os.Getenv("THINKPIXELAR_TEST_SCRATCH_CLASS"), References: profile.Implementation, RuntimeClass: runtimeClass, NodeSelector: map[string]string{"kubernetes.io/hostname": node}, UserID: 65532, GroupID: 65532, TempBytes: 32 << 20, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
 	mapper, err := NewCodingTemplate(raw, cfg, func(runtimeprofile.Profile, CodingTemplateConfig) error { return nil })
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +174,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 		request.Operation.ID = string(id)
 		request.Operation.Digest, _ = RequestDigest(request)
 		bindings := &testBindings{}
-		provider, err := New(client, bindings, namespace, resolve, WithNetworkEnforcer(enforce))
+		provider, err := New(client, bindings, namespace, resolve, WithNetworkEnforcer(enforce), WithCapabilities(capabilityResolver, capabilities.Digest))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -181,7 +182,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 		if err != nil {
 			t.Fatal("acquire", err)
 		}
-		restarted, err := New(client, bindings, namespace, resolve, WithNetworkEnforcer(enforce))
+		restarted, err := New(client, bindings, namespace, resolve, WithNetworkEnforcer(enforce), WithCapabilities(capabilityResolver, capabilities.Digest))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -303,5 +304,55 @@ func liveWait(t *testing.T, ctx context.Context, condition func() bool) {
 			t.Fatal("live condition timeout")
 		case <-time.After(2 * time.Second):
 		}
+	}
+}
+
+func liveDiscovery(t *testing.T, ctx context.Context, client dynamic.Interface, endpoint string) (CapabilityResolver, sandbox.Capabilities) {
+	t.Helper()
+	path := os.Getenv("THINKPIXELAR_TEST_DISCOVERY_PIN")
+	if path == "" {
+		path = "../../../../deploy/agent-sandbox/homelab-discovery-pin.json"
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pin DiscoveryPin
+	if err = json.Unmarshal(raw, &pin); err != nil {
+		t.Fatal(err)
+	}
+	api, err := rest.UnversionedRESTClientFor(dynamic.ConfigFor(&rest.Config{Host: endpoint, Timeout: 15 * time.Second}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolve, err := NewCapabilityDiscovery(api, client, pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilities, err := resolve(ctx)
+	if err != nil {
+		t.Fatal("live capability discovery", err)
+	}
+	t.Log("live capability digest:", capabilities.Digest)
+	return resolve, capabilities
+}
+func TestLiveCapabilities(t *testing.T) {
+	endpoint := os.Getenv("THINKPIXELAR_TEST_KUBE_API")
+	if endpoint == "" {
+		t.Skip("THINKPIXELAR_TEST_KUBE_API not set")
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" || parsed.User != nil {
+		t.Fatal("test API must use operator loopback")
+	}
+	client, err := dynamic.NewForConfig(&rest.Config{Host: endpoint, Timeout: 15 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, capabilities := liveDiscovery(t, ctx, client, endpoint)
+	if !capabilities.SupportsSuspend || !capabilities.SupportsResume || capabilities.SupportsWarmPool {
+		t.Fatal("incorrect live capability vocabulary")
 	}
 }

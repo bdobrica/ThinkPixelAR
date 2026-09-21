@@ -27,6 +27,7 @@ type CodingTemplateConfig struct {
 	NodeSelector        map[string]string             `json:"node_selector"`
 	UserID              int64                         `json:"user_id"`
 	GroupID             int64                         `json:"group_id"`
+	CapabilityDigest    string                        `json:"capability_digest,omitempty"`
 	ScratchStorageClass string                        `json:"scratch_storage_class,omitempty"`
 	TempBytes           int64                         `json:"temp_bytes"`
 	QualificationDigest string                        `json:"qualification_digest"`
@@ -51,6 +52,9 @@ type CodingTemplate struct {
 }
 
 func NewCodingTemplate(document []byte, config CodingTemplateConfig, qualify ValidateQualification) (*CodingTemplate, error) {
+	if config.CapabilityDigest != "" && !shaDigest.MatchString(config.CapabilityDigest) {
+		return nil, sandbox.ErrInvalid
+	}
 	if config.ScratchStorageClass != "" && !dnsName(config.ScratchStorageClass) {
 		return nil, sandbox.ErrInvalid
 	}
@@ -159,7 +163,7 @@ func (t *CodingTemplate) Render(r sandbox.AcquireRequest, volumes CodingVolumes)
 	// The explicit empty policy avoids upstream's public-Internet default. Exact
 	// platform/profile exceptions are owned by the separate network enforcer.
 	return &extensions.SandboxTemplate{TypeMeta: metav1.TypeMeta{APIVersion: extensions.GroupVersion.String(), Kind: "SandboxTemplate"}, ObjectMeta: metav1.ObjectMeta{Name: "ar-" + string(r.Scope.SandboxID)}, Spec: extensions.SandboxTemplateSpec{
-		SandboxBlueprint:        core.SandboxBlueprint{Service: &f, PodTemplate: core.PodTemplate{ObjectMeta: core.PodMetadata{Labels: labels}, Spec: spec}},
+		SandboxBlueprint:        core.SandboxBlueprint{Service: &f, PodTemplate: core.PodTemplate{ObjectMeta: core.PodMetadata{Labels: labels, Annotations: capabilityAnnotations(t.config.CapabilityDigest)}, Spec: spec}},
 		NetworkPolicyManagement: extensions.NetworkPolicyManagementManaged, NetworkPolicy: &extensions.NetworkPolicySpec{}, EnvVarsInjectionPolicy: extensions.EnvVarsInjectionPolicyDisallowed, VolumeClaimTemplatesPolicy: extensions.VolumeClaimTemplatesPolicyDisallowed,
 	}}, nil
 }
@@ -172,4 +176,11 @@ func scratchClaim(storageClass string, bytes int64) v1.PersistentVolumeClaimSpec
 	return v1.PersistentVolumeClaimSpec{StorageClassName: &storageClass, VolumeMode: &mode,
 		AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 		Resources:   v1.VolumeResourceRequirements{Requests: v1.ResourceList{v1.ResourceStorage: *resource.NewQuantity(bytes, resource.BinarySI)}}}
+}
+
+func capabilityAnnotations(digest string) map[string]string {
+	if digest == "" {
+		return nil
+	}
+	return map[string]string{capabilityAnnotation: digest}
 }

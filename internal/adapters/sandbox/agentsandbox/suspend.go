@@ -21,6 +21,13 @@ func (p *KubernetesAgentSandboxProvider) Suspend(ctx context.Context, tenant, id
 	return err
 }
 func (p *KubernetesAgentSandboxProvider) setMode(ctx context.Context, tenant, id primitives.ID, kind string, mode core.SandboxOperatingMode, op sandbox.Operation) (sandbox.Handle, error) {
+	b0, err := p.bindings.Get(ctx, tenant, id)
+	if err != nil {
+		return sandbox.Handle{}, err
+	}
+	if err = p.checkCapabilities(ctx, b0.Request); err != nil {
+		return sandbox.Handle{}, err
+	}
 	revision, err := p.begin(ctx, tenant, id, kind, op)
 	if err != nil {
 		return sandbox.Handle{}, err
@@ -49,7 +56,7 @@ func (p *KubernetesAgentSandboxProvider) setMode(ctx context.Context, tenant, id
 		if err != nil {
 			return sandbox.Handle{}, sandbox.ErrUnsupported
 		}
-		if !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
+		if expected.PodTemplate.ObjectMeta.Annotations[capabilityAnnotation] != p.capabilityDigest || !apiequality.Semantic.DeepEqual(expected, sb.Spec.SandboxBlueprint) {
 			return sandbox.Handle{}, sandbox.ErrIntegrity
 		}
 	}

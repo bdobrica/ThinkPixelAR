@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
+
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -18,6 +19,7 @@ type Client interface{ dynamic.Interface }
 
 type Connection struct {
 	Client    Client
+	Discovery rest.Interface
 	Namespace string
 }
 
@@ -58,5 +60,9 @@ func connect(c config.Kubernetes, inCluster func() (*rest.Config, error), develo
 	if err != nil {
 		return Connection{}, errors.New("kubernetes client initialization failed")
 	}
-	return Connection{Client: client, Namespace: c.Namespace}, nil
+	discoveryClient, err := rest.UnversionedRESTClientFor(dynamic.ConfigFor(rc))
+	if err != nil {
+		return Connection{}, errors.New("kubernetes discovery initialization failed")
+	}
+	return Connection{Client: client, Discovery: discoveryClient, Namespace: c.Namespace}, nil
 }

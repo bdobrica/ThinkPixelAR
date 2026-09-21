@@ -86,7 +86,7 @@ func testBlueprint(_ context.Context, r sandbox.AcquireRequest) (core.SandboxBlu
 	if err != nil {
 		return core.SandboxBlueprint{}, err
 	}
-	config := CodingTemplateConfig{References: r.Profile.Implementation, RuntimeClass: "test-kata", NodeSelector: map[string]string{"test": "qualified"}, UserID: 65532, GroupID: 65532, TempBytes: 1 << 30, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
+	config := CodingTemplateConfig{CapabilityDigest: "sha256:" + strings.Repeat("c", 64), References: r.Profile.Implementation, RuntimeClass: "test-kata", NodeSelector: map[string]string{"test": "qualified"}, UserID: 65532, GroupID: 65532, TempBytes: 1 << 30, QualificationDigest: "sha256:" + strings.Repeat("d", 64)}
 	template, err := NewCodingTemplate(raw, config, func(runtimeprofile.Profile, CodingTemplateConfig) error { return nil })
 	if err != nil {
 		return core.SandboxBlueprint{}, err
@@ -205,7 +205,7 @@ func providerFixture(t *testing.T, a *testAPI, b *testBindings) *KubernetesAgent
 	if e != nil {
 		t.Fatal(e)
 	}
-	p, e := New(c, b, "sandboxes", testBlueprint, WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }))
+	p, e := New(c, b, "sandboxes", testBlueprint, WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }), WithCapabilities(testCapabilities, "sha256:"+strings.Repeat("c", 64)))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -282,4 +282,10 @@ func TestAcquireRejectsTamperedProviderSpecAndBoundAbsence(t *testing.T) {
 	if _, e := p.Acquire(context.Background(), r); !errors.Is(e, sandbox.ErrNotFound) || a.creates != 1 {
 		t.Fatalf("recreated an already bound sandbox: %v", e)
 	}
+}
+
+func testCapabilities(context.Context) (sandbox.Capabilities, error) {
+	c := adapterCapabilities()
+	c.Digest = "sha256:" + strings.Repeat("c", 64)
+	return c, nil
 }
