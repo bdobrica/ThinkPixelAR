@@ -99,3 +99,11 @@ current authority/revocation/rate bounds; FramePolicy must enforce message
 semantics, direction, replay and operation idempotency. See
 [ADR-0027](../adr/0027-agentd-admission-composition.md). Secret cleanup and rotation
 handlers remain required before enabling this path in either binary.
+
+## Bootstrap Secret operations
+
+[The Kubernetes projection adapter](agentd-bootstrap-secrets.md) now implements
+immutable publication, exact lookup, ambiguous-create recovery and UID-fenced
+cleanup. PostgreSQL `CheckBootstrap` rejects unregistered, mismatched, consumed or
+fenced records before projection. Durable plan/UID persistence, cleanup scheduling
+and sandbox credential loading remain required composition work.

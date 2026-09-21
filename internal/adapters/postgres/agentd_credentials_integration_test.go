@@ -42,6 +42,14 @@ func TestAgentdCredentialRegistryIsolationAndReplay(t *testing.T) {
 	if err := store.Register(ctx, request, grant, record); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.CheckBootstrap(ctx, record); err != nil {
+		t.Fatal("registered bootstrap rejected for projection")
+	}
+	wrongRecord := record
+	wrongRecord.ProofDigest = testDigest('f')
+	if err := store.CheckBootstrap(ctx, wrongRecord); err != transport.ErrCredentialState {
+		t.Fatal("mismatched projection record accepted")
+	}
 	checkAgentdRLS(t, db, id)
 	if err := store.Register(ctx, request, grant, record); err != transport.ErrCredentialState {
 		t.Fatal("registration replay accepted")
@@ -106,6 +114,9 @@ func TestAgentdCredentialRegistryIsolationAndReplay(t *testing.T) {
 	}
 	// New adapter instance proves consumption/epoch state is not process-local.
 	restarted, _ := postgres.NewAgentdCredentials(db)
+	if err := restarted.CheckBootstrap(ctx, record); err != transport.ErrCredentialState {
+		t.Fatal("consumed bootstrap remained projectable")
+	}
 	if _, err := restarted.ConsumeBootstrap(ctx, peer, proof, deadline); err != transport.ErrCredentialState {
 		t.Fatal("bootstrap replay after restart")
 	}
