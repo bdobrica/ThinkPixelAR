@@ -64,7 +64,9 @@ answers `/livez`. Override the local tag with `IMAGE=registry/name:tag`.
 Build the distinct sandbox-supervisor baseline with `make agentd-image` and
 smoke-test it with `make agentd-image-smoke`; override its tag with
 `AGENTD_IMAGE=registry/name:tag`. This image contains only `thinkpixel-agentd`,
-not a vendor harness. Vendor agent images remain separate Phase 5 artifacts.
+not a vendor harness. It now requires [read-only bootstrap configuration](docs/operations/agentd.md)
+and waits for the forthcoming authenticated transport. Vendor agent images remain
+separate Phase 5 artifacts.
 
 Typed process configuration supports strict JSON files and environment
 overrides with production-safe validation and secret-redacted diagnostics.

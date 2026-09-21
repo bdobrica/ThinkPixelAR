@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "endpoint": "https://ar-transport.example.invalid:8443",
+  "server_name": "ar-transport.example.invalid",
+  "binding": {
+    "tenant_id": "01950000-0000-7000-8000-000000000001",
+    "session_id": "01950000-0000-7000-8000-000000000001",
+    "execution_id": "01950000-0000-7000-8000-000000000001",
+    "attempt_id": "01950000-0000-7000-8000-000000000001",
+    "sandbox_binding_id": "01950000-0000-7000-8000-000000000001",
+    "session_generation": 1
+  },
+  "build_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "adapter_kind": "test",
+  "adapter_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "protocol": {
+    "major": 1,
+    "minimum_minor": 0,
+    "maximum_minor": 0
+  },
+  "capabilities": [
+    "envelope.v1"
+  ],
+  "required_capabilities": [
+    "envelope.v1"
+  ],
+  "limits": {
+    "frame_bytes": 1048576,
+    "command_bytes": 262144,
+    "event_bytes": 262144,
+    "diagnostic_bytes": 16384,
+    "mutating_inflight": 1,
+    "readonly_inflight": 32,
+    "buffered_events": 256,
+    "buffered_bytes": 16777216,
+    "heartbeat_interval_ms": 10000,
+    "liveness_window_ms": 30000
+  },
+  "harness": {
+    "argv": [
+      "/usr/local/bin/test-harness"
+    ],
+    "working_directory": "/workspace",
+    "start_timeout_ms": 10000,
+    "stop_grace_ms": 5000,
+    "kill_wait_ms": 1000
+  }
+}

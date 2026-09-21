@@ -6,36 +6,21 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestRunWaitsForCancellation(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	var output bytes.Buffer
-	done := make(chan struct{})
-	go func() {
-		run(ctx, slog.New(slog.NewJSONHandler(&output, nil)))
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		t.Fatal("run returned before cancellation")
-	case <-time.After(20 * time.Millisecond):
-	}
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("run did not return after cancellation")
-	}
-
-	logs := output.String()
-	for _, expected := range []string{"agent supervisor baseline started", "agent supervisor baseline stopped", "thinkpixel-agentd"} {
-		if !strings.Contains(logs, expected) {
-			t.Fatalf("logs do not contain %q: %s", expected, logs)
+func TestStartupRejectsArgumentsAndCredentialEnvironmentWithoutEcho(t *testing.T) {
+	for _, credential := range []bool{false, true} {
+		var output bytes.Buffer
+		args := []string{"CANARY_UNTRUSTED_ARGUMENT"}
+		if credential {
+			t.Setenv("KUBECONFIG", "CANARY_KUBE_PATH")
+			args = nil
+		}
+		if code := entry(context.Background(), args, slog.New(slog.NewJSONHandler(&output, nil))); code != 1 {
+			t.Fatal("startup accepted")
+		}
+		if strings.Contains(output.String(), "CANARY") {
+			t.Fatal("startup leaked input")
 		}
 	}
 }

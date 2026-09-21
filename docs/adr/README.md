@@ -37,3 +37,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0020: Bounded ephemeral scratch](0020-bounded-ephemeral-scratch.md) — Accepted
 - [ADR-0021: Sandbox capability discovery](0021-sandbox-capability-discovery.md) — Accepted
 - [ADR-0022: Agentd protocol and compatibility handshake](0022-agentd-protocol-handshake.md) — Accepted
+- [ADR-0023: Agentd read-only bootstrap and process startup](0023-agentd-readonly-bootstrap.md) — Accepted

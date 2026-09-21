@@ -1,7 +1,4 @@
 // Command thinkpixel-agentd is the sandbox-local harness supervisor.
-//
-// The Phase 1 baseline only establishes its process and packaging boundary.
-// Harness lifecycle and authenticated transport arrive in Phase 4.
 package main
 
 import (
@@ -11,19 +8,30 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/bdobrica/ThinkPixelAR/internal/app/agentd"
 	"github.com/bdobrica/ThinkPixelAR/internal/telemetry"
 )
 
 func main() {
 	logger := telemetry.NewJSONLogger(os.Stderr, telemetry.LogOptions{})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	run(ctx, logger)
+	code := entry(ctx, os.Args[1:], logger)
+	stop()
+	os.Exit(code)
 }
-
-func run(ctx context.Context, logger *slog.Logger) {
-	logger.Info("agent supervisor baseline started", "component", "thinkpixel-agentd")
-	<-ctx.Done()
-	logger.Info("agent supervisor baseline stopped", "component", "thinkpixel-agentd")
+func entry(ctx context.Context, args []string, logger *slog.Logger) int {
+	if len(args) != 0 || agentd.CheckCredentialExposure() != nil {
+		logger.Error("agent supervisor startup rejected")
+		return 1
+	}
+	config, err := agentd.Load()
+	if err != nil {
+		logger.Error("agent supervisor configuration rejected")
+		return 1
+	}
+	if agentd.Run(ctx, config, logger) != nil {
+		logger.Error("agent supervisor failed")
+		return 1
+	}
+	return 0
 }

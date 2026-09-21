@@ -379,30 +379,11 @@ Claude and Copilot adapters are post-MVP work and should be added only after the
 
 ### 4.12 Sandbox-local agent supervisor
 
-`thinkpixel-agentd` runs inside the sandbox.
-
-Responsibilities:
-
-- launch/terminate the configured harness;
-- establish the harness structured protocol;
-- normalize low-level process health;
-- relay harness events;
-- receive execution-scoped input;
-- coordinate vendor state/checkpoint paths;
-- expose bounded diagnostics;
-- implement graceful shutdown;
-- provide adapter/version handshake information.
-
-It must not:
-
-- authorize external tools;
-- hold long-lived provider credentials;
-- decide governance policy;
-- expand resource limits;
-- declare security-sensitive consumption authoritatively;
-- possess Kubernetes control-plane credentials.
-
-AR must remain safe if `agentd` lies or is compromised.
+Implemented bootstrap/process startup decisions are in
+[ADR-0023](docs/adr/0023-agentd-readonly-bootstrap.md). The durable responsibility
+and trust boundary is the [agentd contract](docs/contracts/agentd.md).
+Harness supervision, protocol bridge, authenticated transport, bounded capture,
+checkpoint hooks and child termination remain Phase 4 work.
 
 ### 4.13 Sandbox transport
 
@@ -1544,13 +1525,14 @@ under ADR-0014; no paid infrastructure is required to continue.
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
 The v1 wire schema and compatibility handshake are implemented under ADR-0022.
-Next is AGD-002 process configuration, followed by authenticated transport and
-credential/binding checks before harness lifecycle. Compatibility alone cannot
-authorize a connection or launch.
+Read-only bootstrap/process startup is implemented under ADR-0023.
+Next is AGD-003 authenticated transport and credential/binding checks before
+harness lifecycle. Compatibility and configured startup cannot authorize a
+connection or launch.
 
 Remaining implementation:
 
-- sandbox-local supervisor;
+- harness process supervision;
 - authenticated AR↔agentd transport;
 - process lifecycle;
 - adapter handshake;
