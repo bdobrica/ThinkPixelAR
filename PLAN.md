@@ -390,8 +390,9 @@ checkpoint hooks and child termination remain Phase 4 work.
 The transport decision is [ADR-0002](docs/adr/0002-agentd-outbound-mtls-grpc-transport.md).
 The implemented versioned schema and compatibility handshake are recorded in
 [ADR-0022](docs/adr/0022-agentd-protocol-handshake.md). The authenticated adapter is recorded in
-[ADR-0024](docs/adr/0024-agentd-authenticated-grpc-channel.md). Credential lifecycle
-and durable connection/fence composition remain Phase 4 work.
+[ADR-0024](docs/adr/0024-agentd-authenticated-grpc-channel.md). Credential issuance
+and renewal are recorded in [ADR-0025](docs/adr/0025-agentd-credential-issuance.md).
+Durable admission and credential delivery composition remain Phase 4 work.
 
 ### 4.14 Workspace model
 
@@ -1528,14 +1529,16 @@ under ADR-0014; no paid infrastructure is required to continue.
 The v1 wire schema and compatibility handshake are implemented under ADR-0022.
 Read-only bootstrap/process startup is implemented under ADR-0023.
 The authenticated outbound gRPC adapter is implemented under ADR-0024.
-Next is AGD-004 issuance/rotation and AGD-005 trusted binding composition before
-harness lifecycle. The binary remains dormant until those services are supplied;
+Credential issuance and renewal are implemented under ADR-0025.
+Next is AGD-005 durable admission, one-time bootstrap consumption, Secret
+delivery/cleanup and authenticated rotation composition before harness lifecycle.
+The binary remains dormant until those services are supplied;
 compatibility or possession of a certificate cannot authorize execution.
 
 Remaining implementation:
 
 - harness process supervision;
-- transport credential lifecycle and trusted binding composition;
+- durable credential/admission and protected delivery composition;
 - process lifecycle;
 - adapter handshake;
 - event streaming;

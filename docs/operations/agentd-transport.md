@@ -2,8 +2,8 @@
 
 AGD-003 implements `internal/adapters/sandboxtransport/grpc`: an outbound agentd
 client and a dedicated AR gRPC server. The binary/public API do not yet compose
-these adapters; issuance/bootstrap loading is AGD-004 and trusted binding wiring
-is AGD-005. There is no default authorizer and no harness launch.
+these adapters. [Issuance and renewal](agentd-credentials.md) are implemented in
+AGD-004; durable binding, bootstrap loading/delivery and rotation wiring are AGD-005. There is no default authorizer and no harness launch.
 
 ## Trusted composition
 
@@ -70,7 +70,8 @@ Go callbacks that ignore it.
   payload registration, replay acknowledgements and durable idempotency belong
   to the application Check. Failure is never silently retried as new work.
 - Frames must match the accepted binding/version/epoch and allowed direction.
-  Hello/Welcome cannot recur midstream. Rotation is rejected until AGD-004.
+  Hello/Welcome cannot recur midstream. Rotation remains rejected until AGD-005
+  wires the credential service into trusted stream handling.
 - Authority and both peer certificate expiries bound stream life. Negotiated
   liveness bounds Send/Recv/Check and an independent watchdog closes quiet peers
   even without a pending receive. Only accepted peer frames reset it. HTTP/2 uses

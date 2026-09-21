@@ -271,5 +271,6 @@ The AR↔`agentd` protocol is versioned independently from HarnessAdapter and ve
 mTLS gRPC. The versioned source is [agentd.proto](../../api/agentd/v1/agentd.proto);
 its [wire reference](agentd-protocol.md) defines compatibility and generation.
 The authenticated adapter and its mandatory trusted admission seam are documented
-in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). Issuance, durable
-binding composition and harness launch remain separately gated implementation steps.
+in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). [Credential issuance and renewal](../adr/0025-agentd-credential-issuance.md) are
+implemented behind mandatory authority and issuer ports. Durable admission,
+protected delivery/rotation composition and harness launch remain separately gated.
