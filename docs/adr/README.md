@@ -41,3 +41,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0024: Agentd authenticated gRPC channel](0024-agentd-authenticated-grpc-channel.md) — Accepted
 - [ADR-0025: Agentd credential issuance and renewal](0025-agentd-credential-issuance.md) — Accepted
 - [ADR-0026: Durable agentd credential registry](0026-durable-agentd-credential-registry.md) — Accepted
+- [ADR-0027: Agentd admission composition](0027-agentd-admission-composition.md) — Accepted

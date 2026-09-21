@@ -86,3 +86,16 @@ It is not an authority adapter: the current provider/Run checks, proof-consumpti
 cleanup transaction, frame admission and protected delivery remain AGD-005 work.
 Do not expose registry methods directly to sandbox requests or treat a registry
 lookup as current authority. No running listener is enabled by the migration.
+
+## Admission composition checkpoint
+
+`agentdadmission.New` now composes a ComputeStore, ComputeProvider,
+CredentialRegistry, AdmissionPolicy and FramePolicy. The resulting service
+implements both transport Authorizer and credential CredentialAuthority. Use
+`SandboxBindings` and `AgentdCredentials` for the PostgreSQL stores. Both policy
+ports are mandatory: no fixture policy belongs in production composition.
+AdmissionPolicy must load immutable materialization expectations and enforce
+current authority/revocation/rate bounds; FramePolicy must enforce message
+semantics, direction, replay and operation idempotency. See
+[ADR-0027](../adr/0027-agentd-admission-composition.md). Secret cleanup and rotation
+handlers remain required before enabling this path in either binary.

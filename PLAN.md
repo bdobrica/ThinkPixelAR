@@ -1531,9 +1531,10 @@ Read-only bootstrap/process startup is implemented under ADR-0023.
 The authenticated outbound gRPC adapter is implemented under ADR-0024.
 Credential issuance and renewal are implemented under ADR-0025.
 AGD-005 durable credential registration, one-time bootstrap consumption and
-connection bookkeeping are implemented under ADR-0026. Remaining AGD-005 work is
-trusted authority/provider admission, handshake/frame checks, Secret delivery/cleanup
-and authenticated rotation composition before harness lifecycle.
+connection bookkeeping are implemented under ADR-0026; admission composition is
+implemented under ADR-0027. Remaining AGD-005 work is concrete authority/expectation
+and frame-policy adapters, Secret delivery/cleanup and authenticated rotation
+composition before harness lifecycle.
 The binary remains dormant until those services are supplied;
 compatibility or possession of a certificate cannot authorize execution.
 
