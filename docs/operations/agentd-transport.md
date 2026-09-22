@@ -128,3 +128,18 @@ After expiry, an optional recovery loader may load one fresh matching bootstrap
 issued by trusted AR recovery. Current immutable Kubernetes projections cannot
 refresh in place, so use fence/replacement when protected delivery is unavailable.
 No sandbox-side credential issuance or Kubernetes access is introduced.
+
+## Adversarial message regression tests
+
+Run `go test -race ./internal/adapters/sandboxtransport/grpc` for raw-wire mTLS
+rejection, payload boundary and replay-policy gate tests. A test-only client
+bypasses outgoing validation so these cases exercise the receiver's real guards.
+For bounded decoder fuzzing, run:
+
+```sh
+go test ./internal/adapters/sandboxtransport/grpc -run '^$' -fuzz '^FuzzEnvelopeCodec$' -fuzztime=5s -parallel=2
+```
+
+The replay fixture demonstrates policy enforcement and approved identical
+replay delivery; it does not implement durable production deduplication. See
+[AGD-014 evidence](../evidence/agd-014-adversarial-messages.md).

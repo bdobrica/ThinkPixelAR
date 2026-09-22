@@ -1588,6 +1588,8 @@ Remaining implementation:
 - durable credential/admission and protected delivery composition;
 - adapter handshake;
 - transport delivery of captured/normalized events;
+- production sequence/replay policy and durable replay reconciliation (AGD-014
+  qualifies transport rejection/delivery gates; it does not supply that policy);
 - runnable rotation/reconnect and provider recovery/fallback composition.
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
