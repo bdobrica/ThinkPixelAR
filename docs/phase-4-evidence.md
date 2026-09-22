@@ -34,8 +34,9 @@ Complete these existing requirements in one runnable path before closing AGD-019
 - Wire the AR transport listener and agentd client/dispatcher to concrete bounded
   authority and immutable materialization expectations; retain mandatory binding,
   provider, epoch, revocation and deadline checks with no permit-all default.
-- Persist bootstrap publication/cleanup intent before provider publication and
-  provider UID before projection; compose cleanup on acceptance, failure and expiry.
+- Wire the [durable bootstrap delivery coordinator](adr/0038-durable-agentd-bootstrap-delivery.md)
+  into materialization/admission and its bounded tenant cleanup pass into a worker.
+  The journal/coordinator is implemented; executable scheduling is still pending.
 - Implement command/report semantics and durable operation replay reconciliation.
   Contradictory readiness/completion/checkpoint claims must not become canonical
   lifecycle state or authorize retries with ambiguous external effects.

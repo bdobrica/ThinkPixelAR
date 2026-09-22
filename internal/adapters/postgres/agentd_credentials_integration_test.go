@@ -173,21 +173,23 @@ func TestAgentdCredentialRegistryIsolationAndReplay(t *testing.T) {
 	}
 }
 
-func checkAgentdRLS(t *testing.T, db *sql.DB, id transport.Identity) {
+func checkAgentdRLS(t *testing.T, db *sql.DB, id transport.Identity, extraTables ...string) {
+	tables := append([]string{"agentd_credential_state", "agentd_credentials"}, extraTables...)
+	tableNames := strings.Join(tables, ",")
 	t.Helper()
 	role := "agd_rls_" + strings.ReplaceAll(string(id.SandboxID), "-", "")
 	if _, err := db.Exec(`CREATE ROLE ` + role + ` NOLOGIN NOSUPERUSER NOBYPASSRLS`); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = db.Exec(`REVOKE ALL ON agentd_credential_state,agentd_credentials FROM ` + role)
+		_, _ = db.Exec(`REVOKE ALL ON ` + tableNames + ` FROM ` + role)
 		_, _ = db.Exec(`REVOKE USAGE ON SCHEMA public FROM ` + role)
 		_, _ = db.Exec(`DROP ROLE ` + role)
 	}()
 	if _, err := db.Exec(`GRANT USAGE ON SCHEMA public TO ` + role); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`GRANT SELECT ON agentd_credential_state,agentd_credentials TO ` + role); err != nil {
+	if _, err := db.Exec(`GRANT SELECT ON ` + tableNames + ` TO ` + role); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := db.Begin()
@@ -203,7 +205,7 @@ func checkAgentdRLS(t *testing.T, db *sql.DB, id transport.Identity) {
 		if _, err = tx.Exec(`SELECT set_config('thinkpixelar.tenant_id',$1,true)`, tenant); err != nil {
 			t.Fatal(err)
 		}
-		for _, table := range []string{"agentd_credential_state", "agentd_credentials"} {
+		for _, table := range tables {
 			var count int
 			if err = tx.QueryRow(`SELECT count(*) FROM ` + table).Scan(&count); err != nil {
 				t.Fatal(err)

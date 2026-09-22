@@ -1564,7 +1564,8 @@ and ADRs 0022–0037. Phase 4 is not complete: the binary remains dormant in
 
 Next on the demo track is AGD-020's authenticated controlled-process exchange
 using the AGD-017 fixture. Compose concrete authority/materialization and frame
-policies, durable bootstrap publication/UID/cleanup, command/report dispatch and
+policies, wire the ADR-0038 durable bootstrap delivery coordinator and cleanup
+worker, and implement command/report dispatch and
 operation replay, heartbeat/event delivery, rotation/reconnect, local stop/fencing
 and provider recovery/fallback. Validate the effective Pod shutdown budget and
 retain the image privilege regressions. The evidence document lists the existing

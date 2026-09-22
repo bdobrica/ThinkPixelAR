@@ -52,3 +52,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0035: Agentd credential persistence exclusion](0035-agentd-credential-persistence-exclusion.md) — Accepted
 - [ADR-0036: Agentd bounded supervisor shutdown](0036-agentd-bounded-supervisor-shutdown.md) — Accepted
 - [ADR-0037: Agentd credential rotation, reconnect and recovery](0037-agentd-rotation-reconnect-recovery.md) — Accepted
+- [ADR-0038: Durable agentd bootstrap delivery tracking](0038-durable-agentd-bootstrap-delivery.md) — Accepted
