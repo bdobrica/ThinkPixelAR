@@ -1590,7 +1590,9 @@ Remaining implementation:
 
 - durable credential/admission and protected delivery composition;
 - adapter handshake;
-- transport delivery of captured/normalized events;
+- transport delivery of captured/normalized events, with concrete report semantics
+  and contradiction handling before lifecycle mutation (AGD-018 verifies current
+  admission and aggregate boundaries; AGD-020 must preserve them in dispatch);
 - production sequence/replay policy and durable replay reconciliation (AGD-014
   qualifies transport rejection/delivery gates; it does not supply that policy);
 - runnable rotation/reconnect and provider recovery/fallback composition, including
