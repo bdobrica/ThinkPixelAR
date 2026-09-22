@@ -22,6 +22,9 @@ type Connection struct {
 type CredentialRegistry interface {
 	Version(context.Context, Identity) (uint64, error)
 	Register(context.Context, CredentialRequest, CredentialGrant, CredentialRecord) error
+	// Reconnect atomically replaces the epoch using the latest unexpired credential.
+	// Bootstrap credentials must have been consumed; predecessor credentials fail.
+	Reconnect(context.Context, Peer, time.Time) (Connection, error)
 	ConsumeBootstrap(context.Context, Peer, []byte, time.Time) (Connection, error)
 	CheckConnection(context.Context, Peer, Connection) error
 	CloseConnection(context.Context, Identity, Connection) error

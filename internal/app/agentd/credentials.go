@@ -26,11 +26,14 @@ var bootstrapFiles = []struct {
 // TransportBootstrap owns ephemeral parsed credential material. It is not
 // execution authority. It must not be logged, serialized or copied into state.
 type TransportBootstrap struct {
-	config           Config
-	certificate      tls.Certificate
-	roots            *x509.CertPool
-	domain           string
-	proof, challenge []byte
+	config            Config
+	connectionID      string
+	connectionEpoch   uint64
+	sessionCredential bool
+	certificate       tls.Certificate
+	roots             *x509.CertPool
+	domain            string
+	proof, challenge  []byte
 }
 
 func (*TransportBootstrap) String() string     { return "[restricted agentd bootstrap]" }
@@ -72,7 +75,7 @@ func (b *TransportBootstrap) Config() Config {
 // ClientConfig requires the supervisor's real frame handler. Loading credentials
 // never installs a permissive Check or initiates network/process work.
 func (b *TransportBootstrap) ClientConfig(check func(context.Context, *agentdv1.Envelope) error) (grpctransport.ClientConfig, error) {
-	if b == nil || check == nil || b.roots == nil || len(b.proof) != 32 || grpctransport.ValidateBootstrapIdentity(b.certificate, b.roots, b.domain, b.config.Binding) != nil {
+	if b == nil || check == nil || b.roots == nil || (len(b.proof) != 0 && len(b.proof) != 32) || grpctransport.ValidateSessionIdentity(b.certificate, b.roots, b.domain, b.config.Binding) != nil {
 		return grpctransport.ClientConfig{}, ErrConfig
 	}
 	c := b.Config()
@@ -134,9 +137,16 @@ func decodeTransport(files map[string][]byte) (*TransportBootstrap, error) {
 	}
 	// Verify the delivered client chain's signature/EKU/time consistency. Its root
 	// is bootstrap-supplied, not AR trust: AR independently verifies its own roots.
+	if verifyClientChain(pair) != nil {
+		return nil, ErrConfig
+	}
+	return &TransportBootstrap{config: c, certificate: pair, roots: roots, domain: string(files["trust-domain"]), proof: bytes.Clone(files["bootstrap.proof"]), challenge: bytes.Clone(files["challenge.bin"])}, nil
+}
+
+func verifyClientChain(pair tls.Certificate) error {
 	issuer, err := x509.ParseCertificate(pair.Certificate[len(pair.Certificate)-1])
 	if err != nil {
-		return nil, ErrConfig
+		return ErrConfig
 	}
 	clientRoots := x509.NewCertPool()
 	clientRoots.AddCert(issuer)
@@ -144,16 +154,16 @@ func decodeTransport(files map[string][]byte) (*TransportBootstrap, error) {
 	for _, der := range pair.Certificate[1 : len(pair.Certificate)-1] {
 		ca, err := x509.ParseCertificate(der)
 		if err != nil {
-			return nil, ErrConfig
+			return ErrConfig
 		}
 		intermediates.AddCert(ca)
 	}
 	leaf, err := x509.ParseCertificate(pair.Certificate[0])
 	if err != nil {
-		return nil, ErrConfig
+		return ErrConfig
 	}
 	if _, err = leaf.Verify(x509.VerifyOptions{Roots: clientRoots, Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}); err != nil {
-		return nil, ErrConfig
+		return ErrConfig
 	}
-	return &TransportBootstrap{config: c, certificate: pair, roots: roots, domain: string(files["trust-domain"]), proof: bytes.Clone(files["bootstrap.proof"]), challenge: bytes.Clone(files["challenge.bin"])}, nil
+	return nil
 }

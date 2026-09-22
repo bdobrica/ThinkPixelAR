@@ -12,9 +12,11 @@ type Purpose string
 
 const (
 	IssueBootstrap Purpose = "ISSUE_BOOTSTRAP"
-	RenewIdentity  Purpose = "RENEW_IDENTITY"
-	AcceptStream   Purpose = "ACCEPT_STREAM"
-	DeliverFrame   Purpose = "DELIVER_FRAME"
+	// RecoverBootstrap requires an independently verified safely recoverable Attempt.
+	RecoverBootstrap Purpose = "RECOVER_BOOTSTRAP"
+	RenewIdentity    Purpose = "RENEW_IDENTITY"
+	AcceptStream     Purpose = "ACCEPT_STREAM"
+	DeliverFrame     Purpose = "DELIVER_FRAME"
 )
 
 type Authorization struct {

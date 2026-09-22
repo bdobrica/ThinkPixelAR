@@ -11,6 +11,8 @@ import (
 // stream handler, never decoded from a sandbox-selected identity/epoch.
 type CredentialRequest struct {
 	Identity Identity
+	// Recovery is trusted control-plane intent, never a sandbox request.
+	Recovery bool
 	// Renewal requires the current authenticated peer and accepted connection.
 	Peer         Peer
 	ConnectionID primitives.ID

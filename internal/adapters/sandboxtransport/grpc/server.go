@@ -34,7 +34,7 @@ type Server struct {
 	rpc    *grpc.Server
 	config ServerConfig
 	mu     sync.Mutex
-	active map[transport.Identity]bool
+	active map[transport.Identity]*Session
 }
 
 func NewServer(c ServerConfig) (*Server, error) {
@@ -51,7 +51,7 @@ func NewServer(c ServerConfig) (*Server, error) {
 		return err
 	}
 	c.Certificate = cert
-	s := &Server{config: c, active: map[transport.Identity]bool{}}
+	s := &Server{config: c, active: map[transport.Identity]*Session{}}
 	s.rpc = grpc.NewServer(grpc.ForceServerCodec(codec{}), grpc.Creds(credentials.NewTLS(config)), grpc.MaxRecvMsgSize(protocol.MaxFrameBytes), grpc.MaxSendMsgSize(protocol.MaxFrameBytes), grpc.MaxConcurrentStreams(1), grpc.ConnectionTimeout(5*time.Second), grpc.StaticStreamWindowSize(64<<10), grpc.StaticConnWindowSize(1<<20), grpc.MaxHeaderListSize(16<<10), grpc.KeepaliveParams(keepalive.ServerParameters{Time: 30 * time.Second, Timeout: 10 * time.Second, MaxConnectionIdle: 30 * time.Second, MaxConnectionAge: 15 * time.Minute, MaxConnectionAgeGrace: time.Second}), grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{MinTime: 30 * time.Second, PermitWithoutStream: false}))
 	agentdv1.RegisterAgentTransportServer(s.rpc, s)
 	return s, nil
@@ -95,16 +95,6 @@ func (s *Server) Connect(stream grpc.BidiStreamingServer[agentdv1.Envelope, agen
 	if err != nil {
 		return reject
 	}
-	s.mu.Lock()
-	occupied := s.active[identity.Identity]
-	if !occupied {
-		s.active[identity.Identity] = true
-	}
-	s.mu.Unlock()
-	if occupied {
-		return status.Error(codes.ResourceExhausted, "agentd connection already active")
-	}
-	defer func() { s.mu.Lock(); delete(s.active, identity.Identity); s.mu.Unlock() }()
 	hctx, hcancel := context.WithTimeout(stream.Context(), 5*time.Second)
 	defer hcancel()
 	first, err := bounded(hctx, 5*time.Second, stream.Recv)
@@ -117,7 +107,7 @@ func (s *Server) Connect(stream grpc.BidiStreamingServer[agentdv1.Envelope, agen
 		return reject
 	}
 	hello := first.GetHello()
-	if hello.Binding == nil || hello.Binding.TenantId != string(identity.Identity.TenantID) || hello.Binding.SandboxBindingId != string(identity.Identity.SandboxID) || hello.Binding.AttemptId != string(identity.Identity.AttemptID) || len(hello.BootstrapProof) != 32 {
+	if hello.Binding == nil || hello.Binding.TenantId != string(identity.Identity.TenantID) || hello.Binding.SandboxBindingId != string(identity.Identity.SandboxID) || hello.Binding.AttemptId != string(identity.Identity.AttemptID) || (len(hello.BootstrapProof) != 0 && len(hello.BootstrapProof) != 32) {
 		return reject
 	}
 	lease, err := s.config.Authorizer.Admit(hctx, identity, append([]byte(nil), hello.BootstrapProof...))
@@ -146,8 +136,26 @@ func (s *Server) Connect(stream grpc.BidiStreamingServer[agentdv1.Envelope, agen
 	}
 	ctx, cancel := context.WithDeadline(stream.Context(), deadline)
 	defer cancel()
-	session := &Session{sendRate: rate.NewLimiter(64, 64), recvRate: rate.NewLimiter(64, 64), ctx: ctx, cancel: cancel, stream: stream, welcome: welcome, server: true, check: lease.Check}
+	session := &Session{sendRate: rate.NewLimiter(64, 64), recvRate: rate.NewLimiter(64, 64), ctx: ctx, cancel: cancel, stream: stream, welcome: welcome, server: true, check: lease.Check, peer: identity}
 	defer session.Close()
+	s.mu.Lock()
+	previous := s.active[identity.Identity]
+	if previous != nil && previous.welcome.ConnectionEpoch >= lease.Epoch {
+		s.mu.Unlock()
+		return reject
+	}
+	s.active[identity.Identity] = session
+	s.mu.Unlock()
+	if previous != nil {
+		previous.Close()
+	}
+	defer func() {
+		s.mu.Lock()
+		if s.active[identity.Identity] == session {
+			delete(s.active, identity.Identity)
+		}
+		s.mu.Unlock()
+	}()
 	if _, err = bounded(hctx, 5*time.Second, func() (struct{}, error) {
 		return struct{}{}, stream.Send(&agentdv1.Envelope{Body: &agentdv1.Envelope_Welcome{Welcome: welcome}})
 	}); err != nil {

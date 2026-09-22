@@ -3,12 +3,14 @@ package grpctransport
 import (
 	"context"
 	"encoding/hex"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/protocol"
+	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
@@ -26,6 +28,7 @@ type Session struct {
 	cancel             context.CancelFunc
 	stream             wire
 	welcome            *agentdv1.Welcome
+	peer               transport.Peer // Verified TLS client identity on the server side only.
 	server             bool
 	check              func(context.Context, *agentdv1.Envelope) error
 	sendMu, recvMu     sync.Mutex
@@ -34,6 +37,8 @@ type Session struct {
 	activity           chan struct{}
 	once               sync.Once
 }
+
+func (s *Session) Peer() transport.Peer { return s.peer }
 
 func (s *Session) Context() context.Context   { return s.ctx }
 func (s *Session) Welcome() *agentdv1.Welcome { return proto.Clone(s.welcome).(*agentdv1.Welcome) }
@@ -136,7 +141,15 @@ func (s *Session) valid(f *agentdv1.Envelope, fromServer bool) bool {
 		return body.Acknowledgement != nil && body.Acknowledgement.EventCredit <= s.welcome.Limits.BufferedEvents
 	case *agentdv1.Envelope_Failure:
 		return body.Failure != nil && body.Failure.Code >= agentdv1.Failure_INCOMPATIBLE && body.Failure.Code <= agentdv1.Failure_OUTCOME_UNKNOWN
-	// Rotation is reserved until the issuance/renewal implementation can validate it.
+	case *agentdv1.Envelope_Rotation:
+		r := body.Rotation
+		if r == nil || !slices.Contains(s.welcome.Capabilities, "rotation.v1") {
+			return false
+		}
+		if !fromServer {
+			return r.Kind == agentdv1.Rotation_REQUEST && len(r.CertificatePem) == 0 && len(r.PrivateKeyPem) == 0 && r.ExpiresUnixMs == 0
+		}
+		return r.Kind == agentdv1.Rotation_ISSUED && len(r.CertificatePem) > 0 && len(r.CertificatePem) <= 16<<10 && len(r.PrivateKeyPem) > 0 && len(r.PrivateKeyPem) <= 4<<10 && r.ExpiresUnixMs > time.Now().UnixMilli() && r.ExpiresUnixMs <= time.Now().Add(15*time.Minute).UnixMilli()
 	default:
 		return false
 	}

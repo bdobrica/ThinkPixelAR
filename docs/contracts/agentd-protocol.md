@@ -87,6 +87,9 @@ AGD-003 supplies generated gRPC bindings and the authenticated channel described
 in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). Its mandatory
 trusted admission port resolves by certificate identity and verifies bootstrap,
 current authority and durable epoch. Frame checks run before delivery. The initial
-channel accepts only bootstrap connections, rejects rotation pending AGD-013 wiring,
-and does not implement application replay/epoch persistence itself. The
+channel accepts one-time bootstrap or current-credential reconnect. The optional
+`rotation.v1` capability enables the existing Rotation REQUEST/ISSUED messages;
+REQUEST carries no key/certificate/expiry, and ISSUED is bounded to 16 KiB
+certificate PEM, 4 KiB key PEM and a maximum 15-minute lifetime. Issuance and
+epoch persistence live in trusted application/registry code, not TLS itself. The
 [runbook](../operations/agentd-transport.md) records exact bounds and composition.

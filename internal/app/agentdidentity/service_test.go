@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/localissuer"
 	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
@@ -361,5 +362,30 @@ func TestIssuerReplacementWithOverlappingTrust(t *testing.T) {
 	}
 	if first.Record.IssuerDigest == next.Record.IssuerDigest {
 		t.Fatal("issuer replacement unrecorded")
+	}
+}
+
+func TestAuthenticatedRotationRequest(t *testing.T) {
+	s, a, _ := fixture(t)
+	bootstrap, err := s.Bootstrap(context.Background(), a.grant.Identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bootstrap.Destroy()
+	peer := transport.Peer{Identity: bootstrap.Record.Identity, CertificateDigest: bootstrap.Record.CertificateDigest, ExpiresAt: bootstrap.Record.ExpiresAt}
+	connection, _ := primitives.NewID(time.Now())
+	if _, err := s.Rotate(context.Background(), peer, connection, 1, &agentdv1.Rotation{Kind: agentdv1.Rotation_REQUEST, PrivateKeyPem: []byte("forbidden")}); err != ErrCredential {
+		t.Fatal("request selected key")
+	}
+	rotated, err := s.Rotate(context.Background(), peer, connection, 1, &agentdv1.Rotation{Kind: agentdv1.Rotation_REQUEST})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer clear(rotated.PrivateKeyPem)
+	if rotated.Kind != agentdv1.Rotation_ISSUED || bytes.Equal(rotated.PrivateKeyPem, bootstrap.Certificate.PrivateKeyPEM) {
+		t.Fatal("no fresh key")
+	}
+	if _, err := s.Rotate(context.Background(), peer, connection, 1, &agentdv1.Rotation{Kind: agentdv1.Rotation_REQUEST}); err != ErrCredential {
+		t.Fatal("predecessor renewed twice")
 	}
 }

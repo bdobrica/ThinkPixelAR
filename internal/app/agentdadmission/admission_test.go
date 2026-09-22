@@ -16,6 +16,7 @@ import (
 )
 
 type fixture struct {
+	purpose                                       transport.Purpose
 	intent                                        sandbox.ComputeIntent
 	auth                                          transport.Authorization
 	status                                        sandbox.Status
@@ -42,7 +43,8 @@ func (f *fixture) Release(context.Context, primitives.ID, primitives.ID, sandbox
 func (f *fixture) Get(context.Context, primitives.ID, primitives.ID) (sandbox.Status, error) {
 	return f.status, nil
 }
-func (f *fixture) AuthorizeTransport(context.Context, sandbox.ComputeIntent, transport.Purpose) (transport.Authorization, error) {
+func (f *fixture) AuthorizeTransport(_ context.Context, _ sandbox.ComputeIntent, p transport.Purpose) (transport.Authorization, error) {
+	f.purpose = p
 	return f.auth, f.policyErr
 }
 func (f *fixture) AuthorizeFrame(_ context.Context, _ sandbox.ComputeIntent, _ transport.Connection, e *agentdv1.Envelope) error {
@@ -296,5 +298,30 @@ func TestMandatoryDependencies(t *testing.T) {
 		if _, err := New(c, p, r, a, frames); err != ErrAdmission {
 			t.Fatal("missing mandatory guard accepted")
 		}
+	}
+}
+
+func (f *fixture) Reconnect(ctx context.Context, p transport.Peer, d time.Time) (transport.Connection, error) {
+	return f.ConsumeBootstrap(ctx, p, nil, d)
+}
+
+func TestRecoveryRequiresExplicitPolicyAndProvider(t *testing.T) {
+	s, f := newFixture(t)
+	request := transport.CredentialRequest{Identity: f.peer.Identity, Recovery: true}
+	if _, err := s.AuthorizeCredential(context.Background(), request); err != nil || f.purpose != transport.RecoverBootstrap {
+		t.Fatal("recovery not separately authorized", err)
+	}
+	f.status.Effective.Verified = false
+	if _, err := s.AuthorizeCredential(context.Background(), request); err != ErrAdmission {
+		t.Fatal("unverified provider accepted")
+	}
+	f.status.Effective.Verified = true
+	f.policyErr = ErrAdmission
+	if _, err := s.AuthorizeCredential(context.Background(), request); err != ErrAdmission {
+		t.Fatal("recovery policy denial ignored")
+	}
+	request.Epoch = 1
+	if _, err := s.AuthorizeCredential(context.Background(), request); err != ErrAdmission {
+		t.Fatal("stream requested recovery")
 	}
 }

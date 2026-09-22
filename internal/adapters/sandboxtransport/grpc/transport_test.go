@@ -354,7 +354,7 @@ func TestAdmissionAndLeaseFailClosed(t *testing.T) {
 		})
 	}
 }
-func TestOneActiveStreamPerIdentity(t *testing.T) {
+func TestSameEpochCannotReplaceActiveStream(t *testing.T) {
 	ca, clients := newIssuer(t), newIssuer(t)
 	e := expectations()
 	var admits atomic.Int32
@@ -374,8 +374,8 @@ func TestOneActiveStreamPerIdentity(t *testing.T) {
 		second.Close()
 		t.Fatal("parallel identity accepted")
 	}
-	if admits.Load() != 1 {
-		t.Fatal("parallel stream consumed admission")
+	if admits.Load() != 2 {
+		t.Fatal("replacement must consult durable admission")
 	}
 }
 func TestFrameBoundsAndClosedKinds(t *testing.T) {
@@ -521,5 +521,63 @@ func TestQuietPeerClosesWithoutCallerReceive(t *testing.T) {
 	case <-s.Context().Done():
 	case <-time.After(time.Second):
 		t.Fatal("idle peer outlived liveness window")
+	}
+}
+
+func TestReconnectReplacesEpochAndSurvivesServerRestart(t *testing.T) {
+	ca, clients := newIssuer(t), newIssuer(t)
+	e := expectations()
+	var epoch atomic.Uint64
+	sessions := make(chan *Session, 3)
+	config := ServerConfig{Certificate: ca.issue(t, true, nil), ServerName: testServer, TrustDomain: testDomain, ClientRoots: clients.roots, MaxConnections: 8, Authorizer: admitFunc(func(_ context.Context, _ transport.Peer, proof []byte) (transport.Lease, error) {
+		n := epoch.Add(1)
+		if n == 1 && len(proof) != 32 || n > 1 && len(proof) != 0 {
+			return transport.Lease{}, ErrTransport
+		}
+		l := lease(e)
+		l.Epoch = n
+		l.Check = func(_ context.Context, f *agentdv1.Envelope) error {
+			if f.ConnectionEpoch != epoch.Load() {
+				return ErrTransport
+			}
+			return nil
+		}
+		return l, nil
+	}), Handle: func(ctx context.Context, s *Session) error { sessions <- s; <-ctx.Done(); return nil }}
+	address, stop := serve(t, config)
+	c := ClientConfig{Endpoint: "https://" + testServer, ServerName: testServer, TrustDomain: testDomain, ServerRoots: ca.roots, Certificate: clients.issue(t, false, nil), Expected: e, Hello: hello(e), Check: func(context.Context, *agentdv1.Envelope) error { return nil }}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	first, err := connect(ctx, c, dialAt(address))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	old := <-sessions
+	c.Hello.BootstrapProof = nil
+	second, err := connect(ctx, c, dialAt(address))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	<-sessions
+	select {
+	case <-old.Context().Done():
+	case <-ctx.Done():
+		t.Fatal("old local stream remained active")
+	}
+	if second.Welcome().ConnectionEpoch != 2 {
+		t.Fatal("wrong replacement epoch")
+	}
+	stop()
+	// A fresh AR server has no local identity/session map from the previous one.
+	nextAddress, _ := serve(t, config)
+	third, err := connect(ctx, c, dialAt(nextAddress))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer third.Close()
+	if third.Welcome().ConnectionEpoch != 3 {
+		t.Fatal("restart reset epoch")
 	}
 }

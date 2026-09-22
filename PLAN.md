@@ -1565,9 +1565,10 @@ AGD-005 closes the binding-isolation requirement; its acceptance evidence is
 
 Remaining composition has explicit owners: AGD-020 wires the binaries, concrete
 bounded admission/materialization expectations and command-specific frame checks,
-and durable bootstrap plan/UID/cleanup scheduling. AGD-013 owns authenticated
-rotation, reconnect and recovery bootstrap with current-epoch fencing. These are
-still Phase 4 exit requirements. The binary remains dormant until the required
+and durable bootstrap plan/UID/cleanup scheduling. Rotation/reconnect and fenced
+recovery components are implemented under ADR-0037 (AGD-013); AGD-020 must compose
+their stream timer, stop hooks and provider delivery/fallback. These integrations
+remain Phase 4 exit requirements. The binary remains dormant until the required
 services are supplied; possession of a certificate cannot authorize execution.
 Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
 without relaxing their security requirements.
@@ -1587,7 +1588,7 @@ Remaining implementation:
 - durable credential/admission and protected delivery composition;
 - adapter handshake;
 - transport delivery of captured/normalized events;
-- transport recovery.
+- runnable rotation/reconnect and provider recovery/fallback composition.
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
 

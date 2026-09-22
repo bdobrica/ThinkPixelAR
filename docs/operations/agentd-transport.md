@@ -31,7 +31,7 @@ The Authorizer is a trusted implementation of the
    Neither function logs raw frames or credential material.
 
 The transport cannot determine these facts from a self-reported Hello. Its local
-active-identity map rejects simultaneous streams on one server only; durable
+active-identity map cancels an older local stream after a higher epoch is admitted; durable
 cross-replica arbitration is still mandatory. Tests use an explicit fake trusted
 Authorizer, not a production permit-all implementation.
 
@@ -70,8 +70,9 @@ Go callbacks that ignore it.
   payload registration, replay acknowledgements and durable idempotency belong
   to the application Check. Failure is never silently retried as new work.
 - Frames must match the accepted binding/version/epoch and allowed direction.
-  Hello/Welcome cannot recur midstream. Rotation remains rejected until AGD-013
-  wires the credential service into trusted stream handling.
+  Hello/Welcome cannot recur midstream. Rotation requires negotiated `rotation.v1` and direction/bounds validation.
+  The trusted handler calls `agentdidentity.Rotate` with Session.Peer and Welcome
+  connection ID/epoch, sends ISSUED on that stream and clears its key buffers.
 - Authority and both peer certificate expiries bound stream life. Negotiated
   liveness bounds Send/Recv/Check and an independent watchdog closes quiet peers
   even without a pending receive. Only accepted peer frames reset it. HTTP/2 uses
@@ -79,9 +80,9 @@ Go callbacks that ignore it.
   ping timeout. Structured process heartbeats and wider half-open qualification
   remain AGD-008/015.
 
-Certificate issuance, overlapping root rotation, secret projection/cleanup,
-bootstrap consumption, durable epoch persistence and reconnect are not provided
-by this adapter. No deployment or live homelab transport qualification is claimed.
+Issuance, bootstrap consumption, durable epochs and reconnect use the separate
+trusted services described in [ADR-0037](../adr/0037-agentd-rotation-reconnect-recovery.md).
+The transport adapter does not own provider Secret projection/cleanup or authority. No deployment or live homelab transport qualification is claimed.
 
 ## Verification and generation
 
@@ -95,3 +96,35 @@ Tests generate ephemeral keys/certificates in memory and use real loopback TCP,
 TLS and HTTP/2. No fixture key or credential is stored. `make generate` uses
 protoc 3.21.12, protoc-gen-go v1.36.12 and protoc-gen-go-grpc v1.6.2; both generated
 Go files are checked for drift.
+
+
+## Reconnect and expiry
+
+An empty Hello proof requests reconnect with the latest registered unexpired
+credential. Only an already consumed bootstrap can reconnect without a proof.
+Every accepted reconnect replaces the durable connection ID/epoch. Delayed
+frames and old Close callbacks cannot operate on the new connection. An AR
+restart reloads this state from PostgreSQL; it does not reset epochs.
+
+Advertise `rotation.v1` in both the trusted materialization expectations and
+agentd bootstrap capabilities; RunConnections rejects a stream that did not
+negotiate it. The minimal startup-only example remains envelope-only.
+
+Compose `agentd.RunConnections` with a finite authority/freshness deadline and
+explicit Check, Serve and Disconnected hooks. Serve owns frame sequencing and
+heartbeats, sends REQUEST when its renewal channel fires, installs the actual
+received ISSUED frame with `InstallRotation`, and returns for reconnect. It must
+honor context cancellation. Disconnected must stop/fence local work within its
+five-second budget. No input queue is replayed automatically.
+
+Renewal is immediate after bootstrap and 30 seconds before session expiry.
+Streams stop five seconds before their effective deadline. Reconnect uses at
+most eight attempts per failing burst with jittered backoff capped at five seconds.
+An ambiguous initial handshake discards its proof; it can retry only through
+credential reconnect. If the proof was never consumed, fail closed and reconcile
+instead of guessing whether to consume it again.
+
+After expiry, an optional recovery loader may load one fresh matching bootstrap
+issued by trusted AR recovery. Current immutable Kubernetes projections cannot
+refresh in place, so use fence/replacement when protected delivery is unavailable.
+No sandbox-side credential issuance or Kubernetes access is introduced.

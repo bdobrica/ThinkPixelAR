@@ -10,6 +10,7 @@ import (
 	"errors"
 	"time"
 
+	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
@@ -42,6 +43,12 @@ func (d *Delivery) Destroy()        { d.Certificate.Destroy(); clear(d.Proof); *
 
 func (s *Service) Bootstrap(ctx context.Context, id transport.Identity) (Delivery, error) {
 	return s.issue(ctx, transport.CredentialRequest{Identity: id}, true)
+}
+
+// Recover is invoked by trusted recovery reconciliation after credential expiry.
+// It never accepts a sandbox request or bypasses current provider/authority checks.
+func (s *Service) Recover(ctx context.Context, id transport.Identity) (Delivery, error) {
+	return s.issue(ctx, transport.CredentialRequest{Identity: id, Recovery: true}, true)
 }
 
 // Renew must be called only with the TLS peer and accepted connection, not a
@@ -130,4 +137,19 @@ func validDigest(s string) bool {
 	}
 	b, err := hex.DecodeString(s[7:])
 	return err == nil && hex.EncodeToString(b) == s[7:]
+}
+
+// Rotate handles only an admitted REQUEST. Peer and connection come from the
+// authenticated server Session, never from the request or its claimed headers.
+// The caller sends the reply on that same stream and clears it after Send.
+func (s *Service) Rotate(ctx context.Context, peer transport.Peer, connection primitives.ID, epoch uint64, r *agentdv1.Rotation) (*agentdv1.Rotation, error) {
+	if r == nil || r.Kind != agentdv1.Rotation_REQUEST || len(r.CertificatePem) != 0 || len(r.PrivateKeyPem) != 0 || r.ExpiresUnixMs != 0 || len(r.ProtoReflect().GetUnknown()) != 0 {
+		return nil, ErrCredential
+	}
+	d, err := s.Renew(ctx, peer, connection, epoch)
+	if err != nil {
+		return nil, ErrCredential
+	}
+	defer d.Destroy()
+	return &agentdv1.Rotation{Kind: agentdv1.Rotation_ISSUED, CertificatePem: append([]byte(nil), d.Certificate.CertificatePEM...), PrivateKeyPem: append([]byte(nil), d.Certificate.PrivateKeyPEM...), ExpiresUnixMs: d.Certificate.ExpiresAt.UnixMilli()}, nil
 }

@@ -41,7 +41,8 @@ trust continue to use their separate service issuer.
 
 Steps 2–5 describe the lifecycle integration. The registry, admission and Secret
 components below implement its foundations. Concrete binary/policy/cleanup
-composition is AGD-020; rotation/reconnect is AGD-013. AGD-004 service tests use
+composition is AGD-020; rotation/reconnect components follow
+[ADR-0037](../adr/0037-agentd-rotation-reconnect-recovery.md). AGD-004 service tests use
 an explicit fake authority to test ordering and failure handling.
 
 ## Renewal, failure and CA replacement
@@ -117,3 +118,18 @@ It returns private ephemeral material and requires a frame Check to build client
 configuration. See [ADR-0029](../adr/0029-agentd-bootstrap-credential-loading.md) and
 [read-only filesystem evidence](../evidence/agd-005-credential-loading.md). The
 binary still waits for trusted admission and rotation composition.
+
+
+## Recovery issuance
+
+Only trusted AR reconciliation may call `Service.Recover`. Admission uses the
+separate `RECOVER_BOOTSTRAP` policy purpose and revalidates current provider,
+Attempt, fences and finite authority. Registration requires the latest credential
+and connection deadline to have expired; concurrent attempts use the existing
+optimistic version fence. It invalidates the previous epoch and registers a fresh
+one-time bootstrap. Initial `Bootstrap` cannot overwrite prior registration.
+
+Recovery delivery uses the protected provider boundary and still needs durable
+plan/UID/cleanup orchestration in AGD-020. If that provider cannot deliver fresh
+material to the same live supervisor, fence and replace the Sandbox. Do not relax
+immutable Secret checks or use an expired stream as a renewal channel.

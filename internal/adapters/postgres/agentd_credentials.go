@@ -102,7 +102,7 @@ func (s *AgentdCredentials) Register(ctx context.Context, r transport.Credential
 			return transport.ErrCredentialState
 		}
 	} else {
-		if r.Peer.Identity != r.Identity || r.Epoch == 0 || !r.Peer.ExpiresAt.After(now) || c.ProofDigest != "" {
+		if r.Recovery || r.Peer.Identity != r.Identity || r.Epoch == 0 || !r.Peer.ExpiresAt.After(now) || c.ProofDigest != "" {
 			return transport.ErrCredentialState
 		}
 	}
@@ -115,8 +115,20 @@ func (s *AgentdCredentials) Register(ctx context.Context, r transport.Credential
 		if err := tx.QueryRowContext(ctx, `SELECT version,COALESCE(latest_digest,'') FROM agentd_credential_state WHERE tenant_id=$1 AND sandbox_binding_id=$2 FOR UPDATE`, r.Identity.TenantID, r.Identity.SandboxID).Scan(&v, &latest); err != nil {
 			return err
 		}
-		if v != g.Version || c.Bootstrap && latest != "" {
+		if v != g.Version || c.Bootstrap && !r.Recovery && latest != "" {
 			return transport.ErrCredentialState
+		}
+		if r.Recovery {
+			var expired bool
+			if latest == "" || b.ProviderReference == "" {
+				return transport.ErrCredentialState
+			}
+			if err := tx.QueryRowContext(ctx, `SELECT c.expires_at<=clock_timestamp() AND (s.connection_deadline IS NULL OR s.connection_deadline<=clock_timestamp()) FROM agentd_credentials c JOIN agentd_credential_state s USING(tenant_id,sandbox_binding_id) WHERE c.tenant_id=$1 AND c.sandbox_binding_id=$2 AND c.certificate_digest=s.latest_digest`, r.Identity.TenantID, r.Identity.SandboxID).Scan(&expired); err != nil || !expired {
+				return transport.ErrCredentialState
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE agentd_credential_state SET connection_id=NULL,connection_digest=NULL,connection_deadline=NULL,connection_epoch=connection_epoch+1 WHERE tenant_id=$1 AND sandbox_binding_id=$2`, r.Identity.TenantID, r.Identity.SandboxID); err != nil {
+				return err
+			}
 		}
 		if !c.Bootstrap {
 			if latest != r.Peer.CertificateDigest {
@@ -132,6 +144,11 @@ func (s *AgentdCredentials) Register(ctx context.Context, r transport.Credential
 		}
 		if n, _ := result.RowsAffected(); n != 1 {
 			return transport.ErrCredentialState
+		}
+		if !c.Bootstrap {
+			if _, err := tx.ExecContext(ctx, `UPDATE agentd_credential_state SET connection_deadline=LEAST(connection_deadline,clock_timestamp()+interval '30 seconds') WHERE tenant_id=$1 AND sandbox_binding_id=$2`, r.Identity.TenantID, r.Identity.SandboxID); err != nil {
+				return err
+			}
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE agentd_credential_state SET version=version+1,latest_digest=$3,issued_at=clock_timestamp() WHERE tenant_id=$1 AND sandbox_binding_id=$2`, r.Identity.TenantID, r.Identity.SandboxID, c.CertificateDigest)
 		return err
@@ -197,4 +214,31 @@ func (s *AgentdCredentials) CloseConnection(ctx context.Context, id transport.Id
 		return transport.ErrCredentialState
 	}
 	return nil
+}
+
+// Reconnect replaces an epoch only with the latest registered unexpired identity.
+// Old Close callbacks cannot clear the replacement's different ID/epoch.
+func (s *AgentdCredentials) Reconnect(ctx context.Context, p transport.Peer, deadline time.Time) (transport.Connection, error) {
+	if !credentialDigest(p.CertificateDigest) || !deadline.After(time.Now()) || deadline.After(p.ExpiresAt) {
+		return transport.Connection{}, transport.ErrCredentialState
+	}
+	id, err := primitives.NewID(time.Now())
+	if err != nil {
+		return transport.Connection{}, transport.ErrCredentialState
+	}
+	c := transport.Connection{ID: id, Deadline: deadline}
+	err = s.transaction(ctx, p.Identity, func(tx *sql.Tx, b sandbox.Binding) error {
+		if b.ProviderReference == "" || deadline.After(b.Request.Deadline) {
+			return transport.ErrCredentialState
+		}
+		var valid bool
+		if err := tx.QueryRowContext(ctx, `SELECT c.not_before<=clock_timestamp() AND c.expires_at>clock_timestamp() AND c.expires_at=$4 AND (NOT c.bootstrap OR c.consumed_at IS NOT NULL) FROM agentd_credential_state s JOIN agentd_credentials c ON c.tenant_id=s.tenant_id AND c.sandbox_binding_id=s.sandbox_binding_id AND c.certificate_digest=s.latest_digest WHERE s.tenant_id=$1 AND s.sandbox_binding_id=$2 AND s.latest_digest=$3 FOR UPDATE OF s`, p.Identity.TenantID, p.Identity.SandboxID, p.CertificateDigest, p.ExpiresAt).Scan(&valid); err != nil || !valid {
+			return transport.ErrCredentialState
+		}
+		return tx.QueryRowContext(ctx, `UPDATE agentd_credential_state SET version=version+1,connection_id=$3,connection_epoch=connection_epoch+1,connection_digest=$4,connection_deadline=$5 WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND $5>clock_timestamp() RETURNING connection_epoch`, p.Identity.TenantID, p.Identity.SandboxID, c.ID, p.CertificateDigest, deadline).Scan(&c.Epoch)
+	})
+	if err != nil {
+		return transport.Connection{}, err
+	}
+	return c, nil
 }

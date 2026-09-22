@@ -28,7 +28,7 @@ type ClientConfig struct {
 
 // Connect initiates the only network direction. It accepts explicit roots and
 // identity, never system roots, proxy environment, insecure flags or discovery.
-// This is one bootstrap connection; issuance/rotation/reconnect are separate.
+// An empty Hello proof selects credential reconnect; a 32-byte proof is bootstrap.
 func Connect(ctx context.Context, c ClientConfig) (*Session, error) {
 	return connect(ctx, c, nil)
 }
@@ -37,7 +37,7 @@ func Connect(ctx context.Context, c ClientConfig) (*Session, error) {
 func connect(ctx context.Context, c ClientConfig, dial func(context.Context, string) (net.Conn, error)) (*Session, error) {
 	target, err := endpoint(c.Endpoint, c.ServerName)
 	cert, leaf, certErr := certificate(c.Certificate)
-	if err != nil || certErr != nil || c.ServerRoots == nil || crossTrusted(cert, c.ServerRoots, x509.ExtKeyUsageClientAuth) || !dnsName(c.TrustDomain) || c.Hello == nil || len(c.Hello.BootstrapProof) != 32 || c.Check == nil {
+	if err != nil || certErr != nil || c.ServerRoots == nil || crossTrusted(cert, c.ServerRoots, x509.ExtKeyUsageClientAuth) || !dnsName(c.TrustDomain) || c.Hello == nil || (len(c.Hello.BootstrapProof) != 0 && len(c.Hello.BootstrapProof) != 32) || c.Check == nil {
 		return nil, ErrTransport
 	}
 	identity, err := clientPeer(leaf, c.TrustDomain, time.Now())

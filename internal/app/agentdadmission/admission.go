@@ -79,6 +79,12 @@ func (s *Service) current(ctx context.Context, id transport.Identity, purpose tr
 
 func (s *Service) AuthorizeCredential(ctx context.Context, r transport.CredentialRequest) (transport.CredentialGrant, error) {
 	purpose := transport.IssueBootstrap
+	if r.Recovery {
+		if r.Epoch != 0 {
+			return transport.CredentialGrant{}, ErrAdmission
+		}
+		purpose = transport.RecoverBootstrap
+	}
 	if r.Epoch != 0 {
 		purpose = transport.RenewIdentity
 		if r.Peer.Identity != r.Identity {
@@ -88,14 +94,14 @@ func (s *Service) AuthorizeCredential(ctx context.Context, r transport.Credentia
 			return transport.CredentialGrant{}, ErrAdmission
 		}
 	}
-	if purpose == transport.IssueBootstrap && (r.ConnectionID != "" || r.Peer != (transport.Peer{})) {
+	if (purpose == transport.IssueBootstrap || purpose == transport.RecoverBootstrap) && (r.ConnectionID != "" || r.Peer != (transport.Peer{})) {
 		return transport.CredentialGrant{}, ErrAdmission
 	}
 	i, a, err := s.current(ctx, r.Identity, purpose)
 	if err != nil {
 		return transport.CredentialGrant{}, ErrAdmission
 	}
-	if purpose == transport.IssueBootstrap && (!a.BootstrapDeadline.After(time.Now()) || a.BootstrapDeadline.After(a.Deadline)) {
+	if (purpose == transport.IssueBootstrap || purpose == transport.RecoverBootstrap) && (!a.BootstrapDeadline.After(time.Now()) || a.BootstrapDeadline.After(a.Deadline)) {
 		return transport.CredentialGrant{}, ErrAdmission
 	}
 	v, err := s.registry.Version(ctx, r.Identity)
@@ -117,7 +123,7 @@ func (s *Service) CommitCredential(ctx context.Context, r transport.CredentialRe
 
 func (s *Service) Admit(ctx context.Context, p transport.Peer, proof []byte) (transport.Lease, error) {
 	fail := transport.Lease{}
-	if len(proof) != 32 || !p.ExpiresAt.After(time.Now()) {
+	if (len(proof) != 0 && len(proof) != 32) || !p.ExpiresAt.After(time.Now()) {
 		return fail, ErrAdmission
 	}
 	_, a, err := s.current(ctx, p.Identity, transport.AcceptStream)
@@ -128,7 +134,12 @@ func (s *Service) Admit(ctx context.Context, p transport.Peer, proof []byte) (tr
 	if p.ExpiresAt.Before(deadline) {
 		deadline = p.ExpiresAt
 	}
-	c, err := s.registry.ConsumeBootstrap(ctx, p, proof, deadline)
+	var c transport.Connection
+	if len(proof) == 0 {
+		c, err = s.registry.Reconnect(ctx, p, deadline)
+	} else {
+		c, err = s.registry.ConsumeBootstrap(ctx, p, proof, deadline)
+	}
 	if err != nil {
 		return fail, ErrAdmission
 	}
