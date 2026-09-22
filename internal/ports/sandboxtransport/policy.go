@@ -2,6 +2,7 @@ package sandboxtransport
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
@@ -44,6 +45,10 @@ type FramePolicy interface {
 // Pending is ambiguous after interruption; neither Pending nor Unknown permits
 // retransmission. Only a correlated response can move Pending to a final value.
 type DispatchOutcome string
+
+// ErrCommandNotFound is the only outcome-read result that permits attempting a
+// new durable claim. An unavailable or conflicting read must stop dispatch.
+var ErrCommandNotFound = errors.New("agentd command outcome not found")
 
 const (
 	DispatchPending      DispatchOutcome = "PENDING"

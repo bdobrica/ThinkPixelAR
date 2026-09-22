@@ -48,6 +48,8 @@ func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPol
 	config.RequiredCapabilities = append(config.RequiredCapabilities, control.Capability, "rotation.v1")
 	handle, _ := primitives.NewID(time.Now())
 	m := postgres.AgentdMaterialization{Config: config, Challenge: make([]byte, 32), Revision: testDigest('e'), RequestDigest: r.Operation.Digest, HarnessHandle: string(handle), Deadline: time.Now().Add(4 * time.Minute).UTC().Truncate(time.Microsecond), BootstrapDeadline: time.Now().Add(time.Minute).UTC().Truncate(time.Microsecond)}
+	m.Config.ControlDeadlineUnixMS = m.Deadline.UnixMilli()
+	m.Config.Harness.StopGraceMS = 1000
 	var issuer string
 	if err = db.QueryRow(`SELECT grant_digest,authority_namespace,authority_reference FROM executions WHERE tenant_id=$1 AND execution_id=$2`, s.TenantID, s.ExecutionID).Scan(&m.GrantDigest, &issuer, &m.AuthorityReference); err != nil {
 		t.Fatal(err)
@@ -111,6 +113,9 @@ func TestAgentdPolicyDurableReplay(t *testing.T) {
 		t.Fatal("returned pointer mutated storage")
 	}
 	f := policyCommand(t, m, c)
+	if _, err := p.CommandOutcome(ctx, s.TenantID, s.SandboxID, primitives.ID(f.OperationId), f.RequestDigest); err != transport.ErrCommandNotFound {
+		t.Fatal("new command not distinguished from failed lookup", err)
+	}
 	var wg sync.WaitGroup
 	var wins atomic.Int32
 	for range 8 {
@@ -128,6 +133,9 @@ func TestAgentdPolicyDurableReplay(t *testing.T) {
 	outcome, err := restarted.CommandOutcome(ctx, s.TenantID, s.SandboxID, primitives.ID(f.OperationId), f.RequestDigest)
 	if err != nil || outcome != "PENDING" {
 		t.Fatal("lost durable reservation", outcome, err)
+	}
+	if _, err := restarted.CommandOutcome(ctx, s.TenantID, s.SandboxID, primitives.ID(f.OperationId), testDigest('f')); err != postgres.ErrAgentdPolicy {
+		t.Fatal("conflicting command reported absent", err)
 	}
 	if restarted.AuthorizeFrame(ctx, i, c, f) == nil {
 		t.Fatal("ambiguous dispatch retried")

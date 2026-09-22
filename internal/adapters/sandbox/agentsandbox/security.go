@@ -33,6 +33,9 @@ func NewSecureEffectiveVerifier(resolve BlueprintResolver, infrastructure Infras
 			return fail, sandbox.ErrIntegrity
 		}
 		desired := expected.PodTemplate.Spec
+		if !secureBlueprint(b.Request, desired) || desired.TerminationGracePeriodSeconds == nil || *desired.TerminationGracePeriodSeconds != b.Request.Profile.Lifecycle.TerminationGraceSeconds {
+			return fail, sandbox.ErrIntegrity
+		}
 		actual := pod.Spec
 		if actual.HostNetwork || actual.HostPID || actual.HostIPC || actual.ShareProcessNamespace != nil && *actual.ShareProcessNamespace || actual.AutomountServiceAccountToken == nil || *actual.AutomountServiceAccountToken || actual.EnableServiceLinks == nil || *actual.EnableServiceLinks || len(actual.InitContainers) != 0 || len(actual.EphemeralContainers) != 0 || len(actual.Containers) != 1 || len(desired.Containers) != 1 || actual.RuntimeClassName == nil || desired.RuntimeClassName == nil || *actual.RuntimeClassName != *desired.RuntimeClassName {
 			return fail, sandbox.ErrIntegrity

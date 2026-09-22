@@ -1,8 +1,9 @@
 # Agentd authenticated transport adapter
 
 AGD-003 implements `internal/adapters/sandboxtransport/grpc`: an outbound agentd
-client and a dedicated AR gRPC server. The binary/public API do not yet compose
-these adapters. [Issuance and renewal](agentd-credentials.md) are implemented in
+client and a dedicated AR gRPC server. Both binaries now compose these adapters
+through the [optional local host](agentd-hosting.md); the user-facing Session API
+remains later work. [Issuance and renewal](agentd-credentials.md) are implemented in
 AGD-004; binding isolation is AGD-005; runnable composition is AGD-020 and rotation/reconnect is AGD-013. There is no default authorizer and no harness launch.
 
 ## Trusted composition

@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	httpadapter "github.com/bdobrica/ThinkPixelAR/internal/adapters/http"
+	agentdhost "github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/host"
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
 	"github.com/bdobrica/ThinkPixelAR/internal/telemetry"
@@ -35,6 +36,18 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	defer func() { _ = tracing.Shutdown(context.Background()) }()
+	var agentd *agentdhost.Host
+	if path, enabled := os.LookupEnv(agentdhost.ConfigEnvironment); enabled {
+		kc, err := config.LoadKubernetes(os.LookupEnv)
+		if err != nil {
+			return agentdhost.ErrHost
+		}
+		agentd, err = agentdhost.Open(ctx, path, cfg.Database.URL, kc, logger)
+		if err != nil {
+			return err
+		}
+		defer agentd.Close()
+	}
 	server, err := httpadapter.NewServer(httpadapter.Options{Config: cfg.HTTP, Clock: clock.UTC{}, Logger: logger, Tracer: tracing.Tracer("thinkpixelar/http"), Metrics: telemetry.NewMetrics()})
 	if err != nil {
 		return err
@@ -44,8 +57,21 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	logger.Info("http server started", "address", listener.Addr().String())
-	if err := server.Serve(ctx, listener); err != nil && !errors.Is(err, context.Canceled) {
-		return err
+	done := make(chan error, 2)
+	count := 1
+	go func() { done <- server.Serve(ctx, listener) }()
+	if agentd != nil {
+		count++
+		logger.Info("authenticated agentd listener started")
+		go func() { done <- agentd.Run(ctx) }()
 	}
-	return nil
+	var result error
+	for range count {
+		err := <-done
+		stop()
+		if err != nil && !errors.Is(err, context.Canceled) && result == nil {
+			result = err
+		}
+	}
+	return result
 }

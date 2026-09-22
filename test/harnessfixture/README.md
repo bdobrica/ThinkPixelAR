@@ -53,3 +53,11 @@ go test -race ./internal/app/agentd ./test/harnessfixture/...
 
 AGD-020 must still compose the authenticated controlled-process exchange.
 HNS-001–004 owns the generic port, registry, conformance and normalized events.
+
+
+The separate `cmd/bootstrap` helper generates temporary, unauthoritative credentials
+for the agentd image smoke test. It has no server or authorization policy and is
+excluded from the production image. The smoke test mounts the generated bundle
+read-only, observes the actual supervisor as PID 1 while it attempts a bounded
+connection with networking disabled, runs the privilege probe, then sends SIGTERM.
+Temporary keys are removed with the fixture directory; no credential is committed.

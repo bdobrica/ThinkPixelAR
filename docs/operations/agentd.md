@@ -1,12 +1,11 @@
 # Agentd startup and bootstrap
 
-The sandbox-local binary now requires closed bootstrap configuration. It is still
-an incremental Phase 4 implementation: a configured process waits in
-`awaiting_transport` and does not launch a harness or claim Ready. The [authenticated transport adapter](agentd-transport.md) is implemented;
-[Credential issuance and renewal](agentd-credentials.md) are implemented; trusted
-binary admission/delivery composition remains AGD-020; rotation/reconnect is AGD-013. Process commands
-are implemented locally under [ADR-0030](../adr/0030-agentd-bounded-process-control.md)
-and await authenticated binary dispatch in AGD-020.
+The sandbox-local binary loads the complete protected bootstrap bundle and runs
+the authenticated dispatcher, heartbeat/output forwarding and credential rotation.
+Missing credentials, capabilities or a finite control cutoff fail startup. The
+[AR hosting runbook](agentd-hosting.md) covers concrete local policy composition,
+homelab evidence and remaining live acceptance. Harness launch requires an admitted
+command and never establishes trusted Ready state.
 
 `agentd.NewProcesses` validates and copies bootstrap launch configuration.
 Start launches the configured direct argv with an empty environment and returns
@@ -67,7 +66,7 @@ deadline, replacement remains blocked until it returns. Callback failures expose
 fixed errors. Status/heartbeat continue to work while the control slot is busy.
 See [ADR-0033](../adr/0033-agentd-signal-interrupt-control.md) and
 [control evidence](../evidence/agd-009-signal-interrupt.md). Native Codex mappings
-remain Phase 5; binary dispatch is AGD-020. Supervisor shutdown follows ADR-0036.
+remain Phase 5. Binary dispatch is hosted under ADR-0042; supervisor shutdown follows ADR-0036.
 
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox
@@ -82,12 +81,13 @@ locations. No environment variable can override the endpoint, identity or limits
 The [example](../../deploy/agentd/config.example.json) documents the v1 shape.
 Its IDs/digests/endpoint are synthetic test metadata; they cannot authenticate a
 transport or authorize work. Trusted materialization must supply actual current
-binding and immutable build/adapter expectations. Transport credential loading
-and bootstrap exchange are separate later implementation steps.
+binding and immutable build/adapter expectations. The runnable binary requires the full protected transport bundle and the
+additional finite-cutoff/capability requirements in [the hosting runbook](agentd-hosting.md).
 
 | Field | Meaning and bounds |
 | --- | --- |
 | `version` | Bootstrap format 1. |
+| `control_deadline_unix_ms` | Runnable startup requires a future immutable AR materialization cutoff; absence remains decodable for older tooling but cannot start the supervisor. Included in the configuration digest. |
 | `endpoint`, `server_name` | HTTPS endpoint with exact lowercase DNS name; optional numeric port 1–65535; no IP literal, userinfo, path, query or fragment. |
 | `binding` | Canonical UUIDv7 tenant, Session, Execution, Attempt and SandboxBinding, positive Session generation. Correlation only until AR independently validates it. |
 | `build_digest`, `adapter_kind`, `adapter_digest` | Exact immutable protocol/build expectations; validated by the AGD-001 helper. |

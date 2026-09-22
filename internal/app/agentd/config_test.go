@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 func fixture(t *testing.T) []byte {
@@ -67,32 +66,38 @@ func TestConfigRejectsInvalidInput(t *testing.T) {
 		}
 	}
 }
-func TestRunWaitsForCancellationWithoutLaunchingOrLoggingConfig(t *testing.T) {
+func TestRunRejectsMissingTransportWithoutLoggingConfig(t *testing.T) {
 	c, err := DecodeConfig(fixture(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	c.Harness.Argv = append(c.Harness.Argv, "CANARY_ARGUMENT")
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	var output bytes.Buffer
-	done := make(chan error, 1)
-	go func() { done <- Run(ctx, c, slog.New(slog.NewJSONHandler(&output, nil))) }()
-	select {
-	case <-done:
-		t.Fatal("early exit")
-	case <-time.After(20 * time.Millisecond):
+	if err = Run(context.Background(), c, slog.New(slog.NewJSONHandler(&output, nil))); err == nil {
+		t.Fatal("incomplete bootstrap left an idle supervisor")
 	}
-	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("shutdown blocked")
+	if strings.Contains(output.String(), "CANARY") || strings.Contains(output.String(), c.Endpoint) {
+		t.Fatal("unsafe telemetry")
 	}
-	if strings.Contains(output.String(), "CANARY") || strings.Contains(output.String(), c.Endpoint) || !strings.Contains(output.String(), "awaiting_transport") {
-		t.Fatal("unsafe startup telemetry")
+}
+
+func TestStartupComparisonUsesConfigurationFields(t *testing.T) {
+	c, err := DecodeConfig(fixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &TransportBootstrap{config: c}
+	copy := b.Config()
+	if !sameStartupConfig(c, copy) {
+		t.Fatal("protobuf clone changed configuration identity")
+	}
+	copy.Binding.SessionGeneration++
+	if sameStartupConfig(c, copy) {
+		t.Fatal("changed binding accepted")
+	}
+	copy = b.Config()
+	copy.ControlDeadlineUnixMS++
+	if sameStartupConfig(c, copy) {
+		t.Fatal("changed lifetime accepted")
 	}
 }

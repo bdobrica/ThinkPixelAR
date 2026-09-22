@@ -33,18 +33,19 @@ type HarnessConfig struct {
 // Config contains only non-secret startup metadata. Transport material is read
 // separately from fixed bootstrap files by the authenticated transport adapter.
 type Config struct {
-	Version              uint32                 `json:"version"`
-	Endpoint             string                 `json:"endpoint"`
-	ServerName           string                 `json:"server_name"`
-	Binding              *agentdv1.Binding      `json:"binding"`
-	BuildDigest          string                 `json:"build_digest"`
-	AdapterKind          string                 `json:"adapter_kind"`
-	AdapterDigest        string                 `json:"adapter_digest"`
-	Protocol             *agentdv1.VersionRange `json:"protocol"`
-	Capabilities         []string               `json:"capabilities"`
-	RequiredCapabilities []string               `json:"required_capabilities"`
-	Limits               *agentdv1.Limits       `json:"limits"`
-	Harness              HarnessConfig          `json:"harness"`
+	ControlDeadlineUnixMS int64                  `json:"control_deadline_unix_ms,omitempty"`
+	Version               uint32                 `json:"version"`
+	Endpoint              string                 `json:"endpoint"`
+	ServerName            string                 `json:"server_name"`
+	Binding               *agentdv1.Binding      `json:"binding"`
+	BuildDigest           string                 `json:"build_digest"`
+	AdapterKind           string                 `json:"adapter_kind"`
+	AdapterDigest         string                 `json:"adapter_digest"`
+	Protocol              *agentdv1.VersionRange `json:"protocol"`
+	Capabilities          []string               `json:"capabilities"`
+	RequiredCapabilities  []string               `json:"required_capabilities"`
+	Limits                *agentdv1.Limits       `json:"limits"`
+	Harness               HarnessConfig          `json:"harness"`
 }
 
 // DecodeConfig rejects duplicate keys, unknown fields, trailing values, nulls
@@ -70,7 +71,7 @@ func DecodeConfig(raw []byte) (Config, error) {
 	return c, nil
 }
 func (c Config) Validate() error {
-	if c.Version != 1 {
+	if c.Version != 1 || c.ControlDeadlineUnixMS < 0 {
 		return ErrConfig
 	}
 	u, err := url.Parse(c.Endpoint)

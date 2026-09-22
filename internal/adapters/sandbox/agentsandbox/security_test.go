@@ -53,6 +53,25 @@ func TestSecureEffectiveVerifierRequiresExternalProof(t *testing.T) {
 		t.Fatal("mutable observed evidence")
 	}
 }
+
+func TestSecureEffectiveVerifierRejectsUnsafeTrustedResolution(t *testing.T) {
+	resolve, b, pod := secureFixture(t)
+	expected, err := resolve(context.Background(), b.Request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	short := int64(1)
+	expected.PodTemplate.Spec.TerminationGracePeriodSeconds = &short
+	pod.Spec.TerminationGracePeriodSeconds = &short
+	called := false
+	verify, err := NewSecureEffectiveVerifier(func(context.Context, sandbox.AcquireRequest) (core.SandboxBlueprint, error) { return expected, nil }, func(context.Context, sandbox.Binding, *v1.Pod) error { called = true; return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = verify(context.Background(), b, pod); err == nil || called {
+		t.Fatal("matching unsafe resolution accepted")
+	}
+}
 func TestSecureEffectiveVerifierRejectsUnsafeObservedPod(t *testing.T) {
 	yes, no := true, false
 	root := int64(0)

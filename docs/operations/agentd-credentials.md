@@ -1,9 +1,11 @@
 # Agentd credential issuance
 
 AGD-004 implements a local client certificate issuer and the trusted application
-issuance/renewal service. These are Go components, not a deployed CA endpoint or
-an enabled agentd command. The binary stays in `awaiting_transport` until durable
-admission and delivery are composed. See [ADR-0025](../adr/0025-agentd-credential-issuance.md).
+issuance/renewal service. The [optional AR host](agentd-hosting.md) now composes
+renewal with the authenticated listener and concrete local admission policy;
+agentd rotates credentials through its running dispatcher. There is no public CA
+endpoint. See [ADR-0025](../adr/0025-agentd-credential-issuance.md) and
+[ADR-0042](../adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
 
 ## Homelab composition
 

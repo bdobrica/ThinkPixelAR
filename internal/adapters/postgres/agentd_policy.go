@@ -62,6 +62,11 @@ func (p *AgentdPolicy) validate(ctx context.Context, tx *sql.Tx, b sandbox.Bindi
 	c := m.Config
 	r := b.Request
 	s := r.Scope
+	// New runnable materializations carry the same immutable local cutoff as AR.
+	// Legacy snapshots without it remain readable, but the binary rejects them.
+	if c.ControlDeadlineUnixMS != 0 && (c.ControlDeadlineUnixMS != m.Deadline.UnixMilli() || c.Harness.StopGraceMS+c.Harness.KillWaitMS >= 5000 || int64(c.Harness.StartTimeoutMS+3*c.Harness.StopGraceMS+3*c.Harness.KillWaitMS)+5000 >= r.Profile.Lifecycle.TerminationGraceSeconds*1000) {
+		return ErrAgentdPolicy
+	}
 	if c.Validate() != nil || c.Binding == nil || len(m.Challenge) != 32 || !credentialDigest(m.GrantDigest) || m.Revision != p.revision || m.RequestDigest != r.Operation.Digest || !m.Deadline.After(time.Now()) || m.Deadline.After(r.Deadline) || m.BootstrapDeadline.After(m.Deadline) || m.BootstrapDeadline.IsZero() {
 		return ErrAgentdPolicy
 	}
@@ -347,8 +352,19 @@ func policySequence(ctx context.Context, tx *sql.Tx, s sandbox.Scope, f *agentdv
 func (p *AgentdPolicy) CommandOutcome(ctx context.Context, tenant, sandboxID, operation primitives.ID, digest string) (transport.DispatchOutcome, error) {
 	var outcome transport.DispatchOutcome
 	err := p.credentials.bindings.transaction(ctx, tenant, func(tx *sql.Tx) error {
-		return tx.QueryRowContext(ctx, `SELECT outcome FROM agentd_commands WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND operation_id=$3 AND request_digest=$4`, tenant, sandboxID, operation, digest).Scan(&outcome)
+		var saved string
+		err := tx.QueryRowContext(ctx, `SELECT outcome,request_digest FROM agentd_commands WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND operation_id=$3`, tenant, sandboxID, operation).Scan(&outcome, &saved)
+		if err != nil {
+			return err
+		}
+		if saved != digest {
+			return sandbox.ErrConflict
+		}
+		return nil
 	})
+	if errors.Is(err, sandbox.ErrNotFound) {
+		return "", transport.ErrCommandNotFound
+	}
 	if err != nil {
 		return "", ErrAgentdPolicy
 	}

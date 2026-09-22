@@ -56,3 +56,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0039: Bounded authenticated process dispatch](0039-agentd-process-control-dispatch.md) — Accepted
 - [ADR-0040: Local agentd admission and durable dispatch claims](0040-local-agentd-admission-and-durable-dispatch.md) — Accepted
 - [ADR-0041: Bootstrap materialization and tenant cleanup lifecycle](0041-agentd-bootstrap-lifecycle-cleanup.md) — Accepted
+- [ADR-0042: Agentd binary hosting and homelab evidence](0042-agentd-binary-hosting-and-homelab-evidence.md) — Accepted

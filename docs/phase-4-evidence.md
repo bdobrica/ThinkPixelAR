@@ -2,14 +2,16 @@
 
 Review date: 2026-09-22. **Not complete.** AGD-001–018 have component-level
 implementation/evidence; AGD-020 remains the prerequisite for AGD-019 closure.
-The shipped agentd binary still waits in `awaiting_transport` without connecting
-or launching a harness. Passing component tests does not establish the Phase 4
-exit criterion: an authenticated, controlled harness lifecycle through AR.
+Both binaries now host the authenticated path under [ADR-0042](adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
+The [binary hosting evidence](evidence/agd-020-binary-hosting.md) includes local
+rotation/reconnect/status verification. A complete controlled-process lifecycle
+with concrete policies and fresh live homelab evidence remains the exit criterion.
 
 ## Existing evidence
 
-These links preserve the original verification scope and dates. This review did
-not rerun their database, image, cluster or runtime checks.
+These links preserve the original verification scope and dates. Additional current
+validation is recorded in the binary hosting evidence; no live cluster result is
+implied by those local checks.
 
 | Area | Evidence | Qualification boundary |
 | --- | --- | --- |
@@ -21,11 +23,11 @@ not rerun their database, image, cluster or runtime checks.
 | Hostile frames and connection loss | [AGD-014](evidence/agd-014-adversarial-messages.md), [AGD-015](evidence/agd-015-transport-loss.md) | Codec, policy-delivery and liveness checks; durable replay remains unwired. |
 | Privileges, controlled harness and authority | [AGD-016](evidence/agd-016-privileges.md), [AGD-017](evidence/agd-017-harness-fixture.md), [AGD-018](evidence/agd-018-report-authority.md) | Local image, process fixture and admission/aggregate regressions; no claim of a production report reducer. |
 
-Implemented decisions remain in [ADRs 0022–0037](adr/README.md). In particular,
+Implemented decisions remain in [ADRs 0022–0042](adr/README.md). In particular,
 [ADR-0027](adr/0027-agentd-admission-composition.md) requires concrete policies,
 and [ADR-0037](adr/0037-agentd-rotation-reconnect-recovery.md) explicitly retains
-binary composition as a Phase 4 exit requirement. This review adds no decision
-and does not reinterpret those accepted records.
+binary composition as a Phase 4 exit requirement. ADR-0042 records the executable
+hosting decision without weakening those accepted admission/evidence requirements.
 
 The [ADR-0039 dispatcher exchange](evidence/agd-020-process-dispatch.md) now connects
 real mTLS to the structured fixture process, including handshake, capture, status,
@@ -35,27 +37,21 @@ it does not satisfy executable composition or durable replay acceptance.
 [ADR-0040 local policies and replay](evidence/agd-020-admission-replay.md) now
 compose with the real admission service and PostgreSQL binding/credential stores.
 Concurrent claims, persisted outcomes, revocation and epochs are verified; provider
-facts remain fixtures. The executable must still join this with the dispatcher.
+facts remain fixtures. The optional executable host now joins these policies with the dispatcher;
+end-to-end live acceptance remains outstanding.
 
 ## Remaining acceptance work — AGD-020
 
 Complete these existing requirements in one runnable path before closing AGD-019:
 
-- Wire the AR transport listener and agentd client/dispatcher to concrete bounded
-  authority and immutable materialization expectations; retain mandatory binding,
-  provider, epoch, revocation and deadline checks with no permit-all default.
-- Wire the [durable bootstrap delivery coordinator](adr/0038-durable-agentd-bootstrap-delivery.md)
-  into materialization/admission and its bounded tenant cleanup pass into a worker.
-  Materialization, atomic consumption cleanup and the running tenant worker are
-  implemented ([evidence](evidence/agd-020-bootstrap-lifecycle.md)); binary hosting
-  remains pending.
-- Wire the implemented local command/report policies and durable outcome journal
-  into dispatch/restart reconciliation.
-  Contradictory readiness/completion/checkpoint claims must not become canonical
-  lifecycle state or authorize retries with ambiguous external effects.
-- Multiplex heartbeat/events, command acknowledgements and credential renewal;
-  connect disconnect cleanup to local stop/fencing and effective Pod shutdown-budget
-  validation, including bounded final reporting.
+- Supply the trusted homelab evidence publisher and qualify the actual running
+  artifacts, network and mounted workspace. The protected-file reader/verifier is
+  implemented; automated host observation collection is not.
+- Validate the executable command plan, durable outcomes, tenant cleanup worker,
+  heartbeat/output handling and credential rotation against one real materialization.
+  Separate passing fixture/database tests do not close this acceptance gate.
+- Complete authenticated final shutdown reporting; finite local/Pod shutdown
+  budget validation and bounded child termination are implemented.
 - Compose current-epoch reconnect and recovery/fallback. When protected in-place
   recovery delivery is unavailable, fail closed and reconcile Sandbox replacement;
   immutable Kubernetes bootstrap projection is not refreshable in place.
@@ -81,7 +77,7 @@ remain later phases.
 
 ## This review's validation
 
-Source inspection confirmed the dormant path in `internal/app/agentd/run.go` and
-its call from `cmd/thinkpixel-agentd/main.go`. Documentation links, repository
-hygiene and staged whitespace checks are validated with this evidence commit.
-No new runtime or live-provider verification is claimed.
+Current implementation and validation are recorded in
+[binary hosting evidence](evidence/agd-020-binary-hosting.md). Historical component
+records above preserve their original scope. No live homelab admission or automatic
+physical-evidence publisher is claimed by the binary hosting change.

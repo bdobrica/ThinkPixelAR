@@ -274,3 +274,12 @@ The authenticated adapter and its mandatory trusted admission seam are documente
 in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). [Credential issuance and renewal](../adr/0025-agentd-credential-issuance.md) are
 implemented behind mandatory authority and issuer ports. Durable admission,
 protected delivery/rotation composition and harness launch remain separately gated.
+
+
+The runnable composition is recorded in
+[ADR-0042](../adr/0042-agentd-binary-hosting-and-homelab-evidence.md). Startup now
+requires the complete protected bundle, the process-control/rotation capabilities,
+and a finite `control_deadline_unix_ms` bound to the immutable materialization.
+This local cutoff never grants authority; AR still rechecks current persisted and
+infrastructure state for admission and delivery. Old bootstrap configurations
+without the optional field remain decodable but cannot run the supervisor.

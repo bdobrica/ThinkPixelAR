@@ -209,6 +209,17 @@ func (s *AgentdCredentials) CheckConnection(ctx context.Context, p transport.Pee
 	return s.transaction(ctx, p.Identity, func(tx *sql.Tx, _ sandbox.Binding) error { return checkAgentdConnection(ctx, tx, p, c) })
 }
 
+// IsSessionCredential lets the host defer its operator command plan until the
+// bootstrap-to-session rotation has completed. This read grants no authority;
+// all later frames still require current connection and execution admission.
+func (s *AgentdCredentials) IsSessionCredential(ctx context.Context, peer transport.Peer) (bool, error) {
+	var session bool
+	err := s.transaction(ctx, peer.Identity, func(tx *sql.Tx, _ sandbox.Binding) error {
+		return tx.QueryRowContext(ctx, `SELECT NOT bootstrap FROM agentd_credentials WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND certificate_digest=$3 AND expires_at>clock_timestamp()`, peer.Identity.TenantID, peer.Identity.SandboxID, peer.CertificateDigest).Scan(&session)
+	})
+	return session, err
+}
+
 // Close is cleanup: it remains allowed after cancellation, but only for this epoch.
 func (s *AgentdCredentials) CloseConnection(ctx context.Context, id transport.Identity, c transport.Connection) error {
 	err := s.bindings.transaction(ctx, id.TenantID, func(tx *sql.Tx) error {

@@ -73,33 +73,44 @@ timeout 10 "$docker_bin" run --rm --name "$container-credentials" --network none
 [ "$result" = 1 ] || { echo 'agentd image smoke: service-account projection accepted' >&2; exit 1; }
 
 
+# A config-only mount must now fail, rather than leave a dormant supervisor.
+result=0
+timeout 10 "$docker_bin" run --rm --name "$container" --network none \
+  --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --mount "type=bind,src=$fixture,dst=/run/thinkpixel/bootstrap,readonly" \
+  "$image" >/dev/null 2>&1 || result=$?
+[ "$result" = 1 ] || { echo 'agentd image smoke: incomplete transport accepted' >&2; exit 1; }
+
+# Supply ephemeral test-only credentials so the real supervisor remains PID 1
+# while attempting a bounded connection. No endpoint or authority is available.
+mkdir "$fixture/..transport"
+chmod 755 "$fixture/..transport"
+"${GO:-go}" run ./test/harnessfixture/cmd/bootstrap "$fixture/..transport"
+ln -sfn ..transport "$fixture/..data"
+for name in client.crt client.key server-ca.crt bootstrap.proof challenge.bin trust-domain; do
+  ln -s "..data/$name" "$fixture/$name"
+done
 "$docker_bin" run --detach --name "$container" --network none \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --mount "type=bind,src=$fixture,dst=/run/thinkpixel/bootstrap,readonly" \
   "$image" >/dev/null
-
 attempt=0
 configured=false
 while [ "$attempt" -lt 10 ]; do
-  if "$docker_bin" logs "$container" 2>&1 | grep -q 'awaiting_transport'; then
+  if "$docker_bin" logs "$container" 2>&1 | grep -q 'agent supervisor connecting'; then
     configured=true
     break
   fi
   attempt=$((attempt + 1))
   sleep 1
 done
-if [ "$configured" != true ]; then
-  echo 'agentd image smoke: configuration was not accepted' >&2
-  exit 1
-fi
-# Inspect the effective container namespace configuration externally as well.
+[ "$configured" = true ] || { echo 'agentd image smoke: transport bundle rejected' >&2; exit 1; }
 settings=$("$docker_bin" inspect --format '{{.HostConfig.Privileged}}|{{.HostConfig.PidMode}}|{{.HostConfig.IpcMode}}|{{.HostConfig.NetworkMode}}' "$container")
 [ "$settings" = 'false||private|none' ] || { echo 'agentd image smoke: unexpected namespace configuration' >&2; exit 1; }
 "$docker_bin" exec "$container" /run/thinkpixel/bootstrap/privilegeprobe
-
 "$docker_bin" stop --time 5 "$container" >/dev/null
 [ "$("$docker_bin" inspect --format '{{.State.ExitCode}}' "$container")" = 0 ] || {
   echo 'agentd image smoke: signal shutdown failed' >&2
   exit 1
 }
-echo 'agentd image smoke: read-only bootstrap, rejected unsafe startup, SIGTERM passed'
+echo 'agentd image smoke: protected bundle, incomplete transport rejection, privileges and SIGTERM passed'

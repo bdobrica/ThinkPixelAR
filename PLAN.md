@@ -382,8 +382,8 @@ Claude and Copilot adapters are post-MVP work and should be added only after the
 Implemented bootstrap/process startup decisions are in
 [ADR-0023](docs/adr/0023-agentd-readonly-bootstrap.md). The durable responsibility
 and trust boundary is the [agentd contract](docs/contracts/agentd.md).
-Harness supervision, protocol bridge, authenticated transport, bounded capture,
-checkpoint hooks and child termination remain Phase 4 work.
+Implemented supervisor/transport decisions are in ADRs 0030–0042. Integrated
+acceptance and remaining recovery/final reporting are tracked in Phase 4 below.
 
 ### 4.13 Sandbox transport
 
@@ -392,7 +392,8 @@ The implemented versioned schema and compatibility handshake are recorded in
 [ADR-0022](docs/adr/0022-agentd-protocol-handshake.md). The authenticated adapter is recorded in
 [ADR-0024](docs/adr/0024-agentd-authenticated-grpc-channel.md). Credential issuance
 and renewal are recorded in [ADR-0025](docs/adr/0025-agentd-credential-issuance.md).
-Durable admission and credential delivery composition remain Phase 4 work.
+Durable admission, delivery and executable hosting are in ADRs 0040–0042;
+remaining integrated acceptance is tracked in Phase 4 below.
 
 ### 4.14 Workspace model
 
@@ -1558,22 +1559,18 @@ under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evidence.md)
-and ADRs 0022–0037. Phase 4 is not complete: the binary remains dormant in
-`awaiting_transport`, and AGD-019 depends on AGD-020.
+AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evidence.md).
+Both binaries now host authenticated transport, concrete local admission/replay,
+rotation and tenant cleanup under [ADR-0042](docs/adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
+The homelab evidence reader rechecks fresh protected receipts and live API identities.
+Phase 4 remains open; AGD-019 depends on AGD-020 acceptance.
 
-The local admission/frame policies and durable replay journal are implemented
-([evidence](docs/evidence/agd-020-admission-replay.md), ADR-0040). The dispatcher
-passes a real mTLS fixture exchange (ADR-0039); these tests still need joining in
-the executable path.
-
-Next: wire both binaries to the concrete policies and dispatcher, the ADR-0038
-bootstrap materialization service and running tenant cleanup worker (ADR-0041),
-rotation/reconnect and sandbox replacement recovery. Acceptance now atomically
-schedules cleanup; publication/failure/expiry worker evidence is recorded in
-[bootstrap lifecycle evidence](docs/evidence/agd-020-bootstrap-lifecycle.md). Validate final reporting and the effective Pod shutdown
-budget. Run the integrated controlled-process exchange using those policies and
-persistence; provider fixtures cannot substitute for effective infrastructure proof.
+Next: deploy the trusted homelab evidence publisher (automated host collection is
+not implemented), run the controlled-process exchange with concrete PostgreSQL
+policies and fresh infrastructure observations, and finish authenticated final
+reporting and fenced sandbox replacement recovery. Follow the
+[hosting runbook](docs/operations/agentd-hosting.md); retain the existing homelab
+scope and no-cost RC track. Fixture observations do not establish live readiness.
 
 After that exchange passes, refresh the integrated evidence and close AGD-019.
 No permissive policy, sandbox observation or fixture substitutes for trusted

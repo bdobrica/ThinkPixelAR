@@ -148,6 +148,20 @@ func TestAgentdCredentialRegistryIsolationAndReplay(t *testing.T) {
 	if winners != 1 {
 		t.Fatal("competing renewals both committed")
 	}
+	if ready, err := restarted.IsSessionCredential(ctx, peer); err != nil || ready {
+		t.Fatal("bootstrap credential became command-plan ready", err)
+	}
+	renewedPeer := peer
+	if err := db.QueryRowContext(ctx, `SELECT latest_digest FROM agentd_credential_state WHERE tenant_id=$1 AND sandbox_binding_id=$2`, id.TenantID, id.SandboxID).Scan(&renewedPeer.CertificateDigest); err != nil {
+		t.Fatal(err)
+	}
+	if ready, err := restarted.IsSessionCredential(ctx, renewedPeer); err != nil || !ready {
+		t.Fatal("renewed credential not recognized", err)
+	}
+	renewedPeer.Identity.AttemptID = id.SandboxID
+	if _, err := restarted.IsSessionCredential(ctx, renewedPeer); err == nil {
+		t.Fatal("foreign Attempt credential lookup accepted")
+	}
 	if _, err := db.ExecContext(ctx, `UPDATE agentd_credentials SET issuer_digest=$3 WHERE tenant_id=$1 AND credential_id=$2`, id.TenantID, record.CredentialID, testDigest('f')); err == nil {
 		t.Fatal("credential history mutated")
 	}
