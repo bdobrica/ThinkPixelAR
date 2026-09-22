@@ -1572,11 +1572,15 @@ services are supplied; possession of a certificate cannot authorize execution.
 Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
 without relaxing their security requirements.
 
+Bounded local start/stop/restart is implemented under ADR-0030 (AGD-006).
+Next: stdout/stderr capture (AGD-007), status/signals/shutdown, then authenticated
+binary composition. The real-process unit fixture supports AGD-006; the wider
+protocol test adapter remains AGD-017.
+
 Remaining implementation:
 
-- harness process supervision;
+- process output capture and supervision integration;
 - durable credential/admission and protected delivery composition;
-- process lifecycle;
 - adapter handshake;
 - event streaming;
 - bounded diagnostics;

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 )
 
-// Run owns the configured supervisor process lifetime. Until AGD-003 installs
+// Run owns the configured supervisor process lifetime. Until AGD-020 composes
 // authenticated transport, it remains dormant and never opens a listener or
 // launches a harness. Configured is explicitly not connected or harness-ready.
 func Run(ctx context.Context, c Config, logger *slog.Logger) error {

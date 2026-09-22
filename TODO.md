@@ -151,7 +151,7 @@ Completion metadata format:
 - [x] AGD-003 Implement sandbox-scoped authenticated transport selected in Phase 0. — completed 2026-09-21, commit `48d0f2f`; ADR-0024, [transport evidence](docs/evidence/agd-003-transport.md); real TCP/mTLS race tests, generated drift and `make verify`. Trusted issuance/binding composition remains AGD-004/005; no permissive default admission.
 - [x] AGD-004 Add certificate/token issuance/rotation or equivalent sandbox-scoped authentication mechanism. — completed 2026-09-21, commit `5cc4c56`; ADR-0025, [credential evidence](docs/evidence/agd-004-credentials.md); dedicated client issuer, bounded bootstrap/fresh-key renewal, registration gating, race tests and `make verify`. Durable admission, Secret delivery/cleanup and rotation stream composition remain AGD-005.
 - [x] AGD-005 Ensure one sandbox cannot authenticate as another SandboxBinding. — completed 2026-09-22; [binding-isolation acceptance evidence](docs/evidence/agd-005-binding-isolation.md), ADRs 0024–0029. Initial runnable composition/cleanup is tracked in AGD-020; rotation/reconnect in AGD-013.
-- [ ] AGD-006 Implement bounded start/stop/restart commands for harness processes.
+- [x] AGD-006 Implement bounded start/stop/restart commands for harness processes. — completed 2026-09-22; ADR-0030, [real-process evidence](docs/evidence/agd-006-process-control.md). Local controller with finite budgets, process-group escalation, fresh identities and cancellation cleanup; authenticated binary dispatch remains AGD-020.
 - [ ] AGD-007 Implement process stdout/stderr/event capture with size limits, backpressure, and redaction.
 - [ ] AGD-008 Implement structured health/status messages and heartbeat.
 - [ ] AGD-009 Implement signal/interrupt handling.

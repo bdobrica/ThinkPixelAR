@@ -44,3 +44,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0027: Agentd admission composition](0027-agentd-admission-composition.md) — Accepted
 - [ADR-0028: Agentd bootstrap Secret projection](0028-agentd-bootstrap-secret-projection.md) — Accepted
 - [ADR-0029: Agentd bootstrap credential loading](0029-agentd-bootstrap-credential-loading.md) — Accepted
+- [ADR-0030: Agentd bounded process control](0030-agentd-bounded-process-control.md) — Accepted

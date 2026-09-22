@@ -5,7 +5,18 @@ an incremental Phase 4 implementation: a configured process waits in
 `awaiting_transport` and does not launch a harness or claim Ready. The [authenticated transport adapter](agentd-transport.md) is implemented;
 [Credential issuance and renewal](agentd-credentials.md) are implemented; trusted
 binary admission/delivery composition remains AGD-020; rotation/reconnect is AGD-013. Process commands
-follow in AGD-006.
+are implemented locally under [ADR-0030](../adr/0030-agentd-bounded-process-control.md)
+and await authenticated binary dispatch in AGD-020.
+
+`agentd.NewProcesses` validates and copies bootstrap launch configuration.
+Start launches the configured direct argv with an empty environment and returns
+a local process ID. Stop and Restart require that exact ID; restart returns a
+fresh ID. The controller serializes operations without a queue and uses the
+configured launch/grace/kill budgets, narrowed by caller deadlines. Stop escalates
+SIGTERM to SIGKILL for the group and reaps the leader. A timed-out launch is cleaned
+up before another launch is allowed. Start does not imply adapter readiness, and
+Stop does not establish full sandbox cleanup. Standard streams currently use the
+null device until AGD-007 adds bounded capture. No CLI launch override is exposed.
 
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox
