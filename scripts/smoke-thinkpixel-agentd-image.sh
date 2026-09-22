@@ -13,7 +13,7 @@ chmod 755 "$fixture" "$fixture/..revision"
 chmod 444 "$fixture/..revision/config.json"
 
 cleanup() {
-	"$docker_bin" rm --force "$container" "$container-missing" "$container-writable" >/dev/null 2>&1 || true
+	"$docker_bin" rm --force "$container" "$container-missing" "$container-writable" "$container-credentials" >/dev/null 2>&1 || true
 	rm -rf "$fixture"
 }
 trap cleanup EXIT HUP INT TERM
@@ -48,6 +48,31 @@ if [ "$result" != 1 ]; then
   exit 1
 fi
 
+# Build a test-only static probe for the image architecture; never add it to the image.
+arch=$("$docker_bin" image inspect --format '{{.Architecture}}' "$image")
+CGO_ENABLED=0 GOOS=linux GOARCH="$arch" "${GO:-go}" build -trimpath -o "$fixture/privilegeprobe" ./test/security/privilegeprobe
+chmod 555 "$fixture/privilegeprobe"
+
+# Even an empty KUBECONFIG override must fail startup.
+result=0
+timeout 10 "$docker_bin" run --rm --name "$container-credentials" --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges --env KUBECONFIG= \
+  --mount "type=bind,src=$fixture,dst=/run/thinkpixel/bootstrap,readonly" \
+  "$image" >/dev/null 2>&1 || result=$?
+[ "$result" = 1 ] || { echo 'agentd image smoke: Kubernetes environment accepted' >&2; exit 1; }
+
+# A conventional service-account projection is forbidden even without a token.
+mkdir "$fixture/serviceaccount"
+chmod 755 "$fixture/serviceaccount"
+result=0
+timeout 10 "$docker_bin" run --rm --name "$container-credentials" --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --mount "type=bind,src=$fixture,dst=/run/thinkpixel/bootstrap,readonly" \
+  --mount "type=bind,src=$fixture/serviceaccount,dst=/var/run/secrets/kubernetes.io/serviceaccount,readonly" \
+  "$image" >/dev/null 2>&1 || result=$?
+[ "$result" = 1 ] || { echo 'agentd image smoke: service-account projection accepted' >&2; exit 1; }
+
+
 "$docker_bin" run --detach --name "$container" --network none \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --mount "type=bind,src=$fixture,dst=/run/thinkpixel/bootstrap,readonly" \
@@ -67,6 +92,11 @@ if [ "$configured" != true ]; then
   echo 'agentd image smoke: configuration was not accepted' >&2
   exit 1
 fi
+# Inspect the effective container namespace configuration externally as well.
+settings=$("$docker_bin" inspect --format '{{.HostConfig.Privileged}}|{{.HostConfig.PidMode}}|{{.HostConfig.IpcMode}}|{{.HostConfig.NetworkMode}}' "$container")
+[ "$settings" = 'false||private|none' ] || { echo 'agentd image smoke: unexpected namespace configuration' >&2; exit 1; }
+"$docker_bin" exec "$container" /run/thinkpixel/bootstrap/privilegeprobe
+
 "$docker_bin" stop --time 5 "$container" >/dev/null
 [ "$("$docker_bin" inspect --format '{{.State.ExitCode}}' "$container")" = 0 ] || {
   echo 'agentd image smoke: signal shutdown failed' >&2

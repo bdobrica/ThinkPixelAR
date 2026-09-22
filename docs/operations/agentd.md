@@ -169,3 +169,23 @@ example config needs 28 seconds plus margin. AGD-020 must validate that budget
 against the effective Pod and deliver the final authenticated observation if the
 transport remains available. Current shutdown emits a safe local final state log.
 See [ADR-0036](../adr/0036-agentd-bounded-supervisor-shutdown.md).
+
+## Sandbox-local privilege regression
+
+Run `make agentd-image-smoke` on a Linux Docker host. It builds the pinned agentd
+image and a temporary static probe matching the image architecture, mounts the
+probe read-only, and executes it alongside the real PID-1 supervisor. No probe or
+extra privilege is added to the shipped image. The test uses no network access
+inside the container and removes its disposable containers and fixture afterward.
+
+The probe checks PID 1 and its own UID/GID, all five capability sets, no-new-privileges
+and seccomp filtering. It checks read-only root/bootstrap, conventional Kubernetes
+credential and runtime-socket/device exposure, and denial of root UID changes,
+raw sockets and tmpfs mounting. The runner independently checks container namespace
+configuration and startup rejection of KUBECONFIG and service-account projection.
+Failures print fixed messages without credential or process-environment contents.
+
+This is a local image regression, not an attestation by the sandbox. Keep the
+external effective-Pod verifier and Kata/network qualification required by
+[ADR-0013](../adr/0013-effective-sandbox-security.md). See
+[AGD-016 evidence](../evidence/agd-016-privileges.md) for tested scope.
