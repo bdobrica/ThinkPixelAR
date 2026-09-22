@@ -128,3 +128,21 @@ credential exclusions and integrity before publishing anything durable. Do not
 use preparation success as checkpoint COMMITTED, authority or proof of stopped
 writes. AGD-020 supplies dispatch; Phase 6 supplies trusted publication. See
 [ADR-0034](../adr/0034-agentd-checkpoint-preparation.md).
+
+## Credential exclusion from vendor state
+
+Agentd does not export its environment, bootstrap bundle, home directory or
+process image during preparation. Harness start/restart receives an empty
+environment and no extra descriptors; bootstrap credentials remain separate from
+checkpoint metadata. The local canary regression deliberately lets a child
+persist inherited inputs and checks that no credential material reaches state.
+See [ADR-0035](../adr/0035-agentd-credential-persistence-exclusion.md).
+
+Future Execution credential injection must use ephemeral runtime files or
+descriptors outside Workspace/vendor state, following the
+[credential contract](../security/execution-credentials.md). An adapter needing
+environment injection must explicitly scope it and extend the exclusion tests.
+Do not export an entire home directory or environment as vendor resume state.
+The trusted checkpoint producer must still scan and validate actual candidate
+files before commit; these local tests do not qualify malicious-harness behavior
+or live storage snapshots.

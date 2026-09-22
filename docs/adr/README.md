@@ -49,3 +49,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0032: Agentd process observations and heartbeat](0032-agentd-status-heartbeat.md) — Accepted
 - [ADR-0033: Agentd registered signals and cooperative interrupt](0033-agentd-signal-interrupt-control.md) — Accepted
 - [ADR-0034: Agentd bounded checkpoint preparation](0034-agentd-checkpoint-preparation.md) — Accepted
+- [ADR-0035: Agentd credential persistence exclusion](0035-agentd-credential-persistence-exclusion.md) — Accepted
