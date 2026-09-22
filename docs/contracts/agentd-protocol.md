@@ -93,3 +93,27 @@ REQUEST carries no key/certificate/expiry, and ISSUED is bounded to 16 KiB
 certificate PEM, 4 KiB key PEM and a maximum 15-minute lifetime. Issuance and
 epoch persistence live in trusted application/registry code, not TLS itself. The
 [runbook](../operations/agentd-transport.md) records exact bounds and composition.
+
+## Optional bounded process control
+
+`process-control.v1` registers START, STOP, RESTART, INTERRUPT and STATUS with
+`payload_schema` equal to the capability name, empty payload and no artifact
+reference. Commands require a configuration digest, UUID HarnessHandle/operation,
+request digest and finite unexpired deadline. Configuration/request digest encoding,
+local replay bounds and process correlation are specified in
+[ADR-0039](../adr/0039-agentd-process-control-dispatch.md). Unsupported commands fail
+before process invocation. INTERRUPT in this capability means bounded stop.
+
+Sanitized stdout and stderr use DIAGNOSTIC observations with schemas
+`process-control.v1/stdout` and `process-control.v1/stderr`. Sanitized adapter records
+use CANDIDATE_EVENT and `process-control.v1/event`. Payloads remain bounded ephemeral
+bytes, never authoritative lifecycle or canonical Runtime Events. The default
+sanitizer replaces unclassified content with `[REDACTED]`.
+
+Acknowledgement repeats the command message ID, request digest and accepted
+sequence, with matching envelope operation/handle. A repeated operation can return
+its earlier acknowledgement even after the process has stopped; Heartbeat describes
+current local health. Failures use OUTCOME_UNKNOWN without reflected payloads.
+Capabilities absent from negotiation cannot activate this dispatcher. The schema
+addition is optional and changes no Protobuf field, version or generated artifact.
+The shipped binaries do not yet compose this capability; AGD-020 remains open.

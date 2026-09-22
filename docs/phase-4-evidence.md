@@ -27,6 +27,11 @@ and [ADR-0037](adr/0037-agentd-rotation-reconnect-recovery.md) explicitly retain
 binary composition as a Phase 4 exit requirement. This review adds no decision
 and does not reinterpret those accepted records.
 
+The [ADR-0039 dispatcher exchange](evidence/agd-020-process-dispatch.md) now connects
+real mTLS to the structured fixture process, including handshake, capture, status,
+duplicate-operation acknowledgement and stop. Its AR authorizer remains test-only;
+it does not satisfy executable composition or durable replay acceptance.
+
 ## Remaining acceptance work — AGD-020
 
 Complete these existing requirements in one runnable path before closing AGD-019:

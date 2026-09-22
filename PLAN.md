@@ -1563,11 +1563,12 @@ and ADRs 0022–0037. Phase 4 is not complete: the binary remains dormant in
 `awaiting_transport`, and AGD-019 depends on AGD-020.
 
 Next on the demo track is AGD-020's authenticated controlled-process exchange
-using the AGD-017 fixture. Compose concrete authority/materialization and frame
-policies, wire the ADR-0038 durable bootstrap delivery coordinator and cleanup
-worker, and implement command/report dispatch and
-operation replay, heartbeat/event delivery, rotation/reconnect, local stop/fencing
-and provider recovery/fallback. Validate the effective Pod shutdown budget and
+using concrete AR policies and persistence. The dispatcher/AGD-017 fixture exchange
+now passes over real mTLS ([evidence](docs/evidence/agd-020-process-dispatch.md),
+ADR-0039); its test authorizer is not executable composition. Compose concrete
+authority/materialization and frame policies, wire the ADR-0038 durable bootstrap
+delivery coordinator and cleanup worker, and wire the dispatcher to durable
+operation replay, rotation/reconnect, local stop/fencing and provider recovery/fallback. Validate the effective Pod shutdown budget and
 retain the image privilege regressions. The evidence document lists the existing
 acceptance requirements and each component test's limits.
 
