@@ -3,7 +3,7 @@
 The Kubernetes bootstrap adapter implements immutable publication, lookup and
 exact cleanup. It is not yet wired into the materialization worker or sandbox
 credential loader. [ADR-0028](../adr/0028-agentd-bootstrap-secret-projection.md)
-records the decision; AGD-005 remains open.
+records the decision; runnable publication/cleanup composition is AGD-020.
 
 ## Trusted composition
 

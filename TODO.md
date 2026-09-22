@@ -2,7 +2,8 @@
 
 This is the chronological implementation checklist for ThinkPixelAR.
 
-Execute the first unchecked item whose dependencies are complete.
+Prioritize the demo track in `PLAN.md` §14; within each slice execute the first
+unchecked item whose dependencies are complete. Phase/release gates still apply.
 
 An item is checked only after its acceptance evidence passes.
 
@@ -149,7 +150,7 @@ Completion metadata format:
 - [x] AGD-002 Implement `thinkpixel-agentd` process lifecycle and configuration with no Kubernetes credentials. — completed 2026-09-21, commit `8a11a6e`; ADR-0023, [startup evidence](docs/evidence/agd-002-startup.md); configuration/lifecycle race tests, actual hardened image smoke and `make verify`. Harness launch remains gated on later authenticated transport/commands.
 - [x] AGD-003 Implement sandbox-scoped authenticated transport selected in Phase 0. — completed 2026-09-21, commit `48d0f2f`; ADR-0024, [transport evidence](docs/evidence/agd-003-transport.md); real TCP/mTLS race tests, generated drift and `make verify`. Trusted issuance/binding composition remains AGD-004/005; no permissive default admission.
 - [x] AGD-004 Add certificate/token issuance/rotation or equivalent sandbox-scoped authentication mechanism. — completed 2026-09-21, commit `5cc4c56`; ADR-0025, [credential evidence](docs/evidence/agd-004-credentials.md); dedicated client issuer, bounded bootstrap/fresh-key renewal, registration gating, race tests and `make verify`. Durable admission, Secret delivery/cleanup and rotation stream composition remain AGD-005.
-- [ ] AGD-005 Ensure one sandbox cannot authenticate as another SandboxBinding. — durable registry checkpoint implemented under ADR-0026; [database evidence](docs/evidence/agd-005-registry.md). Admission composition is implemented under ADR-0027 ([evidence](docs/evidence/agd-005-admission.md)); Secret operations and registered-publication checks are implemented under ADR-0028 ([evidence](docs/evidence/agd-005-bootstrap-secrets.md)); protected credential loading is implemented under ADR-0029 ([evidence](docs/evidence/agd-005-credential-loading.md)); durable plan/UID/cleanup orchestration, concrete policy adapters and binary/rotation wiring remain.
+- [x] AGD-005 Ensure one sandbox cannot authenticate as another SandboxBinding. — completed 2026-09-22; [binding-isolation acceptance evidence](docs/evidence/agd-005-binding-isolation.md), ADRs 0024–0029. Initial runnable composition/cleanup is tracked in AGD-020; rotation/reconnect in AGD-013.
 - [ ] AGD-006 Implement bounded start/stop/restart commands for harness processes.
 - [ ] AGD-007 Implement process stdout/stderr/event capture with size limits, backpressure, and redaction.
 - [ ] AGD-008 Implement structured health/status messages and heartbeat.
@@ -157,13 +158,14 @@ Completion metadata format:
 - [ ] AGD-010 Implement vendor durable-state path registration and checkpoint preparation hooks.
 - [ ] AGD-011 Ensure execution-scoped environment/credentials are not copied into persistent vendor-state paths by agentd itself.
 - [ ] AGD-012 Implement graceful SIGTERM shutdown and bounded harness termination escalation.
-- [ ] AGD-013 Implement control-plane reconnect behavior after AR process restart.
+- [ ] AGD-013 Implement authenticated credential rotation and control-plane reconnect after AR process restart, including current-epoch replacement and fenced recovery bootstrap after expiry (ADR-0002).
 - [ ] AGD-014 Add malformed/replayed/oversized message tests.
 - [ ] AGD-015 Add transport-loss and half-open connection tests.
 - [ ] AGD-016 Add sandbox-local privilege tests proving agentd has no unexpected host/Kubernetes capability.
 - [ ] AGD-017 Add test harness adapter/process used only for deterministic lifecycle tests.
 - [ ] AGD-018 Verify AR remains authoritative when agentd falsely reports impossible/obsolete Attempt state.
-- [ ] AGD-019 Commit Phase 4 with protocol/security evidence.
+- [ ] AGD-020 Compose the initial runnable AR↔agentd path: concrete bounded authority/materialization expectations, command-specific frame policy and binary wiring; persist bootstrap plan/cleanup intent before publication and UID before projection, then clean up on acceptance/failure/expiry (ADRs 0027–0029). Require an authenticated controlled-process exchange before completion; no permissive default policy.
+- [ ] AGD-019 Commit Phase 4 with protocol/security evidence, including AGD-020 composition and AGD-013 rotation/reconnect.
 
 ---
 
@@ -274,6 +276,7 @@ Completion metadata format:
 - [ ] E2E-007 Add AG cancel/revoke while agent is attempting a TG operation.
 - [ ] E2E-008 Verify cross-component trace correlation using tenant, Session, AG Run, Execution, Attempt, Sandbox, LLMGW request, and TG invocation identifiers.
 - [ ] E2E-009 Inspect running Sandbox and checkpoint artifacts to prove absence of provider/downstream long-lived credentials.
+- [ ] MVP-007 Package a scripted homelab demo: pinned runtime/sample repository/task, deploy/reset limited to demo-owned state, scenario command, and correlated AG Run → AR Execution → TG Invocation → LLMGW request evidence; no UI dependency.
 - [ ] MVP-004 Run the complete ThinkPixel-integrated MVP gate.
 - [ ] MVP-005 Publish `docs/mvp-thinkpixel-evidence.md` including the governed PR-review/suspend/resume scenario.
 - [ ] MVP-006 Commit Phase 7 as the ThinkPixel-integrated MVP milestone.

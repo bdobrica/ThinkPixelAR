@@ -87,6 +87,6 @@ AGD-003 supplies generated gRPC bindings and the authenticated channel described
 in [ADR-0024](../adr/0024-agentd-authenticated-grpc-channel.md). Its mandatory
 trusted admission port resolves by certificate identity and verifies bootstrap,
 current authority and durable epoch. Frame checks run before delivery. The initial
-channel accepts only bootstrap connections, rejects rotation pending AGD-005 wiring,
+channel accepts only bootstrap connections, rejects rotation pending AGD-013 wiring,
 and does not implement application replay/epoch persistence itself. The
 [runbook](../operations/agentd-transport.md) records exact bounds and composition.

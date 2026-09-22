@@ -1426,6 +1426,38 @@ The **ThinkPixel-integrated MVP** additionally demonstrates:
 
 ## 14. Delivery phases and exit gates
 
+### Current priority — one demonstrable vertical slice
+
+Concentrate implementation on AR through Phases 4 → 5 → 6 → 7. The near-term
+result is a terminal-driven homelab demo, followed by RC qualification; a working
+demo alone does not establish platform-wide RC readiness. Use existing homelab
+resources and document stronger-infrastructure qualification separately.
+
+1. Control a real process: AGD-006/017, 007/008/009/012, then AGD-020 initial
+   composition and AGD-013 rotation/reconnect. Keep the isolation/replay checks
+   already implemented. Add command-specific security checks with their handlers.
+2. Execute one Codex turn in a Kata sandbox: HNS-001–004 and the Codex
+   startup/thread/turn/event/interrupt path. Pin the runtime OCI digest; dynamic
+   marketplace resolution is not a prerequisite.
+3. Expose Session → Execution → SSE → result with bounded LocalAuthority and
+   explicit local authentication. This is the first standalone working slice.
+4. Persist `/workspace` and required Codex state using the smallest conforming
+   CSI/PVC WorkspaceProvider. Checkpoint, suspend, delete the sandbox, reconstruct
+   and continue the same Session with fresh authority and single-writer fencing.
+   Do not wait for the standalone ThinkPixelWS service.
+5. Route model traffic through LLMGW, then integrate AG grants/leases/revocation,
+   then one governed TG GitHub operation such as an explicitly approved PR review
+   comment. Keep provider/downstream credentials outside the sandbox.
+6. Package a predictable sample task/repository, deploy/reset command and scenario
+   command with correlated Run/Execution/Attempt/TG/LLMGW identifiers (MVP-007).
+
+Advance these slices without waiting for unrelated MEM/MP/WS/GR features, a UI,
+warm pools, multi-cluster support, forks or production backup/restore. Changes in
+peer repositories are limited to demonstrated demo integration needs. Extended
+negative/chaos qualification can follow the first working path; required authority,
+credential isolation and fencing checks accompany each implemented path, and all
+existing phase/release gates remain required before claiming those milestones.
+
 ### Phase 0 — Decisions, threats, and contracts
 
 Define:
@@ -1526,19 +1558,19 @@ under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-The v1 wire schema and compatibility handshake are implemented under ADR-0022.
-Read-only bootstrap/process startup is implemented under ADR-0023.
-The authenticated outbound gRPC adapter is implemented under ADR-0024.
-Credential issuance and renewal are implemented under ADR-0025.
-AGD-005 durable credential registration, one-time bootstrap consumption and
-connection bookkeeping are implemented under ADR-0026; admission composition is
-implemented under ADR-0027. Secret operations and the registered-publication gate
-are implemented under ADR-0028; protected credential loading is implemented under
-ADR-0029. Remaining AGD-005 work is durable bootstrap plan/UID/cleanup orchestration,
-concrete authority/expectation and frame-policy adapters, and binary/rotation
-composition.
-The binary remains dormant until those services are supplied;
-compatibility or possession of a certificate cannot authorize execution.
+The protocol, protected startup, mTLS, issuance, durable binding admission and
+bootstrap delivery/loading foundations are implemented under ADRs 0022–0029.
+AGD-005 closes the binding-isolation requirement; its acceptance evidence is
+[recorded separately](docs/evidence/agd-005-binding-isolation.md).
+
+Remaining composition has explicit owners: AGD-020 wires the binaries, concrete
+bounded admission/materialization expectations and command-specific frame checks,
+and durable bootstrap plan/UID/cleanup scheduling. AGD-013 owns authenticated
+rotation, reconnect and recovery bootstrap with current-epoch fencing. These are
+still Phase 4 exit requirements. The binary remains dormant until the required
+services are supplied; possession of a certificate cannot authorize execution.
+Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
+without relaxing their security requirements.
 
 Remaining implementation:
 

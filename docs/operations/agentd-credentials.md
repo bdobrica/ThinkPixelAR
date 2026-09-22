@@ -39,9 +39,10 @@ trust continue to use their separate service issuer.
 6. Destroy each delivery after projection/send completes, including failures.
    Never log or persist the delivery object or protobuf rotation payload.
 
-Steps 2–5 describe the required AGD-005 integration; no production implementation
-of those persistence/Secret/stream handlers is supplied by AGD-004. Tests use an
-explicit fake authority to test the service's ordering and failure handling.
+Steps 2–5 describe the lifecycle integration. The registry, admission and Secret
+components below implement its foundations. Concrete binary/policy/cleanup
+composition is AGD-020; rotation/reconnect is AGD-013. AGD-004 service tests use
+an explicit fake authority to test ordering and failure handling.
 
 ## Renewal, failure and CA replacement
 
@@ -82,8 +83,8 @@ No cluster configuration, credential deployment or live issuer has been changed.
 credential registration, one-time bootstrap consumption and connection checks.
 Apply migration 19 using the explicit migration command before composing
 `postgres.NewAgentdCredentials`. The registry stores only IDs/digests/validity.
-It is not an authority adapter: the current provider/Run checks, proof-consumption
-cleanup transaction, frame admission and protected delivery remain AGD-005 work.
+It is not an authority adapter: use the admission service below for current
+provider/binding checks, with concrete policy and cleanup composition in AGD-020.
 Do not expose registry methods directly to sandbox requests or treat a registry
 lookup as current authority. No running listener is enabled by the migration.
 
@@ -106,7 +107,7 @@ handlers remain required before enabling this path in either binary.
 immutable publication, exact lookup, ambiguous-create recovery and UID-fenced
 cleanup. PostgreSQL `CheckBootstrap` rejects unregistered, mismatched, consumed or
 fenced records before projection. Durable plan/UID persistence, cleanup scheduling
-and sandbox credential loading remain required composition work.
+remain AGD-020 composition work; sandbox credential loading is implemented below.
 
 ## Credential loader checkpoint
 

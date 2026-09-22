@@ -14,6 +14,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
+	"google.golang.org/protobuf/proto"
 )
 
 // This fixture substitutes external authority/provider observations only; the
@@ -78,11 +79,30 @@ func TestAgentdAdmissionWithDurableRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	peer := transport.Peer{Identity: id, CertificateDigest: record.CertificateDigest, ExpiresAt: record.ExpiresAt}
-	other := peer
-	other.Identity.AttemptID = r.Scope.SessionID
-	if _, err := s.Admit(ctx, other, proof); err != agentdadmission.ErrAdmission {
-		t.Fatal("cross-attempt admitted")
+	for _, which := range []string{"tenant", "sandbox", "attempt", "certificate", "proof", "expired"} {
+		t.Run(which, func(t *testing.T) {
+			other := peer
+			badProof := append([]byte(nil), proof...)
+			switch which {
+			case "tenant":
+				other.Identity.TenantID = r.Scope.SessionID
+			case "sandbox":
+				other.Identity.SandboxID = r.Scope.SessionID
+			case "attempt":
+				other.Identity.AttemptID = r.Scope.SessionID
+			case "certificate":
+				other.CertificateDigest = testDigest('e')
+			case "proof":
+				badProof[0]++
+			case "expired":
+				other.ExpiresAt = time.Now().Add(-time.Second)
+			}
+			if _, err := s.Admit(ctx, other, badProof); err != agentdadmission.ErrAdmission {
+				t.Fatal("invalid bootstrap admitted")
+			}
+		})
 	}
+	// Rejection must not consume the valid sandbox's proof.
 	lease, err := s.Admit(ctx, peer, proof)
 	if err != nil {
 		t.Fatal(err)
@@ -91,6 +111,22 @@ func TestAgentdAdmissionWithDurableRegistry(t *testing.T) {
 	frame := &agentdv1.Envelope{Binding: lease.Expected.Binding, ConnectionId: string(lease.ConnectionID), ConnectionEpoch: lease.Epoch, Sequence: 1}
 	if err := lease.Check(ctx, frame); err != nil || f.frames != 1 {
 		t.Fatal("current frame rejected")
+	}
+	for _, which := range []string{"sandbox", "attempt", "epoch"} {
+		t.Run("frame-"+which, func(t *testing.T) {
+			bad := proto.Clone(frame).(*agentdv1.Envelope)
+			switch which {
+			case "sandbox":
+				bad.Binding.SandboxBindingId = string(r.Scope.SessionID)
+			case "attempt":
+				bad.Binding.AttemptId = string(r.Scope.SessionID)
+			case "epoch":
+				bad.ConnectionEpoch++
+			}
+			if err := lease.Check(ctx, bad); err != agentdadmission.ErrAdmission || f.frames != 1 {
+				t.Fatal("cross-binding or stale frame reached delivery")
+			}
+		})
 	}
 	f.denied = true
 	if err := lease.Check(ctx, frame); err != agentdadmission.ErrAdmission || f.frames != 1 {
