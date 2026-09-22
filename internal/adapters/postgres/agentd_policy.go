@@ -304,6 +304,9 @@ func policyFrame(f *agentdv1.Envelope, m AgentdMaterialization) (string, error) 
 		return "AGENTD", nil
 	}
 	if o := f.GetObservation(); o != nil {
+		if control.IsShutdownObservation(f) {
+			return "AGENTD", nil
+		}
 		if f.HarnessHandle != m.HarnessHandle || o.ArtifactReference != "" {
 			return "", ErrAgentdPolicy
 		}

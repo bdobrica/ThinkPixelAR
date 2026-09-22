@@ -50,11 +50,12 @@ Complete these existing requirements in one runnable path before closing AGD-019
 - Validate the executable command plan, durable outcomes, tenant cleanup worker,
   heartbeat/output handling and credential rotation against one real materialization.
   Separate passing fixture/database tests do not close this acceptance gate.
-- Complete authenticated final shutdown reporting; finite local/Pod shutdown
-  budget validation and bounded child termination are implemented.
-- Compose current-epoch reconnect and recovery/fallback. When protected in-place
-  recovery delivery is unavailable, fail closed and reconcile Sandbox replacement;
-  immutable Kubernetes bootstrap projection is not refreshable in place.
+- Validate connected final stop reporting against that materialization;
+  [failure-handling evidence](evidence/agd-020-failure-handling.md) covers local
+  authenticated reporting, bounded stopping and expiry-driven fencing/cleanup.
+- Implement durable safe-replacement admission after fenced cleanup. Current-epoch
+  rejection and expiry-driven recovery work are connected; ambiguous outcomes
+  remain pending. Immutable bootstrap projection is not refreshable in place.
 - Run the authenticated controlled-process exchange using the
   [AGD-017 fixture](../test/harnessfixture/README.md): start/handshake, capture/status,
   interrupt, transport loss and reconnect with fencing. Record the actual policy,

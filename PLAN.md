@@ -1567,8 +1567,10 @@ Phase 4 remains open; AGD-019 depends on AGD-020 acceptance.
 
 Next: deploy the trusted homelab evidence publisher (automated host collection is
 not implemented), run the controlled-process exchange with concrete PostgreSQL
-policies and fresh infrastructure observations, and finish authenticated final
-reporting and fenced sandbox replacement recovery. Follow the
+policies and fresh infrastructure observations, and implement durable safe-replacement
+admission. Failure fencing, exact cleanup and final stop observations are connected
+under [ADR-0043](docs/adr/0043-agentd-failure-fencing-and-final-observations.md);
+ambiguous outcomes retain pending recovery work. Follow the
 [hosting runbook](docs/operations/agentd-hosting.md); retain the existing homelab
 scope and no-cost RC track. Fixture observations do not establish live readiness.
 

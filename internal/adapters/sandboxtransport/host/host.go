@@ -24,12 +24,14 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandbox/agentsandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/bootstrap"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/control"
 	grpctransport "github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/grpc"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/localissuer"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdadmission"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdbootstrap"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdidentity"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdserver"
+	"github.com/bdobrica/ThinkPixelAR/internal/app/reconciliation"
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
@@ -75,6 +77,7 @@ type Host struct {
 	worker   *agentdbootstrap.Worker
 	db       *sql.DB
 	evidence *agentsandbox.HomelabVerifier
+	maintain func(context.Context)
 }
 
 func read(path string, limit int64, private bool) ([]byte, error) {
@@ -237,6 +240,30 @@ func Open(ctx context.Context, path string, database config.Secret, kc config.Ku
 	if err != nil {
 		return nil, err
 	}
+	compute, err := reconciliation.NewCompute(bindings, provider, cleanupOnly{})
+	if err != nil {
+		return nil, err
+	}
+	h.maintain = func(ctx context.Context) {
+		for _, b := range c.Bindings {
+			if ctx.Err() != nil {
+				return
+			}
+			call, cancel := context.WithTimeout(ctx, 5*time.Second)
+			e := bindings.RecoverExpiredAgentd(call, b.TenantID, b.SandboxID)
+			if e == nil {
+				var intent sandbox.ComputeIntent
+				intent, e = bindings.LoadCompute(call, b.TenantID, b.SandboxID)
+				if e == nil && intent.Desired == sandbox.ComputeReleased {
+					_, e = compute.Reconcile(call, b.TenantID, b.SandboxID)
+				}
+			}
+			cancel()
+			if e != nil {
+				logger.Warn("agentd recovery cleanup deferred", "sandbox_id", b.SandboxID)
+			}
+		}
+	}
 	admission, err := agentdadmission.New(bindings, provider, registry, policy, policy)
 	if err != nil {
 		return nil, err
@@ -323,7 +350,12 @@ func Open(ctx context.Context, path string, database config.Secret, kc config.Ku
 			}
 		}
 		return nil, ErrHost
-	}, Observe: func(context.Context, *agentdv1.Envelope) error { return nil }}
+	}, Observe: func(_ context.Context, f *agentdv1.Envelope) error {
+		if control.IsShutdownObservation(f) {
+			logger.Info("agentd final stop observation", "sandbox_id", f.Binding.SandboxBindingId, "connection_epoch", f.ConnectionEpoch, "managed_process_stopped", string(f.GetObservation().Payload) == control.ShutdownStopped)
+		}
+		return nil
+	}}
 	h.server, err = grpctransport.NewServer(grpctransport.ServerConfig{Certificate: serverCert, ServerName: c.ServerName, TrustDomain: c.TrustDomain, ClientRoots: roots, Authorizer: admission, Handle: handler.Serve, MaxConnections: 8})
 	if err != nil {
 		return nil, err
@@ -340,9 +372,24 @@ func (h *Host) Run(ctx context.Context) error {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- h.worker.Run(ctx) }()
+	maintenance := make(chan struct{})
+	go func() {
+		defer close(maintenance)
+		tick := time.NewTicker(5 * time.Second)
+		defer tick.Stop()
+		for {
+			h.maintain(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+			}
+		}
+	}()
 	err := h.server.Serve(ctx, h.listener)
 	cancel()
 	workerErr := <-done
+	<-maintenance
 	if err != nil || workerErr != nil {
 		return ErrHost
 	}
@@ -360,3 +407,9 @@ func (h *Host) Close() {
 		_ = h.db.Close()
 	}
 }
+
+// This host only drains exact persisted release intents. Recovery must not
+// accidentally turn a monitoring pass into acquisition or execution authority.
+type cleanupOnly struct{}
+
+func (cleanupOnly) CheckCompute(context.Context, sandbox.Scope) error { return sandbox.ErrPermission }

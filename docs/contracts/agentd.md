@@ -283,3 +283,17 @@ and a finite `control_deadline_unix_ms` bound to the immutable materialization.
 This local cutoff never grants authority; AR still rechecks current persisted and
 infrastructure state for admission and delivery. Old bootstrap configurations
 without the optional field remain decodable but cannot run the supervisor.
+
+### Process-control final stop hint
+
+Within `process-control.v1`, an agentd PROCESS_STATUS observation may use
+`process-control.v1/shutdown`. Its payload is exactly
+`{"managed_process":"stopped"}` or `{"managed_process":"unresolved"}`;
+operation ID, request digest, harness handle and artifact reference are empty.
+This additive closed schema reports only local managed-process cleanup. AR applies
+current binding/epoch/authority/sequence checks and may acknowledge receipt. It
+cannot resolve a command outcome or establish Execution completion or sandbox
+absence. Delivery is best effort within the remaining authenticated lifetime;
+local shutdown proceeds if delivery or receipt fails. Older implementations may
+reject the observation and close transport safely. See
+[ADR-0043](../adr/0043-agentd-failure-fencing-and-final-observations.md).

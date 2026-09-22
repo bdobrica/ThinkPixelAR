@@ -95,6 +95,7 @@ func TestRunnableSupervisorAuthenticatedRotationAndStatus(t *testing.T) {
 	var epoch atomic.Uint64
 	var heartbeats atomic.Int32
 	completed := make(chan struct{}, 1)
+	finalObserved := make(chan struct{}, 1)
 	handler := agentdserver.Handler{Rotation: rotation, Outcomes: outcomes,
 		Plan: func(context.Context, transport.Peer) ([]agentdserver.Command, error) {
 			if epoch.Load() == 1 {
@@ -103,6 +104,9 @@ func TestRunnableSupervisorAuthenticatedRotationAndStatus(t *testing.T) {
 			return []agentdserver.Command{{OperationID: string(id), HarnessHandle: string(handle), ConfigurationDigest: digest, Kind: agentdv1.Command_STATUS, Deadline: time.Now().Add(5 * time.Second)}}, nil
 		},
 		Observe: func(_ context.Context, f *agentdv1.Envelope) error {
+			if control.IsShutdownObservation(f) {
+				finalObserved <- struct{}{}
+			}
 			if f.GetHeartbeat() != nil {
 				heartbeats.Add(1)
 				if outcomes.acknowledged.Load() {
@@ -151,16 +155,28 @@ func TestRunnableSupervisorAuthenticatedRotationAndStatus(t *testing.T) {
 	serverDone := make(chan error, 1)
 	go func() { serverDone <- server.Serve(ctx, listener) }()
 	clientDone := make(chan error, 1)
-	go func() { clientDone <- RunWithBootstrap(ctx, b, slog.New(slog.NewJSONHandler(io.Discard, nil))) }()
+	clientCtx, stopClient := context.WithCancel(ctx)
+	defer stopClient()
+	go func() { clientDone <- RunWithBootstrap(clientCtx, b, slog.New(slog.NewJSONHandler(io.Discard, nil))) }()
 	select {
 	case <-completed:
 	case <-ctx.Done():
 		t.Error("authenticated supervisor did not complete status")
 	}
-	cancel()
+	started := time.Now()
+	stopClient()
 	if err := <-clientDone; err != nil {
 		t.Error(err)
 	}
+	if time.Since(started) > 5*time.Second {
+		t.Error("shutdown exceeded reporting grace")
+	}
+	select {
+	case <-finalObserved:
+	default:
+		t.Error("final authenticated observation was not delivered")
+	}
+	cancel()
 	if err := <-serverDone; err != nil {
 		t.Error(err)
 	}

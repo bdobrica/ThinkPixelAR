@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/x509"
 	"math/rand/v2"
-	"reflect"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
@@ -73,7 +73,7 @@ func runConnections(ctx context.Context, b *TransportBootstrap, h ConnectionHook
 			if err != nil || next == nil || next == b {
 				return ErrConfig
 			}
-			if !reflect.DeepEqual(b.Config(), next.Config()) || len(next.proof) != 32 {
+			if !sameStartupConfig(b.Config(), next.Config()) || len(next.proof) != 32 {
 				next.Destroy()
 				return ErrConfig
 			}
@@ -89,21 +89,40 @@ func runConnections(ctx context.Context, b *TransportBootstrap, h ConnectionHook
 		if err != nil {
 			return ErrConfig
 		}
-		s, err := connect(ctx, config)
+		// Keep only transport alive for bounded stop/reporting on a local signal.
+		// The original authority deadline remains an absolute upper bound.
+		deadline, _ := ctx.Deadline()
+		wireCtx, closeWire := context.WithDeadline(context.WithoutCancel(ctx), deadline)
+		var established atomic.Bool
+		stopWatch := context.AfterFunc(ctx, func() {
+			if !established.Load() {
+				closeWire()
+				return
+			}
+			select {
+			case <-wireCtx.Done():
+			case <-time.After(5 * time.Second):
+				closeWire()
+			}
+		})
+		s, err := connect(wireCtx, config)
 		clear(config.Hello.BootstrapProof)
 		clear(b.proof)
 		b.proof = nil
 		if err == nil {
 			if !slices.Contains(s.Welcome().Capabilities, "rotation.v1") || b.Connected(s) != nil {
 				s.Close()
+				stopWatch()
+				closeWire()
 				return ErrConfig
 			}
+			established.Store(true)
 			started := time.Now()
 			previous := append([]byte(nil), b.certificate.Certificate[0]...)
 			timer := time.NewTimer(max(time.Until(b.RotationAt()), 0))
 			expiry, _ := s.Context().Deadline()
 			serveCtx, stop := context.WithDeadline(s.Context(), expiry.Add(-5*time.Second))
-			unwatch := context.AfterFunc(serveCtx, s.Close)
+			unwatch := context.AfterFunc(ctx, stop)
 			_ = h.Serve(serveCtx, s, b, timer.C)
 			unwatch()
 			stop()
@@ -113,6 +132,8 @@ func runConnections(ctx context.Context, b *TransportBootstrap, h ConnectionHook
 				failures = 0
 			}
 		}
+		stopWatch()
+		closeWire()
 		// Even a failed/ambiguous handshake cannot leave autonomous work running.
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err = h.Disconnected(cleanup)

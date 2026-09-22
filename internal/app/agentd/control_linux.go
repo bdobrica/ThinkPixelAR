@@ -34,6 +34,7 @@ type commandResult struct {
 // for this supervisor lifetime. Supervisor loss requires Attempt replacement;
 // the control-plane's durable ledger owns reconciliation across AR restarts.
 type ProcessControl struct {
+	supervisor    context.Context // Set only by the binary composition for permanent shutdown.
 	gate          sync.Mutex
 	operation     sync.Mutex
 	processes     *Processes
@@ -174,7 +175,7 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 			}
 			select {
 			case frames <- f:
-			case <-ctx.Done():
+			case <-s.Context().Done():
 				return
 			}
 		}
@@ -272,18 +273,50 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 		renewalDue = false
 		return nil
 	}
-	defer func() {
-		cancel()
-		if busy {
-			select {
-			case <-results:
-			case <-time.After(p.processes.stopBudget() + time.Duration(p.processes.config.StartTimeoutMS)*time.Millisecond):
-			}
-		}
-	}()
+	// Cancelling the command context stops pending operations. Do not wait for
+	// a launch before disconnect cleanup: its worker owns cancellation cleanup,
+	// and a held operation gate rejects reconnect work until it has finished.
+
 	for {
 		select {
 		case <-ctx.Done():
+			// No more commands are admitted by this loop. Cancel pending work
+			// before stopping; the wire has a separate, bounded reporting grace.
+			cancel()
+			cleanup, stop := context.WithTimeout(context.Background(), 4*time.Second)
+			var err error
+			if p.supervisor != nil && p.supervisor.Err() != nil {
+				err = p.processes.Shutdown(cleanup, nil)
+			} else {
+				err = p.Disconnected(cleanup)
+			}
+			stop()
+			payload := control.ShutdownStopped
+			if err != nil || busy {
+				payload = control.ShutdownUnresolved
+			}
+			// A hint only: missing delivery must never delay local termination.
+			timer := time.AfterFunc(time.Second, s.Close)
+			final := &agentdv1.Envelope{Body: &agentdv1.Envelope_Observation{Observation: &agentdv1.Observation{Kind: agentdv1.Observation_PROCESS_STATUS, PayloadSchema: control.ShutdownSchema, Payload: []byte(payload)}}}
+			if send(final) == nil {
+			waitFinal:
+				for {
+					select {
+					case f := <-frames:
+						if input.Check(f) != nil {
+							break waitFinal
+						}
+						if ack := f.GetAcknowledgement(); ack != nil && ack.MessageId == final.MessageId && ack.AcceptedSequence == final.Sequence {
+							break waitFinal
+						}
+					case <-recvErr:
+						break waitFinal
+					case <-s.Context().Done():
+						break waitFinal
+					}
+				}
+			}
+			timer.Stop()
 			return ctx.Err()
 		case err := <-recvErr:
 			return err

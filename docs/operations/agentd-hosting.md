@@ -149,6 +149,33 @@ revocation, deadline and durable command replay.
 Run one governed-by-local-policy controlled-process exchange with the durable
 PostgreSQL policies and freshly observed homelab evidence. Include rotation,
 transport loss, AR restart, credential expiry and fenced sandbox replacement.
-Add authenticated final shutdown reporting. Record results under
+Validate final stop reporting and durable safe-replacement admission. Record results under
 [Phase 4 evidence](../phase-4-evidence.md) before closing AGD-020/019. The local
 fixture tests establish implementation behavior; they do not qualify the live publisher.
+
+## Failure handling and pending replacement
+
+The host now sweeps each configured binding for expiry of the latest persisted
+credential and connection. A five-second per-binding call budget bounds each
+pass; passes start immediately and then every five seconds (slow calls can extend
+a full pass). Transient disconnection and expiry of predecessor credentials do
+not trigger this decision. Expiry atomically fences the binding, records recovery
+and exact cleanup intent, and degrades the current Session. Saved release intents
+are retried through the existing provider with the same operation ID after AR
+restart. Provider failure leaves cleanup pending; uncertainty never becomes a
+successful deletion report.
+
+Inspect pending `sandbox.recover` work and the existing cleanup intent state.
+A recovery request is **not a running replacement**. Ambiguous command outcomes
+remain PENDING/UNKNOWN until a durable safety decision is implemented; do not
+manually replay the command plan, restart agentd with its old bundle or mark that
+work complete merely because the old Pod disappeared. Automatic new-Attempt
+admission remains implementation work.
+
+On graceful local cancellation, an established transport can carry a bounded
+`process-control.v1/shutdown` hint after managed-process stop. Its authenticated
+receipt is logged as `agentd final stop observation`. `managed_process_stopped`
+is a sandbox claim, not canonical lifecycle state. Abrupt disconnection or expired
+authority can prevent delivery. Agentd always performs bounded supervisor cleanup
+and emits `agent supervisor stopped` or `agent supervisor cleanup failed` locally.
+See [ADR-0043](../adr/0043-agentd-failure-fencing-and-final-observations.md).
