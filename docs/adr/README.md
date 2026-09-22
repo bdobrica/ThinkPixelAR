@@ -47,3 +47,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0030: Agentd bounded process control](0030-agentd-bounded-process-control.md) — Accepted
 - [ADR-0031: Agentd bounded output capture](0031-agentd-bounded-output-capture.md) — Accepted
 - [ADR-0032: Agentd process observations and heartbeat](0032-agentd-status-heartbeat.md) — Accepted
+- [ADR-0033: Agentd registered signals and cooperative interrupt](0033-agentd-signal-interrupt-control.md) — Accepted

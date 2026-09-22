@@ -29,6 +29,7 @@ var (
 type Processes struct {
 	gate          sync.Mutex
 	config        HarnessConfig
+	commandBytes  uint32
 	current       *child
 	captureLimits *agentdv1.Limits
 	sanitizer     OutputSanitizer
@@ -63,7 +64,7 @@ func NewProcesses(c Config) (*Processes, error) {
 	}
 	h := c.Harness
 	h.Argv = slices.Clone(h.Argv)
-	return &Processes{config: h}, nil
+	return &Processes{config: h, commandBytes: c.Limits.CommandBytes}, nil
 }
 
 // NewProcessesWithCapture opts into bounded, redacted capture. A nil sanitizer
@@ -123,7 +124,7 @@ func (p *Processes) operation(ctx context.Context, budget time.Duration, f func(
 		select {
 		case out <- result{id, err}:
 		case <-ctx.Done():
-			// A launch whose result was not delivered must not survive as hidden work.
+			// Successful process work whose result was not delivered must be stopped.
 			cleanup()
 		}
 	}()

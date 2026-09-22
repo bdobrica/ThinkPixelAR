@@ -51,6 +51,24 @@ backpressure and never extend authority. See
 [ADR-0032](../adr/0032-agentd-status-heartbeat.md) and
 [status/heartbeat evidence](../evidence/agd-008-status-heartbeat.md).
 
+`NewControls` binds a Processes controller to a copied registry of negotiated
+normalized signal handlers and an optional cooperative interrupt handler. Supply
+the negotiated command-byte limit; it cannot exceed bootstrap limits. No raw OS
+signal number, arbitrary command or unregistered name is accepted. Handlers must
+validate their payload schema, honor context and never retain/log input or defer
+process writes beyond their return.
+
+Signal/Interrupt require the current local process ID and serialize with process
+replacement. A nil Interrupt result means protocol acknowledgement, so the
+dispatcher must still observe operation completion. Unsupported/failed/timed-out
+interrupts use bounded TERM/KILL Stop; `ErrInterruptEscalated` indicates completed
+fallback. A timed-out Signal also stops its target. If a handler ignores its
+deadline, replacement remains blocked until it returns. Callback failures expose
+fixed errors. Status/heartbeat continue to work while the control slot is busy.
+See [ADR-0033](../adr/0033-agentd-signal-interrupt-control.md) and
+[control evidence](../evidence/agd-009-signal-interrupt.md). Native Codex mappings
+remain Phase 5; binary dispatch is AGD-020 and supervisor shutdown is AGD-012.
+
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox
 template uses mode 0440 with the sandbox group; the non-secret smoke fixture uses

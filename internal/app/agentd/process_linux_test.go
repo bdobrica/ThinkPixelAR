@@ -26,6 +26,22 @@ func TestProcessChild(t *testing.T) {
 	if len(os.Environ()) != 0 {
 		os.Exit(71)
 	}
+	if mode == "control" {
+		signals := make(chan os.Signal, 2)
+		signal.Notify(signals, syscall.SIGUSR1, syscall.SIGINT)
+		if os.WriteFile(filepath.Join(root, "control-ready"), nil, 0600) != nil {
+			os.Exit(76)
+		}
+		for sig := range signals {
+			name := "notified"
+			if sig == syscall.SIGINT {
+				name = "interrupted"
+			}
+			if os.WriteFile(filepath.Join(root, name), nil, 0600) != nil {
+				os.Exit(77)
+			}
+		}
+	}
 	if mode == "exit-error" {
 		os.Exit(7)
 	}
