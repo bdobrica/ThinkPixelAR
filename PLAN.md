@@ -1590,7 +1590,9 @@ Remaining implementation:
 - transport delivery of captured/normalized events;
 - production sequence/replay policy and durable replay reconciliation (AGD-014
   qualifies transport rejection/delivery gates; it does not supply that policy);
-- runnable rotation/reconnect and provider recovery/fallback composition.
+- runnable rotation/reconnect and provider recovery/fallback composition, including
+  local work stop/fencing after transport loss (AGD-015 covers stream cancellation
+  and lease cleanup; end-to-end harness behavior remains AGD-020).
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
 

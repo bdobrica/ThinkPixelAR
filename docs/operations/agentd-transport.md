@@ -143,3 +143,15 @@ go test ./internal/adapters/sandboxtransport/grpc -run '^$' -fuzz '^FuzzEnvelope
 The replay fixture demonstrates policy enforcement and approved identical
 replay delivery; it does not implement durable production deduplication. See
 [AGD-014 evidence](../evidence/agd-014-adversarial-messages.md).
+
+## Transport-loss regression tests
+
+Run `go test -race ./internal/adapters/sandboxtransport/grpc -run TestTransportLoss`
+for abrupt socket loss, AR server shutdown and silent traffic loss in either or
+both directions after an authenticated exchange. The test dialer drops encrypted
+bytes while leaving TCP open; no firewall or cluster access is required.
+
+Healthy application traffic renews the liveness window; local writes alone do
+not. Tests require pending receive cancellation, handler exit, exactly one lease
+release and rejection of further sends. See [AGD-015 evidence](../evidence/agd-015-transport-loss.md)
+for scope and remaining binary composition work.
