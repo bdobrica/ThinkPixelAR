@@ -1576,14 +1576,15 @@ without relaxing their security requirements.
 Local process control, capture, status/heartbeat, signal/interrupt handling,
 checkpoint preparation hooks and local credential exclusions are implemented
 under ADRs 0030–0035 (AGD-006–011); bounded supervisor shutdown follows ADR-0036
-(AGD-012). Next on the demo track: the controlled protocol fixture (AGD-017) and
-authenticated binary composition (AGD-020), including final shutdown delivery and
+(AGD-012). The controlled protocol fixture is available for integration tests.
+Next on the demo track: authenticated binary composition (AGD-020), using that
+fixture for the controlled-process exchange, including final shutdown delivery and
 effective Pod termination-budget validation. Preserve the AGD-016 image privilege
 regression when composing the final vendor image; rerun external Kata/network
 qualification for that deployed artifact. Future Execution credential injection
 needs adapter-specific exclusion tests; trusted storage validation/publication remains required before
-checkpoint/resume. The local process fixture does not replace AGD-017's wider
-protocol adapter.
+checkpoint/resume. The test adapter does not implement the production generic
+HarnessAdapter port or vendor event mapping; those remain HNS-001–004.
 
 Remaining implementation:
 
