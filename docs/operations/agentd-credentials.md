@@ -107,3 +107,12 @@ immutable publication, exact lookup, ambiguous-create recovery and UID-fenced
 cleanup. PostgreSQL `CheckBootstrap` rejects unregistered, mismatched, consumed or
 fenced records before projection. Durable plan/UID persistence, cleanup scheduling
 and sandbox credential loading remain required composition work.
+
+## Credential loader checkpoint
+
+`agentd.LoadTransport` reads the fixed protected mount, pins one projected
+generation and validates certificate identity, key pair, trust and file bounds.
+It returns private ephemeral material and requires a frame Check to build client
+configuration. See [ADR-0029](../adr/0029-agentd-bootstrap-credential-loading.md) and
+[read-only filesystem evidence](../evidence/agd-005-credential-loading.md). The
+binary still waits for trusted admission and rotation composition.

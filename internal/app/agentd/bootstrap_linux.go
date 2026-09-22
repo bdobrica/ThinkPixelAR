@@ -17,24 +17,33 @@ func load(directory string) (Config, error) {
 		return Config{}, ErrConfig
 	}
 	defer root.Close()
-	f, err := root.OpenFile("config.json", os.O_RDONLY|unix.O_NONBLOCK, 0)
-	if err != nil {
-		return Config{}, ErrConfig
-	}
-	defer f.Close()
-	stat, err := f.Stat()
-	if err != nil || !stat.Mode().IsRegular() || stat.Size() > MaxConfigBytes || stat.Mode().Perm()&0222 != 0 {
-		return Config{}, ErrConfig
-	}
-	var fs unix.Statfs_t
-	if unix.Fstatfs(int(f.Fd()), &fs) != nil || fs.Flags&unix.ST_RDONLY == 0 {
-		return Config{}, ErrConfig
-	}
-	raw, err := io.ReadAll(io.LimitReader(f, MaxConfigBytes+1))
+	raw, err := readBootstrapFile(root, "config.json", MaxConfigBytes)
 	if err != nil {
 		return Config{}, ErrConfig
 	}
 	return DecodeConfig(raw)
+}
+
+func readBootstrapFile(root *os.Root, name string, max int) ([]byte, error) {
+	f, err := root.OpenFile(name, os.O_RDONLY|unix.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, ErrConfig
+	}
+	defer f.Close()
+	stat, err := f.Stat()
+	if err != nil || !stat.Mode().IsRegular() || stat.Size() > int64(max) || stat.Mode().Perm()&0222 != 0 {
+		return nil, ErrConfig
+	}
+	var fs unix.Statfs_t
+	if unix.Fstatfs(int(f.Fd()), &fs) != nil || fs.Flags&unix.ST_RDONLY == 0 {
+		return nil, ErrConfig
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, int64(max)+1))
+	if err != nil || len(raw) > max {
+		clear(raw)
+		return nil, ErrConfig
+	}
+	return raw, nil
 }
 
 // CheckCredentialExposure is a startup guard, not proof against arbitrary

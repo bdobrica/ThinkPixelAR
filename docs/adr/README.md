@@ -43,3 +43,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0026: Durable agentd credential registry](0026-durable-agentd-credential-registry.md) — Accepted
 - [ADR-0027: Agentd admission composition](0027-agentd-admission-composition.md) — Accepted
 - [ADR-0028: Agentd bootstrap Secret projection](0028-agentd-bootstrap-secret-projection.md) — Accepted
+- [ADR-0029: Agentd bootstrap credential loading](0029-agentd-bootstrap-credential-loading.md) — Accepted

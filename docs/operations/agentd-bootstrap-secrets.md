@@ -50,8 +50,11 @@ expiry deletion or cleanup after an AR crash.
 | `challenge.bin` | Exactly 32 bytes | Trusted handshake challenge. |
 | `trust-domain` | 253 bytes | Exact configured lowercase DNS trust domain. |
 
-Only `config.json` is currently consumed by binary startup. Remaining files are
-the projection adapter's layout, not a claim that credential loading is enabled.
+The `agentd.LoadTransport` library entry point now validates and loads all seven
+files under [ADR-0029](../adr/0029-agentd-bootstrap-credential-loading.md), pinning
+the Kubernetes `..data` generation. Its client-config builder requires a real frame
+Check. Destroy owned material only after closing its clients. Binary startup still
+consumes only `config.json` until trusted admission/rotation wiring is complete.
 Private material stays ephemeral; clear owned delivery buffers after use and
 disable raw Kubernetes request/response logging. No CA signing key belongs here.
 

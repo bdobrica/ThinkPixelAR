@@ -1533,9 +1533,10 @@ Credential issuance and renewal are implemented under ADR-0025.
 AGD-005 durable credential registration, one-time bootstrap consumption and
 connection bookkeeping are implemented under ADR-0026; admission composition is
 implemented under ADR-0027. Secret operations and the registered-publication gate
-are implemented under ADR-0028. Remaining AGD-005 work is durable bootstrap
-plan/UID/cleanup orchestration, credential loading, concrete authority/expectation
-and frame-policy adapters, and authenticated rotation composition.
+are implemented under ADR-0028; protected credential loading is implemented under
+ADR-0029. Remaining AGD-005 work is durable bootstrap plan/UID/cleanup orchestration,
+concrete authority/expectation and frame-policy adapters, and binary/rotation
+composition.
 The binary remains dormant until those services are supplied;
 compatibility or possession of a certificate cannot authorize execution.
 
