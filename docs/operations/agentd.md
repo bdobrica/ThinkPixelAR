@@ -67,7 +67,7 @@ deadline, replacement remains blocked until it returns. Callback failures expose
 fixed errors. Status/heartbeat continue to work while the control slot is busy.
 See [ADR-0033](../adr/0033-agentd-signal-interrupt-control.md) and
 [control evidence](../evidence/agd-009-signal-interrupt.md). Native Codex mappings
-remain Phase 5; binary dispatch is AGD-020 and supervisor shutdown is AGD-012.
+remain Phase 5; binary dispatch is AGD-020. Supervisor shutdown follows ADR-0036.
 
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox
@@ -146,3 +146,26 @@ Do not export an entire home directory or environment as vendor resume state.
 The trusted checkpoint producer must still scan and validate actual candidate
 files before commit; these local tests do not qualify malicious-harness behavior
 or live storage snapshots.
+
+## Supervisor termination
+
+SIGINT/SIGTERM cancels the supervisor lifetime and invokes `Processes.Shutdown`.
+Use `RunProcesses(ctx, processes, negotiatedInterrupt, logger)` when composing an
+admitted controller. The runner waits for lifetime cancellation and never launches
+work itself. Direct AR close may call `Shutdown` with the same registered hook.
+
+Shutdown permanently rejects new commands, cancels pending operations and waits
+boundedly for their gate. It attempts cooperative close, then TERM and KILL as
+needed. An acknowledgement does not skip process-exit verification. Repeated
+calls share cleanup; caller cancellation does not abandon it. Hung callbacks and
+unresolved cleanup produce a fixed failure and require external Sandbox release.
+Checkpoint preparation is never automatic. PID 1 reaps adopted children after
+the managed leader has been reaped; non-PID-1 controllers leave other children
+to their owner.
+
+Reserve more than `start_timeout_ms + 3*stop_grace_ms + 3*kill_wait_ms` in the
+materialized Pod termination grace, including margin for final reporting. The
+example config needs 28 seconds plus margin. AGD-020 must validate that budget
+against the effective Pod and deliver the final authenticated observation if the
+transport remains available. Current shutdown emits a safe local final state log.
+See [ADR-0036](../adr/0036-agentd-bounded-supervisor-shutdown.md).

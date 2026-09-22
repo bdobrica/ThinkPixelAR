@@ -27,13 +27,21 @@ var (
 // HarnessHandles or authority. Call only after authenticated command admission.
 // Start means OS launch, not a completed adapter handshake or Ready state.
 type Processes struct {
-	gate          sync.Mutex
-	config        HarnessConfig
-	commandBytes  uint32
-	current       *child
-	captureLimits *agentdv1.Limits
-	sanitizer     OutputSanitizer
-	observation   processObservation
+	gate           sync.Mutex
+	lifeOnce       sync.Once
+	lifetime       context.Context
+	cancelLifetime context.CancelFunc
+	closing        atomic.Bool
+	active         atomic.Pointer[child]
+	shutdownOnce   sync.Once
+	shutdownDone   chan struct{}
+	shutdownErr    error
+	config         HarnessConfig
+	commandBytes   uint32
+	current        *child
+	captureLimits  *agentdv1.Limits
+	sanitizer      OutputSanitizer
+	observation    processObservation
 }
 
 type child struct {
@@ -94,13 +102,23 @@ func (p *Processes) Output(id primitives.ID) (*Capture, error) {
 // operation has no queue. A timed-out OS operation keeps the gate until cleanup
 // completes; another command must never overlap an unresolved launch or stop.
 func (p *Processes) operation(ctx context.Context, budget time.Duration, f func(context.Context) (primitives.ID, error)) (primitives.ID, error) {
+	p.initLifetime()
+	if p.closing.Load() {
+		return "", ErrProcessClosed
+	}
 	if ctx.Err() != nil {
 		return "", ErrProcessDeadline
 	}
 	if !p.gate.TryLock() {
 		return "", ErrProcessBusy
 	}
+	if p.closing.Load() {
+		p.gate.Unlock()
+		return "", ErrProcessClosed
+	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
+	unwatch := context.AfterFunc(p.lifetime, cancel)
+	defer unwatch()
 	defer cancel()
 	type result struct {
 		id  primitives.ID
@@ -158,6 +176,9 @@ func (p *Processes) stopBudget() time.Duration {
 	return time.Duration(p.config.StopGraceMS+p.config.KillWaitMS) * time.Millisecond
 }
 func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
+	if p.closing.Load() {
+		return "", ErrProcessClosed
+	}
 	if ctx.Err() != nil {
 		return "", ErrProcessDeadline
 	}
@@ -201,6 +222,7 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		return "", ErrProcess
 	}
 	p.current = c
+	p.active.Store(c)
 	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_RUNNING})
 	go c.reap()
 	if c.capture != nil {
@@ -212,7 +234,7 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 			}
 		}()
 	}
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || p.closing.Load() {
 		_ = p.stop(context.Background(), id, true)
 		return "", ErrProcessDeadline
 	}

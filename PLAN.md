@@ -1574,20 +1574,19 @@ without relaxing their security requirements.
 
 Local process control, capture, status/heartbeat, signal/interrupt handling,
 checkpoint preparation hooks and local credential exclusions are implemented
-under ADRs 0030–0035 (AGD-006–011). Next on the demo track: supervisor shutdown
-(AGD-012), the controlled protocol fixture (AGD-017) and authenticated binary
-composition (AGD-020). Future Execution credential injection needs adapter-specific
-exclusion tests; trusted storage validation/publication remains required before
+under ADRs 0030–0035 (AGD-006–011); bounded supervisor shutdown follows ADR-0036
+(AGD-012). Next on the demo track: the controlled protocol fixture (AGD-017) and
+authenticated binary composition (AGD-020), including final shutdown delivery and
+effective Pod termination-budget validation. Future Execution credential injection
+needs adapter-specific exclusion tests; trusted storage validation/publication remains required before
 checkpoint/resume. The local process fixture does not replace AGD-017's wider
 protocol adapter.
 
 Remaining implementation:
 
-- supervisor shutdown integration;
 - durable credential/admission and protected delivery composition;
 - adapter handshake;
 - transport delivery of captured/normalized events;
-- graceful termination;
 - transport recovery.
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.

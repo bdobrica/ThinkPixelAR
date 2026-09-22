@@ -52,7 +52,7 @@ func (c *Controls) Signal(ctx context.Context, id primitives.ID, name string, pa
 	}
 	owned := bytes.Clone(payload)
 	err := c.deliver(ctx, id, false, func(ctx context.Context) error { defer clear(owned); return handler(ctx, id, owned) })
-	if err == ErrProcessBusy || err == ErrProcessStale {
+	if err == ErrProcessBusy || err == ErrProcessStale || err == ErrProcessClosed {
 		clear(owned)
 	}
 	return err

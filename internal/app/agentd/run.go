@@ -12,8 +12,25 @@ func Run(ctx context.Context, c Config, logger *slog.Logger) error {
 	if c.Validate() != nil || logger == nil {
 		return ErrConfig
 	}
+	p, err := NewProcesses(c)
+	if err != nil {
+		return err
+	}
 	logger.Info("agent supervisor configured", "component", "thinkpixel-agentd", "state", "awaiting_transport")
+	return RunProcesses(ctx, p, nil, logger)
+}
+
+// RunProcesses binds an admitted controller to the supervisor lifetime. It never
+// launches work. The binary uses an idle controller until AGD-020 supplies dispatch.
+func RunProcesses(ctx context.Context, p *Processes, hook InterruptHandler, logger *slog.Logger) error {
+	if p == nil || logger == nil {
+		return ErrConfig
+	}
 	<-ctx.Done()
-	logger.Info("agent supervisor stopped", "component", "thinkpixel-agentd")
+	if err := p.Shutdown(context.Background(), hook); err != nil {
+		logger.Error("agent supervisor cleanup failed", "component", "thinkpixel-agentd", "process_state", p.Status().State.String())
+		return err
+	}
+	logger.Info("agent supervisor stopped", "component", "thinkpixel-agentd", "process_state", p.Status().State.String())
 	return nil
 }

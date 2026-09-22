@@ -26,6 +26,18 @@ func TestProcessChild(t *testing.T) {
 	if len(os.Environ()) != 0 {
 		os.Exit(71)
 	}
+	if mode == "shutdown" {
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGTERM)
+		if os.WriteFile(filepath.Join(root, "shutdown-ready"), nil, 0600) != nil {
+			os.Exit(78)
+		}
+		<-signals
+		if os.WriteFile(filepath.Join(root, "term-observed"), nil, 0600) != nil {
+			os.Exit(79)
+		}
+		syscall.Exit(0) // Avoid the race runtime's exit sleep in signal-grace tests.
+	}
 	if mode == "control" {
 		signals := make(chan os.Signal, 2)
 		signal.Notify(signals, syscall.SIGUSR1, syscall.SIGINT)
