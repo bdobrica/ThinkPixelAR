@@ -54,3 +54,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0037: Agentd credential rotation, reconnect and recovery](0037-agentd-rotation-reconnect-recovery.md) — Accepted
 - [ADR-0038: Durable agentd bootstrap delivery tracking](0038-durable-agentd-bootstrap-delivery.md) — Accepted
 - [ADR-0039: Bounded authenticated process dispatch](0039-agentd-process-control-dispatch.md) — Accepted
+- [ADR-0040: Local agentd admission and durable dispatch claims](0040-local-agentd-admission-and-durable-dispatch.md) — Accepted

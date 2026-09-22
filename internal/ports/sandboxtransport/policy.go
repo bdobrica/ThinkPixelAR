@@ -6,6 +6,7 @@ import (
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
+	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
 
 type Purpose string
@@ -37,4 +38,22 @@ type AdmissionPolicy interface {
 // execution authorization. Implementations honor cancellation and are concurrent-safe.
 type FramePolicy interface {
 	AuthorizeFrame(context.Context, sandbox.ComputeIntent, Connection, *agentdv1.Envelope) error
+}
+
+// DispatchOutcome is retained transport bookkeeping, never Execution success.
+// Pending is ambiguous after interruption; neither Pending nor Unknown permits
+// retransmission. Only a correlated response can move Pending to a final value.
+type DispatchOutcome string
+
+const (
+	DispatchPending      DispatchOutcome = "PENDING"
+	DispatchAcknowledged DispatchOutcome = "ACKNOWLEDGED"
+	DispatchUnknown      DispatchOutcome = "UNKNOWN"
+)
+
+// CommandOutcomes supports restart reconciliation without retransmitting a
+// command. FramePolicy owns atomic claims and correlated outcome writes. Reads
+// remain available after revocation/termination but cannot authorize new work.
+type CommandOutcomes interface {
+	CommandOutcome(context.Context, primitives.ID, primitives.ID, primitives.ID, string) (DispatchOutcome, error)
 }

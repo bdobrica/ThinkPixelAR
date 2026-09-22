@@ -21,7 +21,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 )
 
-func sandboxDatabaseFixture(t *testing.T) (*sql.DB, sandbox.AcquireRequest) {
+func sandboxDatabaseFixture(t *testing.T, authorityNamespace ...string) (*sql.DB, sandbox.AcquireRequest) {
 	t.Helper()
 	url := os.Getenv("THINKPIXELAR_TEST_DATABASE_URL")
 	if url == "" {
@@ -50,6 +50,9 @@ func sandboxDatabaseFixture(t *testing.T) (*sql.DB, sandbox.AcquireRequest) {
 	runtime := sandbox.Runtime{Image: "registry.invalid/agent@" + testDigest('a'), Architecture: "amd64", Entrypoint: []string{"/agentd"}}
 	runtimeJSON, _ := json.Marshal(map[string]any{"image": map[string]any{"reference": runtime.Image}, "entrypoint": map[string]any{"command": runtime.Entrypoint}, "platform": map[string]any{"architectures": []string{"amd64"}}})
 	binding := session.RuntimeBinding{AuthorityMode: "LOCAL", AuthorityNamespace: "concurrency", AgentID: "agent", AgentVersionID: "v1", RuntimeSpecSchemaVersion: "v1", RuntimeSpec: runtimeJSON, RuntimeSpecDigest: sandbox.Digest(runtimeJSON), RuntimeProfileSchemaVersion: "v1", RuntimeProfileSnapshot: raw, RuntimeProfileDigest: pd}
+	if len(authorityNamespace) == 1 {
+		binding.AuthorityNamespace = authorityNamespace[0]
+	}
 	sess, err := session.New(ids[0], ids[1], binding, now)
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +63,9 @@ func sandboxDatabaseFixture(t *testing.T) (*sql.DB, sandbox.AcquireRequest) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	executionValue, err := execution.New(ids[0], ids[2], concurrencyExecutionBinding(ids[1], 1, "sandbox-journal"), now.Add(time.Hour), now)
+	executionBinding := concurrencyExecutionBinding(ids[1], 1, "sandbox-journal")
+	executionBinding.AuthorityNamespace = binding.AuthorityNamespace
+	executionValue, err := execution.New(ids[0], ids[2], executionBinding, now.Add(time.Hour), now)
 	if err != nil {
 		t.Fatal(err)
 	}

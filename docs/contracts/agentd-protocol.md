@@ -117,3 +117,18 @@ current local health. Failures use OUTCOME_UNKNOWN without reflected payloads.
 Capabilities absent from negotiation cannot activate this dispatcher. The schema
 addition is optional and changes no Protobuf field, version or generated artifact.
 The shipped binaries do not yet compose this capability; AGD-020 remains open.
+
+## Local durable dispatch policy
+
+The initial local policy requires explicit local mode, issuer `thinkpixelar/local`,
+and immutable trusted materialization tied to an already admitted Execution.
+[ADR-0040](../adr/0040-local-agentd-admission-and-durable-dispatch.md) defines the
+PostgreSQL authority/revocation, sequence and command journal implementation.
+It implements the existing mandatory admission/frame ports; provider verification
+and credential checks remain in agentdadmission.Service.
+
+A command's durable claim commits before Send. A retry reads CommandOutcomes;
+it never sends that operation again. PENDING is ambiguous and UNKNOWN is a reported
+uncertain outcome; either blocks new commands on the sandbox until trusted recovery.
+ACKNOWLEDGED is only a correlated transport outcome, never Execution completion.
+The 128-command lifetime budget and single outstanding command include STATUS.

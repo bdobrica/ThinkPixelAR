@@ -32,6 +32,11 @@ real mTLS to the structured fixture process, including handshake, capture, statu
 duplicate-operation acknowledgement and stop. Its AR authorizer remains test-only;
 it does not satisfy executable composition or durable replay acceptance.
 
+[ADR-0040 local policies and replay](evidence/agd-020-admission-replay.md) now
+compose with the real admission service and PostgreSQL binding/credential stores.
+Concurrent claims, persisted outcomes, revocation and epochs are verified; provider
+facts remain fixtures. The executable must still join this with the dispatcher.
+
 ## Remaining acceptance work — AGD-020
 
 Complete these existing requirements in one runnable path before closing AGD-019:
@@ -42,7 +47,8 @@ Complete these existing requirements in one runnable path before closing AGD-019
 - Wire the [durable bootstrap delivery coordinator](adr/0038-durable-agentd-bootstrap-delivery.md)
   into materialization/admission and its bounded tenant cleanup pass into a worker.
   The journal/coordinator is implemented; executable scheduling is still pending.
-- Implement command/report semantics and durable operation replay reconciliation.
+- Wire the implemented local command/report policies and durable outcome journal
+  into dispatch/restart reconciliation.
   Contradictory readiness/completion/checkpoint claims must not become canonical
   lifecycle state or authorize retries with ambiguous external effects.
 - Multiplex heartbeat/events, command acknowledgements and credential renewal;

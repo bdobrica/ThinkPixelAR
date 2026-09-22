@@ -1562,15 +1562,16 @@ AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evid
 and ADRs 0022–0037. Phase 4 is not complete: the binary remains dormant in
 `awaiting_transport`, and AGD-019 depends on AGD-020.
 
-Next on the demo track is AGD-020's authenticated controlled-process exchange
-using concrete AR policies and persistence. The dispatcher/AGD-017 fixture exchange
-now passes over real mTLS ([evidence](docs/evidence/agd-020-process-dispatch.md),
-ADR-0039); its test authorizer is not executable composition. Compose concrete
-authority/materialization and frame policies, wire the ADR-0038 durable bootstrap
-delivery coordinator and cleanup worker, and wire the dispatcher to durable
-operation replay, rotation/reconnect, local stop/fencing and provider recovery/fallback. Validate the effective Pod shutdown budget and
-retain the image privilege regressions. The evidence document lists the existing
-acceptance requirements and each component test's limits.
+The local admission/frame policies and durable replay journal are implemented
+([evidence](docs/evidence/agd-020-admission-replay.md), ADR-0040). The dispatcher
+passes a real mTLS fixture exchange (ADR-0039); these tests still need joining in
+the executable path.
+
+Next: wire both binaries to the concrete policies and dispatcher, the ADR-0038
+bootstrap delivery coordinator and cleanup worker, rotation/reconnect and sandbox
+replacement recovery. Validate final reporting and the effective Pod shutdown
+budget. Run the integrated controlled-process exchange using those policies and
+persistence; provider fixtures cannot substitute for effective infrastructure proof.
 
 After that exchange passes, refresh the integrated evidence and close AGD-019.
 No permissive policy, sandbox observation or fixture substitutes for trusted
