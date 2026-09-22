@@ -15,8 +15,25 @@ fresh ID. The controller serializes operations without a queue and uses the
 configured launch/grace/kill budgets, narrowed by caller deadlines. Stop escalates
 SIGTERM to SIGKILL for the group and reaps the leader. A timed-out launch is cleaned
 up before another launch is allowed. Start does not imply adapter readiness, and
-Stop does not establish full sandbox cleanup. Standard streams currently use the
-null device until AGD-007 adds bounded capture. No CLI launch override is exposed.
+Stop does not establish full sandbox cleanup. No CLI launch override is exposed.
+
+`NewProcessesWithCapture` opts into stdout/stderr capture; `NewProcesses` retains
+null standard streams. Retrieve `Output(processID)` after Start and consume its
+single-consumer Receive stream. Complete adapter records can use EmitEvent;
+vendor normalization is still Phase 5 work. Each restart has an independent
+capture. Capture uses the existing configured diagnostic/event/queue byte and
+count limits. Saturation backpressures producers up to the liveness window;
+exhaustion or invalid output terminates capture and the process rather than
+silently losing records. Exit draining is bounded by KillWaitMS.
+
+The default sanitizer suppresses whole records with `[REDACTED]`. Only a trusted
+registered-schema sanitizer may release selected content; it must remove secret
+fields/exact injected values and hidden reasoning, and must be bounded and
+thread-safe. Never log captured payloads. Receive returns EOF only after successful
+draining; terminal errors require stream-failure handling, not blind restart.
+Close abandons and clears capture and stops its live child. See
+[ADR-0031](../adr/0031-agentd-bounded-output-capture.md) and
+[verification evidence](../evidence/agd-007-output-capture.md).
 
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox

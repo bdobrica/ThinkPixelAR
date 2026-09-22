@@ -23,3 +23,6 @@ func (*Processes) Stop(context.Context, primitives.ID) error    { return ErrProc
 func (*Processes) Restart(context.Context, primitives.ID) (primitives.ID, error) {
 	return "", ErrProcess
 }
+
+func NewProcessesWithCapture(Config, OutputSanitizer) (*Processes, error) { return nil, ErrProcess }
+func (*Processes) Output(primitives.ID) (*Capture, error)                 { return nil, ErrProcess }

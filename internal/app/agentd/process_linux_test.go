@@ -26,6 +26,19 @@ func TestProcessChild(t *testing.T) {
 	if len(os.Environ()) != 0 {
 		os.Exit(71)
 	}
+	if mode == "output" {
+		_, _ = os.Stdout.Write([]byte("split-secret-"))
+		_, _ = os.Stdout.Write([]byte("canary\nunterminated"))
+		_, _ = os.Stderr.Write([]byte("private-key-canary\n"))
+		os.Exit(0)
+	}
+	if mode == "flood" {
+		for {
+			if _, err := os.Stdout.Write([]byte("sensitive-canary\n")); err != nil {
+				os.Exit(75)
+			}
+		}
+	}
 	if mode == "ignore" || mode == "descendant" {
 		signal.Ignore(syscall.SIGTERM)
 	}
@@ -72,7 +85,16 @@ func processFixture(t *testing.T, mode string) (*Processes, string) {
 		defer p.gate.Unlock()
 		if p.current != nil {
 			if err := p.stop(context.Background(), p.current.id, true); err != nil {
-				t.Error(err)
+				// Captured-stream failures remain terminal even after reaping.
+				if p.current.capture == nil {
+					t.Error(err)
+				} else {
+					select {
+					case <-p.current.done:
+					default:
+						t.Error("capture cleanup leaked", err)
+					}
+				}
 			}
 		}
 	})

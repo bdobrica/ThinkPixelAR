@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -24,18 +26,22 @@ var (
 // HarnessHandles or authority. Call only after authenticated command admission.
 // Start means OS launch, not a completed adapter handshake or Ready state.
 type Processes struct {
-	gate    sync.Mutex
-	config  HarnessConfig
-	current *child
+	gate          sync.Mutex
+	config        HarnessConfig
+	current       *child
+	captureLimits *agentdv1.Limits
+	sanitizer     OutputSanitizer
 }
 
 type child struct {
-	id     primitives.ID
-	cmd    *exec.Cmd
-	mu     sync.Mutex // Serialize group signals with final reaping (and PID reuse).
-	reaped bool
-	done   chan struct{}
-	err    error // Published by closing done.
+	id             primitives.ID
+	cmd            *exec.Cmd
+	mu             sync.Mutex // Serialize group signals with final reaping (and PID reuse).
+	reaped         bool
+	done           chan struct{}
+	err            error // Published by closing done.
+	capture        *Capture
+	stdout, stderr *captureWriter
 }
 
 func NewProcesses(c Config) (*Processes, error) {
@@ -45,6 +51,30 @@ func NewProcesses(c Config) (*Processes, error) {
 	h := c.Harness
 	h.Argv = slices.Clone(h.Argv)
 	return &Processes{config: h}, nil
+}
+
+// NewProcessesWithCapture opts into bounded, redacted capture. A nil sanitizer
+// suppresses content; registered adapters may supply a bounded schema sanitizer.
+func NewProcessesWithCapture(c Config, s OutputSanitizer) (*Processes, error) {
+	p, err := NewProcesses(c)
+	if err != nil {
+		return nil, err
+	}
+	p.captureLimits = proto.Clone(c.Limits).(*agentdv1.Limits)
+	p.sanitizer = s
+	return p, nil
+}
+
+// Output returns the current process's ephemeral single-consumer stream.
+func (p *Processes) Output(id primitives.ID) (*Capture, error) {
+	if !p.gate.TryLock() {
+		return nil, ErrProcessBusy
+	}
+	defer p.gate.Unlock()
+	if p.current == nil || id != p.current.id || p.current.capture == nil {
+		return nil, ErrProcessStale
+	}
+	return p.current.capture, nil
 }
 
 // operation has no queue. A timed-out OS operation keeps the gate until cleanup
@@ -134,14 +164,37 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 	cmd := exec.Command(p.config.Argv[0], p.config.Argv[1:]...)
 	cmd.Dir = p.config.WorkingDirectory
 	cmd.Env = []string{} // Never inherit agentd's environment or credentials.
-	// No shell, inherited extra descriptors, terminal or output logging. Capture is AGD-007.
+	// No shell, extra descriptors, terminal or output logging.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	c := &child{id: id, cmd: cmd, done: make(chan struct{})}
+	if p.captureLimits != nil {
+		c.capture, err = newCapture(id, p.captureLimits, p.sanitizer)
+		if err != nil {
+			return "", err
+		}
+		c.stdout = &captureWriter{capture: c.capture, source: OutputStdout}
+		c.stderr = &captureWriter{capture: c.capture, source: OutputStderr}
+		cmd.Stdout = c.stdout
+		cmd.Stderr = c.stderr
+		cmd.WaitDelay = time.Duration(p.config.KillWaitMS) * time.Millisecond
+	}
 	if cmd.Start() != nil {
+		if c.capture != nil {
+			c.capture.Close()
+		}
 		return "", ErrProcess
 	}
-	c := &child{id: id, cmd: cmd, done: make(chan struct{})}
 	p.current = c
 	go c.reap()
+	if c.capture != nil {
+		go func() {
+			select {
+			case <-c.capture.failed:
+				_ = c.signal(unix.SIGKILL)
+			case <-c.done:
+			}
+		}()
+	}
 	if ctx.Err() != nil {
 		_ = p.stop(context.Background(), id, true)
 		return "", ErrProcessDeadline
@@ -167,9 +220,29 @@ func (c *child) reap() {
 	} else {
 		c.err = ErrProcess
 	} // Do not signal a possibly reused process group.
-	_ = c.cmd.Wait() // Reap the direct child; exit code is not Execution success.
+	// Bound pipe draining as well as queue waits after leader exit. WaitDelay
+	// closes pipes held by escaped descendants; the timer also wakes blocked writers.
+	var drain *time.Timer
+	if c.capture != nil {
+		drain = time.AfterFunc(c.cmd.WaitDelay, func() { c.capture.fail(ErrOutputIO) })
+	}
+	waitErr := c.cmd.Wait() // Exit code is not Execution success.
 	c.reaped = true
 	c.mu.Unlock()
+	if c.capture != nil {
+		var exit *exec.ExitError
+		if waitErr != nil && !errors.As(waitErr, &exit) {
+			c.capture.fail(ErrOutputIO)
+		}
+		c.stdout.finish()
+		c.stderr.finish()
+		if !drain.Stop() {
+			c.capture.fail(ErrOutputIO)
+		}
+		if c.capture.finish() != nil {
+			c.err = ErrProcess
+		}
+	}
 	close(c.done)
 }
 func (c *child) signal(sig unix.Signal) error {
