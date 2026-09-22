@@ -182,6 +182,11 @@ func (s *AgentdCredentials) ConsumeBootstrap(ctx context.Context, p transport.Pe
 		if err != nil {
 			return err
 		}
+		// Consumption and cleanup intent commit together. Invalid proofs never
+		// reach this update. A failed post-admission check cannot lose cleanup.
+		if _, err = tx.ExecContext(ctx, `UPDATE agentd_bootstrap_delivery d SET cleanup_requested=true,retry_after=LEAST(d.retry_after,clock_timestamp()) FROM agentd_credentials r WHERE d.tenant_id=$1 AND d.credential_id=r.credential_id AND r.tenant_id=d.tenant_id AND r.certificate_digest=$2 AND NOT d.cleaned`, p.Identity.TenantID, p.CertificateDigest); err != nil {
+			return err
+		}
 		return tx.QueryRowContext(ctx, `UPDATE agentd_credential_state SET version=version+1,connection_id=$3,connection_epoch=connection_epoch+1,connection_digest=$4,connection_deadline=$5 WHERE tenant_id=$1 AND sandbox_binding_id=$2 AND $5>clock_timestamp() RETURNING connection_epoch`, p.Identity.TenantID, p.Identity.SandboxID, c.ID, p.CertificateDigest, deadline).Scan(&c.Epoch)
 	})
 	if err != nil {

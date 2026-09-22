@@ -46,7 +46,9 @@ Complete these existing requirements in one runnable path before closing AGD-019
   provider, epoch, revocation and deadline checks with no permit-all default.
 - Wire the [durable bootstrap delivery coordinator](adr/0038-durable-agentd-bootstrap-delivery.md)
   into materialization/admission and its bounded tenant cleanup pass into a worker.
-  The journal/coordinator is implemented; executable scheduling is still pending.
+  Materialization, atomic consumption cleanup and the running tenant worker are
+  implemented ([evidence](evidence/agd-020-bootstrap-lifecycle.md)); binary hosting
+  remains pending.
 - Wire the implemented local command/report policies and durable outcome journal
   into dispatch/restart reconciliation.
   Contradictory readiness/completion/checkpoint claims must not become canonical

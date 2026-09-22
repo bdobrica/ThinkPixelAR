@@ -14,29 +14,34 @@ Use only namespace-scoped `get`, `create`, and `delete` permissions on Secrets;
 the sandbox receives no Kubernetes credential or API permission. Kubernetes
 Secret storage/access controls remain operator responsibilities.
 
-1. Issue/register a bootstrap through the bounded credential service under current
-   authority. Assemble its leaf certificate/key, proof, challenge, separate server
-   CA bundle and validated non-secret agentd config. Do not log the material.
-2. Call `Plan` and durably reserve the resulting target and cleanup intent before
-   creating a Secret. The plan has no UID and cannot be used for projection.
-3. Call `Publish`, then durably bind its returned UID. If a known reference is
-   returned with an error, use it only for cleanup; do not project it.
-4. Resolve the persisted reference immediately before blueprint construction.
-   The adapter returns only the Secret name for the existing bootstrap volume.
-   The sandbox template mounts it at `/run/thinkpixel/bootstrap`, read-only, 0440.
-5. On successful exchange, acquisition failure or expiry, run exact `Delete` from
-   durable cleanup work. A conflict requires reconciliation, not an unconditional
-   retry by name. Secret deletion does not revoke copied credentials.
+1. Construct the registered credential service and `bootstrap.Delivery` with the
+   PostgreSQL journal and a current-authority check. Use the ADR-0040 trusted
+   configuration/challenge; never derive them from Hello or Workspace content.
+2. Construct `agentdbootstrap.Service` with that issuer and Delivery. Call
+   `Materialize` with the exact identity/configuration, separate server CA and
+   challenge. It issues once and uses Delivery.Publish: durable plan before
+   creation, durable UID before Resolve. Do not call Store.Publish directly.
+3. In the trusted callback, persist the returned projection name before acquisition
+   and build the read-only 0440 `/run/thinkpixel/bootstrap` volume. Honor the supplied
+   credential-bounded context. Failure/cancellation triggers independent bounded
+   cleanup; reconcile ambiguous acquisition rather than blindly reissuing.
+4. PostgreSQL ConsumeBootstrap atomically requests cleanup when the valid proof is
+   consumed. This covers successful acceptance, lost Welcome and failed admission
+   rechecks. An invalid proof does not trigger deletion. Deletion is not revocation.
+5. Host `agentdbootstrap.NewWorker(delivery, tenants, interval, budget, limit, logger)`
+   and `Run(serviceContext)` in the control-plane lifetime. Supply explicit unique
+   tenant IDs, interval 5–60 seconds, pass budget at most 30 seconds, batch 1–128.
+   A practical initial setting is 5 seconds / 5 seconds / 32. Run sweeps immediately,
+   then periodically; failures remain durable and retry without terminating the loop.
+   The service binary does not yet host this worker automatically.
 
-After an ambiguous create, `Recover` compares the previously persisted plan to
-the observed object before returning its UID. `ErrAbsent` means that exact name
-is absent; other failures are not absence evidence. Recovery can inspect an
-expired/consumed bootstrap for cleanup, but `Resolve` rejects it for projection.
-Do not reconstruct a trusted plan from Kubernetes labels or caller input.
-
-The durable plan/UID store, cleanup scheduler and materialization/loader wiring
-in steps 2–5 are still required. The adapter alone does not promise automatic
-expiry deletion or cleanup after an AR crash.
+Expiry eligibility uses PostgreSQL time and survives restart. Cleanup needs no live
+grant. After ambiguous creation, Recover requires the exact persisted ownership and
+bundle digest; it binds the observed UID before deletion. Unknown-UID NotFound remains
+pending because a delayed create could still arrive. UID/resourceVersion conflicts
+require reconciliation; never delete by name alone or adopt a replacement object.
+See [ADR-0041](../adr/0041-agentd-bootstrap-lifecycle-cleanup.md) and its
+[verification evidence](../evidence/agd-020-bootstrap-lifecycle.md).
 
 ## Closed file layout
 

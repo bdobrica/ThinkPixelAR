@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func policyFixture(t *testing.T) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
+func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
 	t.Helper()
 	db, r := sandboxDatabaseFixture(t, "thinkpixelar/local")
 	ctx := context.Background()
@@ -58,6 +58,13 @@ func policyFixture(t *testing.T) (*sql.DB, *postgres.AgentdPolicy, postgres.Agen
 	}
 	if err = policy.Register(ctx, m); err != nil {
 		t.Fatal(err)
+	}
+	if len(unissued) == 1 && unissued[0] {
+		intent, err := bindings.LoadCompute(ctx, s.TenantID, s.SandboxID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return db, policy, m, intent, transport.Connection{}
 	}
 	registry, _ := postgres.NewAgentdCredentials(db)
 	id := transport.Identity{TenantID: s.TenantID, SandboxID: s.SandboxID, AttemptID: s.AttemptID}

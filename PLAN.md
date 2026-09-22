@@ -1568,8 +1568,10 @@ passes a real mTLS fixture exchange (ADR-0039); these tests still need joining i
 the executable path.
 
 Next: wire both binaries to the concrete policies and dispatcher, the ADR-0038
-bootstrap delivery coordinator and cleanup worker, rotation/reconnect and sandbox
-replacement recovery. Validate final reporting and the effective Pod shutdown
+bootstrap materialization service and running tenant cleanup worker (ADR-0041),
+rotation/reconnect and sandbox replacement recovery. Acceptance now atomically
+schedules cleanup; publication/failure/expiry worker evidence is recorded in
+[bootstrap lifecycle evidence](docs/evidence/agd-020-bootstrap-lifecycle.md). Validate final reporting and the effective Pod shutdown
 budget. Run the integrated controlled-process exchange using those policies and
 persistence; provider fixtures cannot substitute for effective infrastructure proof.
 
