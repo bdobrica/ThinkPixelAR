@@ -1558,46 +1558,22 @@ under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-The protocol, protected startup, mTLS, issuance, durable binding admission and
-bootstrap delivery/loading foundations are implemented under ADRs 0022–0029.
-AGD-005 closes the binding-isolation requirement; its acceptance evidence is
-[recorded separately](docs/evidence/agd-005-binding-isolation.md).
+AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evidence.md)
+and ADRs 0022–0037. Phase 4 is not complete: the binary remains dormant in
+`awaiting_transport`, and AGD-019 depends on AGD-020.
 
-Remaining composition has explicit owners: AGD-020 wires the binaries, concrete
-bounded admission/materialization expectations and command-specific frame checks,
-and durable bootstrap plan/UID/cleanup scheduling. Rotation/reconnect and fenced
-recovery components are implemented under ADR-0037 (AGD-013); AGD-020 must compose
-their stream timer, stop hooks and provider delivery/fallback. These integrations
-remain Phase 4 exit requirements. The binary remains dormant until the required
-services are supplied; possession of a certificate cannot authorize execution.
-Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
-without relaxing their security requirements.
+Next on the demo track is AGD-020's authenticated controlled-process exchange
+using the AGD-017 fixture. Compose concrete authority/materialization and frame
+policies, durable bootstrap publication/UID/cleanup, command/report dispatch and
+operation replay, heartbeat/event delivery, rotation/reconnect, local stop/fencing
+and provider recovery/fallback. Validate the effective Pod shutdown budget and
+retain the image privilege regressions. The evidence document lists the existing
+acceptance requirements and each component test's limits.
 
-Local process control, capture, status/heartbeat, signal/interrupt handling,
-checkpoint preparation hooks and local credential exclusions are implemented
-under ADRs 0030–0035 (AGD-006–011); bounded supervisor shutdown follows ADR-0036
-(AGD-012). The controlled protocol fixture is available for integration tests.
-Next on the demo track: authenticated binary composition (AGD-020), using that
-fixture for the controlled-process exchange, including final shutdown delivery and
-effective Pod termination-budget validation. Preserve the AGD-016 image privilege
-regression when composing the final vendor image; rerun external Kata/network
-qualification for that deployed artifact. Future Execution credential injection
-needs adapter-specific exclusion tests; trusted storage validation/publication remains required before
-checkpoint/resume. The test adapter does not implement the production generic
-HarnessAdapter port or vendor event mapping; those remain HNS-001–004.
-
-Remaining implementation:
-
-- durable credential/admission and protected delivery composition;
-- adapter handshake;
-- transport delivery of captured/normalized events, with concrete report semantics
-  and contradiction handling before lifecycle mutation (AGD-018 verifies current
-  admission and aggregate boundaries; AGD-020 must preserve them in dispatch);
-- production sequence/replay policy and durable replay reconciliation (AGD-014
-  qualifies transport rejection/delivery gates; it does not supply that policy);
-- runnable rotation/reconnect and provider recovery/fallback composition, including
-  local work stop/fencing after transport loss (AGD-015 covers stream cancellation
-  and lease cleanup; end-to-end harness behavior remains AGD-020).
+After that exchange passes, refresh the integrated evidence and close AGD-019.
+No permissive policy, sandbox observation or fixture substitutes for trusted
+state. Generic HarnessAdapter/conformance/event mapping remains HNS-001–004;
+trusted durable checkpoint publication remains Phase 6.
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
 

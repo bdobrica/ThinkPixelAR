@@ -165,7 +165,7 @@ Completion metadata format:
 - [x] AGD-017 Add test harness adapter/process used only for deterministic lifecycle tests. — completed 2026-09-22; [fixture evidence](docs/evidence/agd-017-harness-fixture.md). Test-only versioned local protocol and adapter exercise real process capture, interrupt, preparation, completion, restart/stale-ID rejection and crash reporting; authenticated composition remains AGD-020.
 - [x] AGD-018 Verify AR remains authoritative when agentd falsely reports impossible/obsolete Attempt state. — completed 2026-09-22; [authority evidence](docs/evidence/agd-018-report-authority.md). Hostile process-state reports cannot override current intent, provider evidence, grants or epochs; liveness cannot advance/resurrect Attempt lifecycle. Concrete report semantics and dispatch remain AGD-020.
 - [ ] AGD-020 Compose the initial runnable AR↔agentd path: concrete bounded authority/materialization expectations, command-specific frame policy and binary wiring; persist bootstrap plan/cleanup intent before publication and UID before projection, then clean up on acceptance/failure/expiry (ADRs 0027–0029). Require an authenticated controlled-process exchange before completion; no permissive default policy.
-- [ ] AGD-019 Commit Phase 4 with protocol/security evidence, including AGD-020 composition and AGD-013 rotation/reconnect.
+- [ ] AGD-019 Commit Phase 4 with protocol/security evidence, including AGD-020 composition and AGD-013 rotation/reconnect. — [evidence review](docs/phase-4-evidence.md) prepared 2026-09-22; closure awaits AGD-020's authenticated controlled-process exchange.
 
 ---
 
