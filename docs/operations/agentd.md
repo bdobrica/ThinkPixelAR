@@ -109,3 +109,22 @@ read-only mount acceptance and SIGTERM shutdown with no network, dropped
 capabilities, read-only root and no-new-privileges. It creates temporary fixture
 files and removes only its own container/fixture. `make verify` runs unit/race
 configuration/lifecycle tests. These checks are not yet live Kata transport proof.
+
+## Local checkpoint preparation
+
+Compose `NewCheckpoints(processes, declaredRoots, stateFormat, hook)` only from
+the bound runtime and negotiated adapter capabilities. Following authenticated
+checkpoint admission, call `Prepare(ctx, processID, consumer)`. The adapter must
+flush/quiesce, call its `ready` callback synchronously exactly once, propagate its
+error, and release quiescence before returning. The consumer runs within that
+window; both callbacks must honor context and avoid deferred work. The existing
+`StopGraceMS` bounds their combined duration. Timeout stops the process and holds
+the operation gate until the callback returns.
+
+Manifest paths are relative to `/state` (for example `codex/session` for registered
+`/state/codex`), sorted and non-overlapping. They are candidate metadata only.
+The trusted storage layer must verify actual mounts/files, scan races, sizes,
+credential exclusions and integrity before publishing anything durable. Do not
+use preparation success as checkpoint COMMITTED, authority or proof of stopped
+writes. AGD-020 supplies dispatch; Phase 6 supplies trusted publication. See
+[ADR-0034](../adr/0034-agentd-checkpoint-preparation.md).

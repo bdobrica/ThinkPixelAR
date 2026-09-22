@@ -1572,12 +1572,12 @@ services are supplied; possession of a certificate cannot authorize execution.
 Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
 without relaxing their security requirements.
 
-Local process control, capture, status/heartbeat and signal/interrupt handling are
-implemented under ADRs 0030–0033 (AGD-006–009). Next on the demo track: supervisor
-shutdown (AGD-012), the controlled protocol fixture (AGD-017) and authenticated
-binary composition (AGD-020). Durable-state hooks and credential exclusions
-(AGD-010/011) remain required before checkpoint/resume. The local process fixture
-does not replace AGD-017's wider protocol adapter.
+Local process control, capture, status/heartbeat, signal/interrupt handling and
+checkpoint preparation hooks are implemented under ADRs 0030–0034 (AGD-006–010).
+Next on the demo track: supervisor shutdown (AGD-012), the controlled protocol fixture (AGD-017) and authenticated
+binary composition (AGD-020). Credential exclusions (AGD-011) and trusted storage
+validation/publication remain required before checkpoint/resume. The local process
+fixture does not replace AGD-017's wider protocol adapter.
 
 Remaining implementation:
 
