@@ -5,6 +5,7 @@ package agentd
 import (
 	"context"
 	"errors"
+	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
 
@@ -26,3 +27,10 @@ func (*Processes) Restart(context.Context, primitives.ID) (primitives.ID, error)
 
 func NewProcessesWithCapture(Config, OutputSanitizer) (*Processes, error) { return nil, ErrProcess }
 func (*Processes) Output(primitives.ID) (*Capture, error)                 { return nil, ErrProcess }
+
+func (*Processes) Status() ProcessStatus {
+	return ProcessStatus{State: agentdv1.Heartbeat_FAILED, Failure: ProcessLaunchFailed}
+}
+func (p *Processes) Heartbeat() *agentdv1.Heartbeat {
+	return &agentdv1.Heartbeat{ProcessState: p.Status().State}
+}

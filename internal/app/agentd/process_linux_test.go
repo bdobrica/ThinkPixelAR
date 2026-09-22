@@ -26,6 +26,9 @@ func TestProcessChild(t *testing.T) {
 	if len(os.Environ()) != 0 {
 		os.Exit(71)
 	}
+	if mode == "exit-error" {
+		os.Exit(7)
+	}
 	if mode == "output" {
 		_, _ = os.Stdout.Write([]byte("split-secret-"))
 		_, _ = os.Stdout.Write([]byte("canary\nunterminated"))

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -31,9 +32,12 @@ type Processes struct {
 	current       *child
 	captureLimits *agentdv1.Limits
 	sanitizer     OutputSanitizer
+	observation   processObservation
 }
 
 type child struct {
+	owner          *Processes
+	stopRequested  atomic.Bool
 	id             primitives.ID
 	cmd            *exec.Cmd
 	mu             sync.Mutex // Serialize group signals with final reaping (and PID reuse).
@@ -42,6 +46,15 @@ type child struct {
 	err            error // Published by closing done.
 	capture        *Capture
 	stdout, stderr *captureWriter
+}
+
+// Status remains available while launch, stop or output draining holds the operation gate.
+func (p *Processes) Status() ProcessStatus { return p.observation.status() }
+
+// Heartbeat returns process state only. The admitted dispatcher supplies its own
+// accepted/produced sequence counters and active operation before transmission.
+func (p *Processes) Heartbeat() *agentdv1.Heartbeat {
+	return &agentdv1.Heartbeat{ProcessState: p.Status().State}
 }
 
 func NewProcesses(c Config) (*Processes, error) {
@@ -166,7 +179,7 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 	cmd.Env = []string{} // Never inherit agentd's environment or credentials.
 	// No shell, extra descriptors, terminal or output logging.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	c := &child{id: id, cmd: cmd, done: make(chan struct{})}
+	c := &child{owner: p, id: id, cmd: cmd, done: make(chan struct{})}
 	if p.captureLimits != nil {
 		c.capture, err = newCapture(id, p.captureLimits, p.sanitizer)
 		if err != nil {
@@ -178,13 +191,16 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		cmd.Stderr = c.stderr
 		cmd.WaitDelay = time.Duration(p.config.KillWaitMS) * time.Millisecond
 	}
+	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_STARTING})
 	if cmd.Start() != nil {
+		p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_FAILED, Failure: ProcessLaunchFailed})
 		if c.capture != nil {
 			c.capture.Close()
 		}
 		return "", ErrProcess
 	}
 	p.current = c
+	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_RUNNING})
 	go c.reap()
 	if c.capture != nil {
 		go func() {
@@ -212,6 +228,7 @@ func (c *child) reap() {
 			break
 		}
 	}
+	c.owner.observation.publish(ProcessStatus{ProcessID: c.id, State: agentdv1.Heartbeat_STOPPING})
 	c.mu.Lock()
 	if err == nil {
 		if e := unix.Kill(-c.cmd.Process.Pid, unix.SIGKILL); e != nil && e != unix.ESRCH {
@@ -243,6 +260,32 @@ func (c *child) reap() {
 			c.err = ErrProcess
 		}
 	}
+	s := ProcessStatus{ProcessID: c.id, State: agentdv1.Heartbeat_EXITED}
+	if state := c.cmd.ProcessState; state != nil {
+		s.ExitObserved = true
+		s.ExitCode = state.ExitCode()
+		if ws, ok := state.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+			s.Signal = int(ws.Signal())
+		}
+		if state.ExitCode() != 0 && (s.Signal == 0 || !c.stopRequested.Load()) {
+			s.State = agentdv1.Heartbeat_FAILED
+			s.Failure = ProcessExitFailed
+		}
+	}
+	if c.err != nil {
+		s.State = agentdv1.Heartbeat_FAILED
+		s.Failure = ProcessCleanupFailed
+	}
+	if c.capture != nil {
+		c.capture.mu.Lock()
+		failed := c.capture.err != nil
+		c.capture.mu.Unlock()
+		if failed {
+			s.State = agentdv1.Heartbeat_FAILED
+			s.Failure = ProcessOutputFailed
+		}
+	}
+	c.owner.observation.publish(s)
 	close(c.done)
 }
 func (c *child) signal(sig unix.Signal) error {
@@ -266,6 +309,8 @@ func (p *Processes) stop(ctx context.Context, id primitives.ID, force bool) erro
 		return c.err
 	default:
 	}
+	c.stopRequested.Store(true)
+	p.observation.publish(ProcessStatus{ProcessID: c.id, State: agentdv1.Heartbeat_STOPPING})
 	if !force && ctx.Err() == nil {
 		if err := c.signal(unix.SIGTERM); err != nil {
 			return err

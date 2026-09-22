@@ -1572,15 +1572,14 @@ services are supplied; possession of a certificate cannot authorize execution.
 Historical ADR checkpoint descriptions remain unchanged; this reallocates work,
 without relaxing their security requirements.
 
-Bounded local start/stop/restart and redacted output capture are implemented under
-ADRs 0030–0031 (AGD-006/007). Next: status/heartbeat (AGD-008), signals/shutdown,
-then authenticated binary composition. The real-process unit fixture supports
-these items; the wider
-protocol test adapter remains AGD-017.
+Local process control, redacted capture and structured status/heartbeat are
+implemented under ADRs 0030–0032 (AGD-006–008). Next: signal/interrupt control
+(AGD-009), shutdown and authenticated binary composition. The real-process unit
+fixture supports these items; the wider protocol test adapter remains AGD-017.
 
 Remaining implementation:
 
-- supervision/status integration;
+- signal/interrupt and supervision integration;
 - durable credential/admission and protected delivery composition;
 - adapter handshake;
 - transport delivery of captured/normalized events;

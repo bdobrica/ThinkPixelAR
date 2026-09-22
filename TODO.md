@@ -153,7 +153,7 @@ Completion metadata format:
 - [x] AGD-005 Ensure one sandbox cannot authenticate as another SandboxBinding. — completed 2026-09-22; [binding-isolation acceptance evidence](docs/evidence/agd-005-binding-isolation.md), ADRs 0024–0029. Initial runnable composition/cleanup is tracked in AGD-020; rotation/reconnect in AGD-013.
 - [x] AGD-006 Implement bounded start/stop/restart commands for harness processes. — completed 2026-09-22; ADR-0030, [real-process evidence](docs/evidence/agd-006-process-control.md). Local controller with finite budgets, process-group escalation, fresh identities and cancellation cleanup; authenticated binary dispatch remains AGD-020.
 - [x] AGD-007 Implement process stdout/stderr/event capture with size limits, backpressure, and redaction. — completed 2026-09-22; ADR-0031, [capture evidence](docs/evidence/agd-007-output-capture.md). Shared bounded queue, framing before sanitization, fail-closed overflow/redaction and bounded exit drain; vendor event normalization remains Phase 5 and binary dispatch remains AGD-020.
-- [ ] AGD-008 Implement structured health/status messages and heartbeat.
+- [x] AGD-008 Implement structured health/status messages and heartbeat. — completed 2026-09-22; ADR-0032, [status/heartbeat evidence](docs/evidence/agd-008-status-heartbeat.md). Nonblocking process observations and bounded periodic v1 Heartbeat production; authenticated envelope sequencing/dispatch remains AGD-020.
 - [ ] AGD-009 Implement signal/interrupt handling.
 - [ ] AGD-010 Implement vendor durable-state path registration and checkpoint preparation hooks.
 - [ ] AGD-011 Ensure execution-scoped environment/credentials are not copied into persistent vendor-state paths by agentd itself.

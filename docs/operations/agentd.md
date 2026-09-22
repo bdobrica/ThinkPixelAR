@@ -35,6 +35,22 @@ Close abandons and clears capture and stops its live child. See
 [ADR-0031](../adr/0031-agentd-bounded-output-capture.md) and
 [verification evidence](../evidence/agd-007-output-capture.md).
 
+`Processes.Status` returns a private local process observation without waiting on
+Start/Stop or output draining. It includes the opaque process ID, state, observed
+exit code/signal and a fixed failure reason. RUNNING means OS process launch,
+not adapter readiness or authorized progress. `Processes.Heartbeat` maps current
+state into the existing v1 message; wire sequence counters and active operation
+must come from the current admitted dispatcher, not the output-capture sequence.
+
+`RunHeartbeats` sends an immediate snapshot and then uses the negotiated interval.
+Supply a bounded snapshot function and a sender using the connection's shared
+outbound sequencer. The sender must honor its deadline/context and apply current
+frame checks. A failed/expired send ends the loop; the owning dispatcher must close
+the stream and handle transport loss. Heartbeats are independent of content-queue
+backpressure and never extend authority. See
+[ADR-0032](../adr/0032-agentd-status-heartbeat.md) and
+[status/heartbeat evidence](../evidence/agd-008-status-heartbeat.md).
+
 Trusted materialization mounts a dedicated ephemeral bootstrap volume at
 `/run/thinkpixel/bootstrap`, read-only, containing `config.json` without write bits. The existing sandbox
 template uses mode 0440 with the sandbox group; the non-secret smoke fixture uses
