@@ -1089,7 +1089,7 @@ Expected targets eventually include:
     make test-kubernetes
     make verify
     make image
-    make agent-image-codex
+    make codex-image
 
 `make verify` must be runnable from a clean checkout with documented external prerequisites.
 
@@ -1585,7 +1585,10 @@ The [first-turn conformance suite](test/conformance/harness/README.md) is ready
 for adapter fixtures; passing its self-tests does not qualify Codex.
 CDX-001 pins Codex 0.155.0 with scoped local protocol evidence under
 [ADR-0047](docs/adr/0047-codex-app-server-version-pin.md).
-Next: package and implement Codex startup/thread/turn/events/interrupt (CDX-002–004, 006–009)
+CDX-002 packages the local demo runtime under
+[ADR-0048](docs/adr/0048-codex-demo-runtime-image.md); see its
+[artifact evidence and limits](docs/evidence/cdx-002-codex-image.md).
+Next: implement Codex startup/thread/turn/events/interrupt (CDX-003–004, 006–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

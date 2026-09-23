@@ -14,7 +14,7 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
 | Next implementation surface | `thread/start`, `thread/resume`, `turn/start`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
-| ARM64 / OCI / Kata | Same release selected for packaging; platform artifacts and live behavior require CDX-002/016 evidence. |
+| ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts: amd64 packaged protocol/tools/supervisor smoke, ARM64 emulated startup only. Native ARM64/Kata/model-turn evidence remains CDX-016 and the intervening adapter work. |
 
 ## Reproduce the scoped check
 
@@ -50,8 +50,9 @@ Do not enable experimental methods to make an incompatible build pass. Productio
 startup and fail-fast enforcement remain CDX-003/014. A missing capability fails
 explicitly. Resume/fork/state portability require their own evidence, and the
 example `codex/thread-v1` state format is not yet a qualified checkpoint format.
-The Go verification gate does not vulnerability-scan this Rust executable; packaged
-artifact provenance/license/security checks belong to CDX-002's image evidence.
+The Go verification gate does not vulnerability-scan this Rust executable. See
+[CDX-002 image evidence](../evidence/cdx-002-codex-image.md) for actual artifact
+digests, source/notice checks, the local-demo exception and remaining release checks.
 
 The [official OpenAI App Server documentation](https://learn.chatgpt.com/docs/app-server)
 describes initialization, stdio and version-specific schema export. This evolving

@@ -36,8 +36,17 @@ Codex CLI/App Server **0.155.0** is `TESTED_LOCAL_PROTOCOL` on the fingerprinted
 Linux amd64 musl executable: isolated stdio initialization, rejection ordering,
 local thread listing, schema export and clean shutdown. See the
 [pin/support policy](operations/codex-compatibility.md) and
-[CDX-001 evidence](evidence/cdx-001-codex-pin.md). This does not qualify a model
-turn, ARM64 artifact, OCI image or Kata execution. Those remain CDX-002 onward.
+[CDX-001 evidence](evidence/cdx-001-codex-pin.md).
+
+CDX-002 adds `TESTED_LOCAL_IMAGE`: the combined amd64/ARM64 OCI index
+`sha256:184827fafb52373e4aec2002ae3a37c2ad3a7dc69388fb9e744549a73b769739`.
+The amd64 image passed the pinned protocol, coding-tool and supervisor smoke tests;
+ARM64 has build and emulated startup evidence only. The runtime base is Alpine
+3.23.6, pinned by index
+`sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0`.
+See the [image evidence](evidence/cdx-002-codex-image.md) and
+[local-demo license exception](evidence/cdx-002-local-demo-license-exception.md).
+Model turns, native ARM64/Kata execution and release qualification remain separate.
 
 ## Meaning of support
 

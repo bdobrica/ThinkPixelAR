@@ -3,6 +3,13 @@ set -eu
 
 go_command=$1
 
+# The owner-approved Codex image exception permits local demo use only.
+# Public distribution requires review even before this calendar expiry.
+if [ "$(date -u +%Y%m%d)" -ge 20261223 ]; then
+    echo "dependency policy: CDX-002 local-demo exception expired; review docs/evidence/cdx-002-local-demo-license-exception.md" >&2
+    exit 1
+fi
+
 replacements=$($go_command list -mod=readonly -m -f '{{if .Replace}}{{.Path}} => {{.Replace.Path}}{{end}}' all)
 if [ -n "$replacements" ]; then
     echo "dependency policy: module replacements are not allowed:" >&2

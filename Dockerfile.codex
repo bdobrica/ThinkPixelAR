@@ -1,0 +1,58 @@
+# Build both demo platforms with: docker buildx build --platform linux/amd64,linux/arm64
+# --file Dockerfile.codex --output type=oci,dest=/tmp/thinkpixel-codex.oci.tar .
+ARG TARGETARCH
+FROM scratch AS codex-amd64
+ADD --checksum=sha256:e415cc3adb94ade16e8d44b4dd58a9201cc34b2ee51a5d6eddf2a3a00aecb6c0 https://github.com/openai/codex/releases/download/rust-v0.155.0/codex-x86_64-unknown-linux-musl.tar.gz /codex.tar.gz
+
+FROM scratch AS codex-arm64
+ADD --checksum=sha256:8b4a9c356916c515f7c93f918a01b8fa1371bcc9758addbfa723b85fbec5694b https://github.com/openai/codex/releases/download/rust-v0.155.0/codex-aarch64-unknown-linux-musl.tar.gz /codex.tar.gz
+
+FROM codex-${TARGETARCH} AS codex-release
+
+FROM --platform=$BUILDPLATFORM golang:1.26.7-alpine3.23@sha256:b17af760035fc2f338eed92d448a6c67f2d45438844fc6c60678fa5f99e44b57 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY api ./api
+COPY cmd ./cmd
+COPY internal ./internal
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in amd64|arm64) ;; *) echo 'unsupported Codex architecture' >&2; exit 1 ;; esac \
+    && mkdir -p "/out/${TARGETARCH}" \
+    && CGO_ENABLED=0 GOOS=linux GOARCH="${TARGETARCH}" \
+    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/${TARGETARCH}/thinkpixel-agentd ./cmd/thinkpixel-agentd
+
+FROM --platform=$BUILDPLATFORM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS codex-unpack
+ARG TARGETARCH
+COPY --from=codex-release /codex.tar.gz /tmp/codex.tar.gz
+# Recheck even when a verified local archive replaces the download context.
+RUN case "${TARGETARCH}" in \
+      amd64) checksum=e415cc3adb94ade16e8d44b4dd58a9201cc34b2ee51a5d6eddf2a3a00aecb6c0 ;; \
+      arm64) checksum=8b4a9c356916c515f7c93f918a01b8fa1371bcc9758addbfa723b85fbec5694b ;; \
+      *) echo 'unsupported Codex architecture' >&2; exit 1 ;; \
+    esac \
+    && echo "$checksum  /tmp/codex.tar.gz" | sha256sum -c - \
+    && mkdir -p /out/codex && tar -xzf /tmp/codex.tar.gz -C /out/codex \
+    && mv /out/codex/codex-*-unknown-linux-musl /out/codex/codex
+ADD --chmod=0644 --checksum=sha256:d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc https://raw.githubusercontent.com/openai/codex/rust-v0.155.0/LICENSE /out/licenses/codex/LICENSE
+ADD --chmod=0644 --checksum=sha256:9d71575ecfd9a843fc1677b0efb08053c6ba9fd686a0de1a6f5382fd3c220915 https://raw.githubusercontent.com/openai/codex/rust-v0.155.0/NOTICE /out/licenses/codex/NOTICE
+RUN chmod 0755 /out/licenses /out/licenses/codex
+
+FROM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+RUN apk add --no-cache bash=5.3.3-r1 git=2.52.0-r0 ca-certificates=20260909-r0 ripgrep=15.1.0-r0 \
+    && addgroup -g 65532 agent && adduser -D -H -u 65532 -G agent -h /tmp/home -s /bin/bash agent \
+    && mkdir -p /workspace /state/codex /usr/share/thinkpixel \
+    && chown 65532:65532 /workspace /state/codex \
+    && apk info -vv > /usr/share/thinkpixel/apk-inventory.txt \
+    && cp /lib/apk/db/installed /usr/share/thinkpixel/apk-installed.txt
+ARG TARGETARCH
+COPY --from=build --chmod=0755 /out/${TARGETARCH}/thinkpixel-agentd /usr/local/bin/thinkpixel-agentd
+COPY --from=codex-unpack --chmod=0755 /out/codex/codex /usr/local/bin/codex
+COPY --from=codex-unpack /out/licenses /usr/share/licenses
+LABEL org.opencontainers.image.source="https://github.com/bdobrica/ThinkPixelAR" \
+      org.opencontainers.image.title="ThinkPixel Codex demo runtime" \
+      org.opencontainers.image.version="codex-0.155.0"
+ENV HOME=/tmp/home SHELL=/bin/bash
+WORKDIR /workspace
+USER 65532:65532
+ENTRYPOINT ["/usr/local/bin/thinkpixel-agentd"]

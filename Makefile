@@ -11,6 +11,7 @@ GOVULNCHECK := $(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION
 BUILD_DIR ?= .cache/bin
 IMAGE ?= thinkpixelar:development
 AGENTD_IMAGE ?= thinkpixel-agentd:development
+CODEX_IMAGE ?= thinkpixel-codex:development
 
 .PHONY: help deps db-up db-down migrate test-db-migrations test-db-transactions test-db-tenant-isolation test-db-concurrency test-db-restart-replay generate fmt fmt-check vet lint static test test-unit test-race vulnerability license hygiene hygiene-test versions-check build image image-smoke agentd-image agentd-image-smoke openapi-check verify baseline-verify
 
@@ -107,6 +108,13 @@ agentd-image: ## Build the distinct pinned, non-root sandbox supervisor image.
 
 agentd-image-smoke: agentd-image ## Run the supervisor image as non-root with a read-only filesystem.
 	DOCKER="$(DOCKER)" AGENTD_IMAGE="$(AGENTD_IMAGE)" sh ./scripts/smoke-thinkpixel-agentd-image.sh
+
+.PHONY: codex-image codex-image-smoke
+codex-image: ## Build the pinned Codex demo runtime with agentd.
+	$(DOCKER) build --pull --file Dockerfile.codex --tag $(CODEX_IMAGE) .
+
+codex-image-smoke: codex-image ## Check the amd64 Codex protocol, tools and supervisor in the image.
+	DOCKER="$(DOCKER)" CODEX_IMAGE="$(CODEX_IMAGE)" sh ./scripts/smoke-codex-image.sh
 
 openapi-check: ## Validate OpenAPI and reject generated-artifact drift.
 	$(NPM) run openapi:check
