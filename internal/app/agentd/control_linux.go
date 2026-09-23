@@ -384,8 +384,14 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 			active = ""
 			if !done.result.failed {
 				handle = done.frame.HarnessHandle
-				if err := attachCapture(); err != nil {
-					return err
+				// Disconnect permanently abandons that process's capture. A
+				// status/stop on a later stream must not reattach it and turn a
+				// successful command into an ambiguous lost acknowledgement.
+				kind := done.frame.GetCommand().Kind
+				if kind == agentdv1.Command_START || kind == agentdv1.Command_RESTART {
+					if err := attachCapture(); err != nil {
+						return err
+					}
 				}
 			}
 			reply := &agentdv1.Envelope{OperationId: done.frame.OperationId, RequestDigest: done.frame.RequestDigest, HarnessHandle: done.frame.HarnessHandle}

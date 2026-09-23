@@ -1,11 +1,17 @@
 # Phase 4 — agentd and sandbox transport
 
-Review date: 2026-09-22. **Not complete.** AGD-001–018 have component-level
+Review date: 2026-09-23. **Not complete.** AGD-001–018 have component-level
 implementation/evidence; AGD-020 remains the prerequisite for AGD-019 closure.
 Both binaries now host the authenticated path under [ADR-0042](adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
 The [binary hosting evidence](evidence/agd-020-binary-hosting.md) includes local
 rotation/reconnect/status verification. A complete controlled-process lifecycle
 with concrete policies and fresh live homelab evidence remains the exit criterion.
+
+The [integrated application acceptance](evidence/agd-020-integrated-acceptance.md)
+now passes as one scenario using the real agentd image, child process, mTLS and
+concrete PostgreSQL policies: bootstrap, rotation, handshake/capture/status,
+interrupt, disconnect/reconnect, duplicate/stale rejection and cleanup. Kubernetes
+readiness and Secret API operations remain explicit external fixtures.
 
 ## Existing evidence
 
@@ -23,7 +29,7 @@ implied by those local checks.
 | Hostile frames and connection loss | [AGD-014](evidence/agd-014-adversarial-messages.md), [AGD-015](evidence/agd-015-transport-loss.md) | Codec, policy-delivery and liveness checks; durable replay remains unwired. |
 | Privileges, controlled harness and authority | [AGD-016](evidence/agd-016-privileges.md), [AGD-017](evidence/agd-017-harness-fixture.md), [AGD-018](evidence/agd-018-report-authority.md) | Local image, process fixture and admission/aggregate regressions; no claim of a production report reducer. |
 
-Implemented decisions remain in [ADRs 0022–0042](adr/README.md). In particular,
+Implemented decisions remain in [ADRs 0022–0043](adr/README.md). In particular,
 [ADR-0027](adr/0027-agentd-admission-composition.md) requires concrete policies,
 and [ADR-0037](adr/0037-agentd-rotation-reconnect-recovery.md) explicitly retains
 binary composition as a Phase 4 exit requirement. ADR-0042 records the executable
@@ -47,16 +53,15 @@ Complete these existing requirements in one runnable path before closing AGD-019
 - Supply the trusted homelab evidence publisher and qualify the actual running
   artifacts, network and mounted workspace. The protected-file reader/verifier is
   implemented; automated host observation collection is not.
-- Validate the executable command plan, durable outcomes, tenant cleanup worker,
-  heartbeat/output handling and credential rotation against one real materialization.
-  Separate passing fixture/database tests do not close this acceptance gate.
+- Repeat the passing integrated command-plan/outcome/cleanup/rotation scenario
+  against a live homelab materialization with fresh infrastructure evidence.
 - Validate connected final stop reporting against that materialization;
   [failure-handling evidence](evidence/agd-020-failure-handling.md) covers local
   authenticated reporting, bounded stopping and expiry-driven fencing/cleanup.
 - Implement durable safe-replacement admission after fenced cleanup. Current-epoch
   rejection and expiry-driven recovery work are connected; ambiguous outcomes
   remain pending. Immutable bootstrap projection is not refreshable in place.
-- Run the authenticated controlled-process exchange using the
+- Run the live-provider variant of the passing controlled-process exchange using the
   [AGD-017 fixture](../test/harnessfixture/README.md): start/handshake, capture/status,
   interrupt, transport loss and reconnect with fencing. Record the actual policy,
   persistence and provider configuration, test commands/results and limitations.

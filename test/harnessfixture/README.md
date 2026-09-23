@@ -51,7 +51,11 @@ Run:
 go test -race ./internal/app/agentd ./test/harnessfixture/...
 ```
 
-AGD-020 must still compose the authenticated controlled-process exchange.
+AGD-020's [integrated application acceptance](../../docs/evidence/agd-020-integrated-acceptance.md)
+now composes the image, controlled process, concrete policies and PostgreSQL.
+The fixture command also accepts `--handshake SOCKET` as a bounded test-only probe;
+the container test invokes it under the same unprivileged user as the harness.
+It checks the exact handshake without changing private socket permissions.
 HNS-001–004 owns the generic port, registry, conformance and normalized events.
 
 

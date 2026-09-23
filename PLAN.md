@@ -1565,10 +1565,11 @@ rotation and tenant cleanup under [ADR-0042](docs/adr/0042-agentd-binary-hosting
 The homelab evidence reader rechecks fresh protected receipts and live API identities.
 Phase 4 remains open; AGD-019 depends on AGD-020 acceptance.
 
+The [integrated application acceptance](docs/evidence/agd-020-integrated-acceptance.md)
+now passes with the agentd image, a real child, mTLS and concrete PostgreSQL policies.
 Next: deploy the trusted homelab evidence publisher (automated host collection is
-not implemented), run the controlled-process exchange with concrete PostgreSQL
-policies and fresh infrastructure observations, and implement durable safe-replacement
-admission. Failure fencing, exact cleanup and final stop observations are connected
+not implemented), repeat acceptance against live provider observations, and
+implement durable safe-replacement admission. Failure fencing, exact cleanup and final stop observations are connected
 under [ADR-0043](docs/adr/0043-agentd-failure-fencing-and-final-observations.md);
 ambiguous outcomes retain pending recovery work. Follow the
 [hosting runbook](docs/operations/agentd-hosting.md); retain the existing homelab

@@ -146,6 +146,10 @@ revocation, deadline and durable command replay.
 
 ## Acceptance still required
 
+The [integrated application test](../evidence/agd-020-integrated-acceptance.md)
+passes with real agentd, mTLS and PostgreSQL policies; it includes reproduction
+commands and explicitly identifies its Kubernetes provider/API fixtures.
+
 Run one governed-by-local-policy controlled-process exchange with the durable
 PostgreSQL policies and freshly observed homelab evidence. Include rotation,
 transport loss, AR restart, credential expiry and fenced sandbox replacement.

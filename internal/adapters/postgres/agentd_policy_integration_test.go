@@ -24,6 +24,10 @@ import (
 )
 
 func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
+	return policyFixtureConfigured(t, len(unissued) == 1 && unissued[0], nil)
+}
+
+func policyFixtureConfigured(t *testing.T, unissued bool, configure func(*agentd.Config)) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
 	t.Helper()
 	db, r := sandboxDatabaseFixture(t, "thinkpixelar/local")
 	ctx := context.Background()
@@ -50,6 +54,9 @@ func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPol
 	m := postgres.AgentdMaterialization{Config: config, Challenge: make([]byte, 32), Revision: testDigest('e'), RequestDigest: r.Operation.Digest, HarnessHandle: string(handle), Deadline: time.Now().Add(4 * time.Minute).UTC().Truncate(time.Microsecond), BootstrapDeadline: time.Now().Add(time.Minute).UTC().Truncate(time.Microsecond)}
 	m.Config.ControlDeadlineUnixMS = m.Deadline.UnixMilli()
 	m.Config.Harness.StopGraceMS = 1000
+	if configure != nil {
+		configure(&m.Config)
+	}
 	var issuer string
 	if err = db.QueryRow(`SELECT grant_digest,authority_namespace,authority_reference FROM executions WHERE tenant_id=$1 AND execution_id=$2`, s.TenantID, s.ExecutionID).Scan(&m.GrantDigest, &issuer, &m.AuthorityReference); err != nil {
 		t.Fatal(err)
@@ -61,7 +68,7 @@ func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPol
 	if err = policy.Register(ctx, m); err != nil {
 		t.Fatal(err)
 	}
-	if len(unissued) == 1 && unissued[0] {
+	if unissued {
 		intent, err := bindings.LoadCompute(ctx, s.TenantID, s.SandboxID)
 		if err != nil {
 			t.Fatal(err)
