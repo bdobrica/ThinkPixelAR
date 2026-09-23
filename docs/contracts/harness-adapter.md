@@ -10,8 +10,8 @@ explicit pinned registry selection in `internal/app/harnessregistry` under
 select an implementation for exact packaged versions; selection does not replace
 full negotiation or the authenticated handshake. HNS-003 provides the
 [first-turn conformance framework](../../test/conformance/harness/README.md);
-its self-tests do not qualify a packaged adapter. Canonical event
-mapping remains HNS-004; the Codex
+its self-tests do not qualify a packaged adapter. HNS-004 defines the
+[normalized candidate registry and mapping rules](harness-events.md); the Codex
 implementation follows immediately. A declared interface is not runtime validation
 or evidence that an adapter's capabilities have been qualified.
 
@@ -190,7 +190,10 @@ Initial normalized types include:
 - checkpoint: `checkpoint.prepare.started`, `checkpoint.prepare.completed`;
 - usage: `usage.observed`.
 
-The definitive event registry/persistence contract is ARC-028. Until then adapters use only registered provisional types and schema versions. Vendor extensions are namespaced, size/classification bounded, and cannot drive canonical state unless an explicit mapping exists.
+The candidate registry and payload/mapping rules are defined in
+[normalized harness events](harness-events.md). The distinct durable registry and
+persistence rules are in [Runtime events](runtime-events.md) (ARC-028). Vendor
+extensions require explicit registration; no generic passthrough is enabled.
 
 Event order is preserved per Execute operation. Duplicate vendor events map to the same stable normalized event identity where possible; reconnect/replay is deduplicated. Gaps, regressions, conflicting duplicates, malformed/oversized payloads, or sequence exhaustion fail the adapter safely and cannot be patched over by terminal scraping.
 

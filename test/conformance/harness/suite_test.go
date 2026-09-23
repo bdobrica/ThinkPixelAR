@@ -38,11 +38,11 @@ func fixture(t *testing.T, fault string) Fixture {
 		BufferedEvents: 4, SignalBytes: 128, DiagnosticBytes: 128, VendorStatePaths: 1, ShutdownTimeout: time.Second, CheckpointTimeout: time.Second}
 	f := Fixture{
 		Compatibility: harness.CompatibilityRequest{AdapterKind: "fixture", AdapterBuildDigest: digest, ContractVersion: "1.0.0",
-			RuntimeDigest: digest, EventSchemaVersion: "fixture.v1", VendorStateFormat: "fixture.v1",
+			RuntimeDigest: digest, EventSchemaVersion: harness.EventSchemaVersion, VendorStateFormat: "fixture.v1",
 			HarnessProtocol: harness.VersionRange{Minimum: "1.0.0", Maximum: "1.0.0"}, AgentdProtocol: harness.VersionRange{Minimum: "1.0.0", Maximum: "1.0.0"},
 			RequiredCapabilities: []harness.HarnessCapability{harness.StructuredEvents, harness.Streaming, harness.Interrupt}, Limits: limits},
 		WantCompatibility: harness.CompatibilityResult{AdapterKind: "fixture", AdapterBuildDigest: digest, ImplementationVersion: "1.0.0",
-			ContractVersion: "1.0.0", EventSchemaVersion: "fixture.v1", HarnessProtocol: "1.0.0", AgentdProtocol: "1.0.0",
+			ContractVersion: "1.0.0", EventSchemaVersion: harness.EventSchemaVersion, HarnessProtocol: "1.0.0", AgentdProtocol: "1.0.0",
 			VendorStateFormat: "fixture.v1", RuntimeDigest: digest, RequestDigest: digest, ResultDigest: digest, ReasonCode: "compatible", Capabilities: caps, Limits: limits},
 		Start: harness.StartHarnessRequest{Mutation: mutation(6), HandleID: id(7), RuntimeDigest: digest, NegotiationDigest: digest,
 			Workspace: harness.Mount{Path: "/workspace", Reference: "fixture-workspace"}},
@@ -156,8 +156,14 @@ func (s *memoryStream) Next(ctx context.Context) (harness.HarnessEvent, error) {
 	}
 	s.next++
 	e := harness.HarnessEvent{StreamID: s.streamID, EventID: id(20 + s.next), Sequence: uint64(s.next), Handle: s.a.h, Operation: s.a.f.Execute.Operation,
-		Type: "fixture.progress", SchemaVersion: "fixture.v1", OccurredAt: time.Now(), ObservedAt: time.Now(),
-		Content: harness.Content{Classification: runtimeevent.Confidential, Schema: "fixture.v1", Inline: []byte("progress")}}
+		Type: harness.ExecutionProgress, SchemaVersion: harness.EventSchemaVersion, OccurredAt: time.Now(), ObservedAt: time.Now(),
+		Content: harness.Content{Classification: runtimeevent.Confidential, Schema: harness.EventSchemaVersion, Inline: []byte(`{}`)}}
+	if s.a.fault == "unregistered-event" {
+		e.Type = "execution.completed"
+	}
+	if s.a.fault == "unnegotiated-event" {
+		e.Type = harness.ToolCompleted
+	}
 	if s.a.fault == "event-gap" {
 		e.Sequence++
 	}
@@ -183,6 +189,7 @@ func TestSuiteRejectsBrokenAdapters(t *testing.T) {
 		{"replay_and_stale_handle", "accept-execute-conflict"}, {"replay_and_stale_handle", "accept-stale"},
 		{"replay_and_stale_handle", "new-stream"},
 		{"lifecycle", "event-classification"}, {"unsupported_optional_operations", "unsupported-resume"},
+		{"lifecycle", "unregistered-event"}, {"lifecycle", "unnegotiated-event"},
 	} {
 		t.Run(tc.fault, func(t *testing.T) {
 			for _, c := range cases {

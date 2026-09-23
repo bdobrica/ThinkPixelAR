@@ -167,6 +167,9 @@ func lifecycle(ctx context.Context, f Fixture) error {
 		if err != nil {
 			return failure("expected fixture event missing")
 		}
+		if _, err := harness.CheckEventDeclaration(e, f.WantCompatibility.Capabilities); err != nil {
+			return failure("unregistered event declaration")
+		}
 		if !validID(e.EventID) || !validID(e.StreamID) || e.Sequence != i || e.Handle != h || e.Operation != f.Execute.Operation ||
 			e.Type == "" || e.SchemaVersion == "" || e.OccurredAt.IsZero() || e.ObservedAt.IsZero() ||
 			(e.Content.Classification != runtimeevent.Public && e.Content.Classification != runtimeevent.Internal && e.Content.Classification != runtimeevent.Confidential) ||

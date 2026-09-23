@@ -1577,12 +1577,13 @@ checks. This does not qualify an untested live deployment.
 
 ### Phase 5 — Codex adapter and agent runtime package
 
-HNS-001–003 are complete; see the application port and registry decisions in
-[ADR-0044](docs/adr/0044-harness-application-port.md) and
-[ADR-0045](docs/adr/0045-pinned-harness-registry.md).
+HNS-001–004 are complete; see the application port, registry and event decisions in
+[ADR-0044](docs/adr/0044-harness-application-port.md),
+[ADR-0045](docs/adr/0045-pinned-harness-registry.md) and
+[ADR-0046](docs/adr/0046-harness-candidate-events.md).
 The [first-turn conformance suite](test/conformance/harness/README.md) is ready
 for adapter fixtures; passing its self-tests does not qualify Codex.
-Demo priority: HNS-004 event mapping, then Codex startup/thread/turn/events/interrupt (CDX-001–004, 006–009)
+Next: pin and implement Codex startup/thread/turn/events/interrupt (CDX-001–004, 006–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

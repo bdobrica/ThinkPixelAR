@@ -49,11 +49,12 @@ cleanup remains mandatory even if startup returns a malformed handle. Error
 messages identify checks only, never vendor payloads or raw diagnostics.
 
 The self-test adapter is an in-memory double, with deliberate defects verifying
-that the checks fail. Its `fixture.progress` event is private test vocabulary,
-not a canonical Runtime Event. It does not replace AGD-017's real process fixture
+that the checks fail. It emits registered `execution.progress` candidates under
+the HNS-004 schema; these are not committed Runtime Events. Declaration checks
+reject unknown types and unnegotiated event capabilities. It does not replace AGD-017's real process fixture
 or AGD-020's authenticated integration test.
 
-This baseline is a framework, not complete adapter qualification. HNS-004 adds
+This baseline is a framework, not complete adapter qualification. HNS-004 defines
 canonical mapping rules; CDX adds the actual protocol driver and runs this suite
 against its packaged harness. Handshake substitution, crash/timeout ambiguity,
 all-mutation races, slow-consumer overflow, reasoning/secret exclusion and positive

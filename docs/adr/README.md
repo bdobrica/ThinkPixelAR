@@ -59,3 +59,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0042: Agentd binary hosting and homelab evidence](0042-agentd-binary-hosting-and-homelab-evidence.md) — Accepted
 - [ADR-0044: Minimal harness application port for the Codex demo](0044-harness-application-port.md) — Accepted
 - [ADR-0045: Select explicitly registered harness builds](0045-pinned-harness-registry.md) — Accepted
+- [ADR-0046: Closed harness candidate events before trusted publication](0046-harness-candidate-events.md) — Accepted
