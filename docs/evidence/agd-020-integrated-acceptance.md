@@ -1,6 +1,7 @@
 # AGD-020 integrated application acceptance
 
-Date: 2026-09-23. Result: **PASS**, 9.83 seconds (10.884 seconds including race-test
+Date: 2026-09-23. Implementation commit: `9531d1b`.
+Result: **PASS**, 9.83 seconds (10.884 seconds including race-test
 overhead). Test: `TestAgentdIntegratedAcceptance` in
 `internal/adapters/postgres/agentd_acceptance_linux_test.go`.
 
@@ -95,7 +96,26 @@ AR's real listener, admission service and handler run inside the test process;
 this does not launch the complete `thinkpixelar` host binary with its homelab
 receipt reader. No fresh Kata/network/workspace qualification, Kubernetes sandbox
 deletion or replacement Attempt is claimed. This is one integrated application
-acceptance run, not a combination of separate component results. AGD-020/019 remain
-open for trusted homelab evidence publication, live provider acceptance and durable
-safe-replacement admission. Existing ADRs 0039–0043 govern the tested behavior;
-no new architectural decision is introduced.
+acceptance run, not a combination of separate component results. Trusted homelab
+evidence publication and live provider acceptance remain deployment qualification
+work. Durable safe-replacement admission remains Phase 6 recovery work
+(REC-002–006); ambiguous outcomes stay pending rather than being blindly replayed.
+Existing ADRs 0039–0043 govern the tested behavior; no new architectural decision
+is introduced.
+
+## AGD-020 closure
+
+AGD-020 is closed on 2026-09-23 for the initial runnable application path, using
+the integrated result above. This closure follows the requested RC/demo scope;
+it does not certify the live provider or automatic replacement. Admission still
+requires trusted current infrastructure evidence. AGD-019 remains a separate
+Phase 4 evidence/closure review.
+
+Closure verification on 2026-09-23: `make verify` **PASS** (exit 0), including
+protocol/OpenAPI drift, repository hygiene, formatting, vet/staticcheck,
+unit/race tests, vulnerability scanning (no vulnerabilities found),
+dependency/license checks and binary builds. This rerun includes the final
+independent stale-operation assertion in the source at `9531d1b`. The opt-in
+Docker/PostgreSQL scenario was not rerun by this gate; its executed result is
+the separately recorded 9.83-second acceptance run above. Closure changes only
+documentation; existing unrelated working-tree edits were excluded from the commit.

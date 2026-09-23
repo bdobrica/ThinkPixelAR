@@ -1563,22 +1563,19 @@ AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evid
 Both binaries now host authenticated transport, concrete local admission/replay,
 rotation and tenant cleanup under [ADR-0042](docs/adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
 The homelab evidence reader rechecks fresh protected receipts and live API identities.
-Phase 4 remains open; AGD-019 depends on AGD-020 acceptance.
+AGD-020 is complete for the initial runnable application path; AGD-019 remains the
+Phase 4 evidence/closure review.
 
 The [integrated application acceptance](docs/evidence/agd-020-integrated-acceptance.md)
 now passes with the agentd image, a real child, mTLS and concrete PostgreSQL policies.
-Next: deploy the trusted homelab evidence publisher (automated host collection is
-not implemented), repeat acceptance against live provider observations, and
-implement durable safe-replacement admission. Failure fencing, exact cleanup and final stop observations are connected
-under [ADR-0043](docs/adr/0043-agentd-failure-fencing-and-final-observations.md);
-ambiguous outcomes retain pending recovery work. Follow the
-[hosting runbook](docs/operations/agentd-hosting.md); retain the existing homelab
-scope and no-cost RC track. Fixture observations do not establish live readiness.
-
-After that exchange passes, refresh the integrated evidence and close AGD-019.
-No permissive policy, sandbox observation or fixture substitutes for trusted
-state. Generic HarnessAdapter/conformance/event mapping remains HNS-001–004;
-trusted durable checkpoint publication remains Phase 6.
+Next: review Phase 4 evidence under AGD-019, then proceed to HNS-001–004.
+Live deployment qualification still requires a trusted homelab evidence publisher
+and repetition against live provider observations; follow the
+[hosting runbook](docs/operations/agentd-hosting.md). Fixture observations do not
+establish live readiness or relax admission. Durable safe-replacement admission
+belongs with Phase 6 recovery (REC-002–006); ambiguous outcomes remain pending
+until recovery can establish safety. Trusted checkpoint publication also remains
+Phase 6. Retain the homelab scope and no-cost RC track.
 
 Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
 

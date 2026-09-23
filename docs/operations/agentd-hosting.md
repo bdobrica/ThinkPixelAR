@@ -144,17 +144,20 @@ foreign-scope and changed-object evidence fails closed. A successful read suppli
 infrastructure facts only. The database still decides authority, fencing, epoch,
 revocation, deadline and durable command replay.
 
-## Acceptance still required
+## Live deployment qualification
 
 The [integrated application test](../evidence/agd-020-integrated-acceptance.md)
 passes with real agentd, mTLS and PostgreSQL policies; it includes reproduction
 commands and explicitly identifies its Kubernetes provider/API fixtures.
+It closes AGD-020's initial runnable application scope, not live deployment
+qualification.
 
 Run one governed-by-local-policy controlled-process exchange with the durable
 PostgreSQL policies and freshly observed homelab evidence. Include rotation,
 transport loss, AR restart, credential expiry and fenced sandbox replacement.
 Validate final stop reporting and durable safe-replacement admission. Record results under
-[Phase 4 evidence](../phase-4-evidence.md) before closing AGD-020/019. The local
+[Phase 4 evidence](../phase-4-evidence.md) before claiming live qualification.
+Safe-replacement admission remains Phase 6 recovery work (REC-002–006). The local
 fixture tests establish implementation behavior; they do not qualify the live publisher.
 
 ## Failure handling and pending replacement

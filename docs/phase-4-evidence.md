@@ -1,11 +1,12 @@
 # Phase 4 — agentd and sandbox transport
 
 Review date: 2026-09-23. **Not complete.** AGD-001–018 have component-level
-implementation/evidence; AGD-020 remains the prerequisite for AGD-019 closure.
+implementation/evidence; AGD-020 is closed for the initial runnable application
+path. AGD-019 remains the separate Phase 4 evidence/closure review.
 Both binaries now host the authenticated path under [ADR-0042](adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
 The [binary hosting evidence](evidence/agd-020-binary-hosting.md) includes local
-rotation/reconnect/status verification. A complete controlled-process lifecycle
-with concrete policies and fresh live homelab evidence remains the exit criterion.
+rotation/reconnect/status verification. Fresh live homelab qualification remains
+outstanding and is not implied by application acceptance.
 
 The [integrated application acceptance](evidence/agd-020-integrated-acceptance.md)
 now passes as one scenario using the real agentd image, child process, mTLS and
@@ -46,9 +47,10 @@ Concurrent claims, persisted outcomes, revocation and epochs are verified; provi
 facts remain fixtures. The optional executable host now joins these policies with the dispatcher;
 end-to-end live acceptance remains outstanding.
 
-## Remaining acceptance work — AGD-020
+## Follow-up qualification and recovery work
 
-Complete these existing requirements in one runnable path before closing AGD-019:
+AGD-020 closure uses the integrated application result above. Retain these
+limitations and follow-ups before claiming live qualification or safe replacement:
 
 - Supply the trusted homelab evidence publisher and qualify the actual running
   artifacts, network and mounted workspace. The protected-file reader/verifier is
@@ -58,7 +60,8 @@ Complete these existing requirements in one runnable path before closing AGD-019
 - Validate connected final stop reporting against that materialization;
   [failure-handling evidence](evidence/agd-020-failure-handling.md) covers local
   authenticated reporting, bounded stopping and expiry-driven fencing/cleanup.
-- Implement durable safe-replacement admission after fenced cleanup. Current-epoch
+- Implement durable safe-replacement admission after fenced cleanup in Phase 6
+  recovery (REC-002–006). Current-epoch
   rejection and expiry-driven recovery work are connected; ambiguous outcomes
   remain pending. Immutable bootstrap projection is not refreshable in place.
 - Run the live-provider variant of the passing controlled-process exchange using the
@@ -66,9 +69,9 @@ Complete these existing requirements in one runnable path before closing AGD-019
   interrupt, transport loss and reconnect with fencing. Record the actual policy,
   persistence and provider configuration, test commands/results and limitations.
 
-Then refresh this document with the integrated evidence, run the applicable
-repository/security gates, and commit AGD-019 with its TODO/PLAN closure updates.
-Do not substitute separate passing transport and process tests for the exchange.
+AGD-019 is the next evidence/closure review, preserving these qualification and
+recovery boundaries. Separate passing transport and process tests do not replace
+the integrated exchange already recorded.
 
 ## RC scope
 
@@ -83,7 +86,7 @@ remain later phases.
 
 ## This review's validation
 
-Current implementation and validation are recorded in
-[binary hosting evidence](evidence/agd-020-binary-hosting.md). Historical component
-records above preserve their original scope. No live homelab admission or automatic
+Current integrated validation and AGD-020 closure are recorded in
+[integrated acceptance evidence](evidence/agd-020-integrated-acceptance.md).
+Historical component records above preserve their original scope. No live homelab admission or automatic
 physical-evidence publisher is claimed by the binary hosting change.
