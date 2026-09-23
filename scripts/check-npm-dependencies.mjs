@@ -1,14 +1,5 @@
 import fs from "node:fs";
 
-const allowedLicenses = new Set([
-  "Apache-2.0",
-  "BSD-2-Clause",
-  "BSD-3-Clause",
-  "CC0-1.0",
-  "ISC",
-  "MIT",
-  "Unlicense",
-]);
 const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 
 if (lock.lockfileVersion !== 3 || !lock.packages) {
@@ -23,8 +14,10 @@ for (const [path, dependency] of Object.entries(lock.packages)) {
   if (!dependency.version || !dependency.integrity) {
     failures.push(`${name}: missing exact version or integrity`);
   }
-  if (!allowedLicenses.has(dependency.license)) {
-    failures.push(`${name}@${dependency.version}: unapproved license ${dependency.license ?? "unknown"}`);
+  if (typeof dependency.license !== "string" ||
+      !dependency.license.trim() ||
+      /^(UNKNOWN|NOASSERTION|NONE)$/i.test(dependency.license.trim())) {
+    failures.push(`${name}@${dependency.version}: missing or unknown license ${dependency.license ?? "unknown"}`);
   }
   inventory.push(`${name}\t${dependency.version}\t${dependency.license}`);
 }

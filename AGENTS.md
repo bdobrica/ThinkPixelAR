@@ -38,6 +38,23 @@ If the authoritative sources are ambiguous or incomplete, prefer the change that
 * Do not hand-edit generated artifacts when a source definition or generator exists. Modify the source and regenerate using the repository's documented workflow.
 * Follow existing repository conventions unless they conflict with a higher-authority source listed above.
 
+## Licensing workflow exception
+
+* Do not independently research licensing, browse for legal interpretations, or
+  perform legal qualification unless the repository owner explicitly requests it.
+* The repository owner decides which applications and dependencies may be bundled
+  and is responsible for licensing and distribution decisions. Follow explicit
+  owner decisions within their stated scope; do not repeatedly request approval
+  or introduce license-family bans, demo-only restrictions, or expiry dates.
+* Record owner decisions and preserve supplied license/notice files and existing
+  package metadata as ordinary packaging work. Run the repository's existing
+  automated inventory checks; these are not legal research or legal clearance.
+* If a concrete unresolved bundling decision blocks the requested work, identify
+  the choice briefly and leave it to the owner. Do not launch a licensing audit.
+* Do not assert that research, testing, non-commercial use, owner approval or
+  public binary/image distribution automatically establishes fair use or waives
+  third-party obligations. Describe unverified legal compliance as unverified.
+
 ## Repository and documentation hygiene
 
 * Keep the root `README.md` concise: purpose, status, quick start, key concepts, and links to durable documentation.

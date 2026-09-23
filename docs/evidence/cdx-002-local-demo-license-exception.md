@@ -1,5 +1,11 @@
 # CDX-002 local demo packaging exception
 
+Historical record: retired by [ADR-0049](../adr/0049-use-based-dependency-licensing.md)
+on 2026-09-23. The local-only restriction and expiry below no longer apply and
+the calendar gate has been removed. The original approval is preserved below;
+source/notice obligations now follow the current [dependency policy](../security/dependency-policy.md).
+This record does not establish image redistribution compliance.
+
 Approval: repository owner/user, 2026-09-23, explicitly approved the local-demo
 exception requested for Git, Bash and Alpine BusyBox as separate executables.
 Owner: ThinkPixelAR maintainer. This records that approval; it is not a claim of

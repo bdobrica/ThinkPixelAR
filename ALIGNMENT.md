@@ -64,6 +64,7 @@ All ThinkPixel integrations must remain optional/configurable where standalone o
 - As executable code matures, provide one stable root developer/CI entry point. For this Go service, the planned convention is a Makefile with focused targets and an aggregate `verify` target.
 - Public API and schema changes must update the machine-readable contract, implementation, compatibility documentation, and tests atomically.
 - Dependency additions, new infrastructure authorities, and new cross-component source dependencies require explicit repository-local justification; consequential choices require an ADR.
+- Dependency licensing follows [ADR-0049](docs/adr/0049-use-based-dependency-licensing.md): no license-family bans; the owner decides bundling/distribution, and coding agents do not independently research licensing unless asked. Preserve notices and inventory checks. This repository-local workflow grants no license permission or authority to other ThinkPixel components.
 
 ## Repository-specific alignment
 

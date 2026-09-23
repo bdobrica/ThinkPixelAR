@@ -1587,7 +1587,9 @@ CDX-001 pins Codex 0.155.0 with scoped local protocol evidence under
 [ADR-0047](docs/adr/0047-codex-app-server-version-pin.md).
 CDX-002 packages the local demo runtime under
 [ADR-0048](docs/adr/0048-codex-demo-runtime-image.md); see its
-[artifact evidence and limits](docs/evidence/cdx-002-codex-image.md).
+[artifact evidence and limits](docs/evidence/cdx-002-codex-image.md). Licensing
+follows [ADR-0049](docs/adr/0049-use-based-dependency-licensing.md); local demo
+work has no license-exception expiry, and distribution obligations remain release work.
 Next: implement Codex startup/thread/turn/events/interrupt (CDX-003–004, 006–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain

@@ -116,10 +116,10 @@ checksums and licenses, including transitive libraries. Git provides repository
 operations, Bash shell execution, ripgrep search, and ca-certificates TLS roots;
 agentd supplies none of these tools. Corresponding package source and build recipes
 are published in [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports).
-Git/Bash/BusyBox have an owner-approved
-[local-demo exception](../../docs/evidence/cdx-002-local-demo-license-exception.md),
-expiring before public image distribution or on 2026-12-23. Redistribution
-obligations remain subject to the repository's
+Git/Bash/BusyBox are permitted as separately packaged tools under
+[ADR-0049](../../docs/adr/0049-use-based-dependency-licensing.md), without a
+local-demo exception or expiry. Before distributing images to external recipients,
+fulfill the source/notice obligations in the
 [dependency policy](../../docs/security/dependency-policy.md).
 Source `make verify` scans Go dependencies, not
 the packaged Rust binary or OS packages; release SBOM, image scanning and provenance

@@ -99,8 +99,9 @@ durable Codex state, generic conformance or Kata isolation. CDX-003 implements
 production startup/handshake; thread/turn/events/interrupt and CDX-016 provide the
 live demo slice. No model/provider credential or paid infrastructure was used.
 
-The local-demo license exception expires before public distribution or on
-2026-12-23. Public release still needs the complete license/source disposition,
+[ADR-0049](../adr/0049-use-based-dependency-licensing.md) retired the local-demo
+exception and calendar gate after these tests. External distribution still needs
+the complete license/source disposition; public release also needs
 OS/Rust vulnerability review, release SBOM/provenance and approved registry
 publication. `make verify` scans Go dependencies, not the Rust executable or OS
 packages. Optional Codex helpers and task-specific language toolchains are outside

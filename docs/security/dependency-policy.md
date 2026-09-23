@@ -79,49 +79,60 @@ License classification applies to direct and transitive dependencies, copied
 code, generated code with licensing obligations, tools redistributed with an
 artifact, container layers, and agent runtime contents. SPDX identifiers are
 used where available. This policy is an engineering admission rule, not legal
-advice; ambiguity is escalated for maintainer/legal review.
+advice. The repository owner is responsible for license and distribution
+decisions. Coding agents follow the licensing workflow exception in `AGENTS.md`: no
+independent legal research or qualification unless explicitly requested. Preserve
+supplied notices and metadata, run inventory checks, and record owner decisions
+without claiming that those checks or decisions establish legal compliance.
 
-### Allowed by default
+### Allowed when the intended use complies
 
-Unmodified dependencies under the following permissive licenses are allowed
-when their notice and attribution obligations are preserved:
+No license family is categorically prohibited. Permissive, MPL, LGPL, GPL,
+AGPL, dual-licensed, source-available and commercial dependencies are eligible
+when their actual terms permit the intended use and their obligations can be
+met. Routine compliant use needs no separate legal approval, demo exception or
+calendar expiry. Maintainers record the selected license and use context during
+normal dependency review. The owner decides whether unresolved questions need
+specialist advice; coding agents do not initiate that research.
 
-- Apache-2.0;
-- MIT;
-- BSD-2-Clause and BSD-3-Clause;
-- ISC; and
-- CC0-1.0 or Unlicense for code/data where the upstream provenance is clear.
+- Preserve applicable copyright, license and notice texts. Record the chosen
+  alternative for dual-licensed software and any applicable license exceptions.
+- Distinguish independently packaged executables/services from code copied into
+  or linked with AR. Sharing an OCI image alone does not require independent AR
+  code to adopt the licenses of the other programs. Assess actual integration,
+  including communication and linkage, rather than assuming process separation
+  always establishes independence.
+- Copyleft is allowed. Meet applicable file/source disclosure, relinking,
+  installation-information and corresponding-source obligations for the selected
+  license and use. Apache-2.0/GPLv3 compatibility does not permit distributing a
+  combined GPLv3 work solely under Apache-2.0; GPLv2-only has different compatibility
+  constraints. This policy does not relicense AR or remove upstream obligations.
+- Local development and internal operation do not require a redistribution
+  exception. Before transferring binaries/images to external recipients, privately
+  or publicly, provide required notices and corresponding source through a method
+  permitted by the applicable license. Source must match the binaries and include
+  required patches/build scripts. License identifiers or upstream links alone do
+  not establish compliance. Publishing a build recipe is distinct from shipping
+  its resulting binaries; copied content in the recipe still has its own terms.
+- Apply obligations when their trigger occurs. AGPL can require a source offer
+  to network users of a modified covered program without binary distribution.
+  Commercial, non-commercial and field-of-use terms must permit the actual use;
+  approval cannot override a third party's rights.
+- Missing, ambiguous or conflicting license information requires resolution
+  before the affected use. A custom license or SPDX LicenseRef is acceptable when
+  its actual terms and provenance are recorded. Do not treat missing metadata as
+  permission, or block a known compliant license simply because it is unfamiliar.
 
-Public-domain claims without clear provenance are review-required rather than
-automatically allowed.
+Distribution compliance is a release responsibility, not a reason to block
+otherwise permitted local builds. Outstanding redistribution actions MUST be
+recorded before merge and completed before the relevant distribution or network
+use. Block only uses whose obligations cannot be met or whose rights remain
+unresolved. Security, provenance, version pins and architecture requirements
+elsewhere in this policy remain in force.
 
-### Review required
-
-The following MUST receive written repository-local approval before merge:
-
-- MPL-2.0 and other file-scoped copyleft licenses;
-- LGPL-family licenses, including questions about static or dynamic linking;
-- dual- or multi-licensed dependencies where the selected license is not
-  unambiguous and recorded;
-- licenses with attribution, advertising, patent, trademark, export, data,
-  model-weight, or field-of-use terms beyond the default set;
-- dependencies with multiple, conflicting, custom, missing, or `NOASSERTION`
-  license metadata; and
-- copied snippets or generated artifacts whose licensing is unclear.
-
-Approval MUST record the exact dependency/version, selected license, artifact
-and linkage/redistribution context, required notices or source-offer actions,
-reviewer, expiry or review trigger, and any packaging constraint.
-
-### Prohibited without an explicit legal exception
-
-Dependencies MUST NOT be merged when they are under GPL-family or AGPL-family
-licenses, a source-available/non-commercial/no-derivatives/field-of-use
-restriction, an unknown license, or terms incompatible with distributing this
-repository and its Apache-2.0 release artifacts. An exception requires explicit
-legal approval, a documented scope and expiry, and confirmation that all
-distribution/source/notice obligations are satisfied. It MUST NOT be used to
-weaken an accepted security or architecture contract.
+See [ADR-0049](../adr/0049-use-based-dependency-licensing.md), the
+[GNU license FAQ](https://www.gnu.org/licenses/gpl-faq.en.html) and
+[Apache compatibility guidance](https://www.apache.org/licenses/GPL-compatibility).
 
 ## Review and exception record
 
@@ -136,7 +147,8 @@ A dependency change review MUST include:
    sandbox placement; and
 6. focused tests plus the repository's broadest available verification gate.
 
-Exceptions live in `docs/evidence/` and MUST name an owner, rationale,
+Exceptions to engineering/security requirements live in `docs/evidence/` and MUST
+name an owner, rationale,
 affected versions and artifacts, compensating controls, approval, expiry date,
 and removal condition. Expired exceptions fail the dependency gate. Security
 fixes may be expedited, but their source, license, evidence, and follow-up
@@ -147,13 +159,14 @@ review are still recorded.
 The root `make license` and `make vulnerability` targets enforce the automated
 Go dependency gate. Analyzer versions are exactly pinned in the root Makefile;
 the gate rejects module replacements and unversioned non-main modules, emits a
-module and license inventory, enforces the default license allowlist, and
+module and license inventory, checks inventory completeness, and
 reports reachable known vulnerabilities. Reviewers continue to inspect
 non-Go artifacts, image/deployment manifests, generator pins, and the change
 diff. The automated checks:
 
 - enumerate direct and transitive runtime/build dependencies;
-- reject prohibited or unapproved license classifications;
+- reject missing or explicitly unknown license metadata; license compatibility
+  and fulfillment of obligations remain contextual maintainer/release checks;
 - detect unexpected module source changes, local replacements, and unpinned
   artifacts;
 - report known vulnerabilities without silently suppressing findings; and
