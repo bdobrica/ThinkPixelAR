@@ -4,8 +4,12 @@ Status: Normative Phase 0 contract.
 
 HNS-001 implements the Go interface and capability model in
 `internal/ports/harness` under [ADR-0044](../adr/0044-harness-application-port.md).
-These are application-port types, not a new wire schema. Registry/compatibility
-selection, conformance and canonical event mapping remain HNS-002–004; the Codex
+These are application-port types, not a new wire schema. HNS-002 implements
+explicit pinned registry selection in `internal/app/harnessregistry` under
+[ADR-0045](../adr/0045-pinned-harness-registry.md). Its inclusive same-major ranges
+select an implementation for exact packaged versions; selection does not replace
+full negotiation or the authenticated handshake. Conformance and canonical event
+mapping remain HNS-003–004; the Codex
 implementation follows immediately. A declared interface is not runtime validation
 or evidence that an adapter's capabilities have been qualified.
 

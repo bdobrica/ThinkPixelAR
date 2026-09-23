@@ -41,8 +41,9 @@ var (
 	ErrCheckpoint      = errors.New("harness CHECKPOINT_FAILED")
 )
 
-// VersionRange is declarative input to negotiation, not an executable expression.
-// HNS-002 supplies bounded parsing/selection; a range alone proves no compatibility.
+// VersionRange has inclusive minimum/maximum semantic versions within one major.
+// The registry checks exact pins against these bounds; full negotiation and the
+// authenticated handshake still establish compatibility before work.
 type VersionRange struct{ Minimum, Maximum string }
 
 type AdapterDescriptor struct {

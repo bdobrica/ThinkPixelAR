@@ -172,7 +172,7 @@ Completion metadata format:
 ## Phase 5 — Harness contract and Codex adapter
 
 - [x] HNS-001 Implement generic `HarnessAdapter` interface and capability model. — completed 2026-09-23; [ADR-0044](docs/adr/0044-harness-application-port.md), [evidence](docs/evidence/hns-001-harness-port.md). Fenced lifecycle requests, neutral handles, bounded-stream contract and fail-closed registered capability checks; runtime implementation and qualification follow in HNS-002–004/CDX.
-- [ ] HNS-002 Implement adapter registry keyed by stable adapter kind and compatibility range.
+- [x] HNS-002 Implement adapter registry keyed by stable adapter kind and compatibility range. — completed 2026-09-23; [ADR-0045](docs/adr/0045-pinned-harness-registry.md), [evidence](docs/evidence/hns-002-harness-registry.md). Immutable explicit registrations, pinned build/protocol selection and fail-closed compatibility checks; full adapter negotiation/handshake remains required before work.
 - [ ] HNS-003 Create HarnessAdapter conformance-test framework independent of Codex.
 - [ ] HNS-004 Define canonical normalized harness event types and adapter mapping rules.
 - [ ] CDX-001 Pin a tested Codex/App Server version and document compatibility/support policy.

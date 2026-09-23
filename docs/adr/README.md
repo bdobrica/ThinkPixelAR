@@ -58,3 +58,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0041: Bootstrap materialization and tenant cleanup lifecycle](0041-agentd-bootstrap-lifecycle-cleanup.md) — Accepted
 - [ADR-0042: Agentd binary hosting and homelab evidence](0042-agentd-binary-hosting-and-homelab-evidence.md) — Accepted
 - [ADR-0044: Minimal harness application port for the Codex demo](0044-harness-application-port.md) — Accepted
+- [ADR-0045: Select explicitly registered harness builds](0045-pinned-harness-registry.md) — Accepted
