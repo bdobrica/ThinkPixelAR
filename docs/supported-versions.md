@@ -30,6 +30,15 @@ MUST use that exact patch release until the pin is deliberately updated and the
 verification commands are rerun. Go `1.26` remains supported under the upstream
 policy until Go `1.28` is released.
 
+## Codex demo baseline
+
+Codex CLI/App Server **0.155.0** is `TESTED_LOCAL_PROTOCOL` on the fingerprinted
+Linux amd64 musl executable: isolated stdio initialization, rejection ordering,
+local thread listing, schema export and clean shutdown. See the
+[pin/support policy](operations/codex-compatibility.md) and
+[CDX-001 evidence](evidence/cdx-001-codex-pin.md). This does not qualify a model
+turn, ARM64 artifact, OCI image or Kata execution. Those remain CDX-002 onward.
+
 ## Meaning of support
 
 Compatibility claims apply to an exact tuple and a named test scope.
