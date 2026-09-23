@@ -116,7 +116,10 @@ its earlier acknowledgement even after the process has stopped; Heartbeat descri
 current local health. Failures use OUTCOME_UNKNOWN without reflected payloads.
 Capabilities absent from negotiation cannot activate this dispatcher. The schema
 addition is optional and changes no Protobuf field, version or generated artifact.
-The shipped binaries do not yet compose this capability; AGD-020 remains open.
+The shipped binaries compose this capability under
+[ADR-0042](../adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
+[AGD-020 application acceptance](../evidence/agd-020-integrated-acceptance.md)
+records the tested scope and remaining live-provider qualification.
 
 ## Local durable dispatch policy
 

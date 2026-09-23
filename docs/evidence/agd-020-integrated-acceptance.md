@@ -108,8 +108,8 @@ is introduced.
 AGD-020 is closed on 2026-09-23 for the initial runnable application path, using
 the integrated result above. This closure follows the requested RC/demo scope;
 it does not certify the live provider or automatic replacement. Admission still
-requires trusted current infrastructure evidence. AGD-019 remains a separate
-Phase 4 evidence/closure review.
+requires trusted current infrastructure evidence. The subsequent AGD-019 review
+closes Phase 4 for that application scope; see [Phase 4 evidence](../phase-4-evidence.md).
 
 Closure verification on 2026-09-23: `make verify` **PASS** (exit 0), including
 protocol/OpenAPI drift, repository hygiene, formatting, vet/staticcheck,

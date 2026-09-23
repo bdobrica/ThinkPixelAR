@@ -1559,16 +1559,10 @@ under ADR-0014; no paid infrastructure is required to continue.
 
 ### Phase 4 — `thinkpixel-agentd` and sandbox transport
 
-AGD-001–018 component work is recorded in [Phase 4 evidence](docs/phase-4-evidence.md).
-Both binaries now host authenticated transport, concrete local admission/replay,
-rotation and tenant cleanup under [ADR-0042](docs/adr/0042-agentd-binary-hosting-and-homelab-evidence.md).
-The homelab evidence reader rechecks fresh protected receipts and live API identities.
-AGD-020 is complete for the initial runnable application path; AGD-019 remains the
-Phase 4 evidence/closure review.
-
-The [integrated application acceptance](docs/evidence/agd-020-integrated-acceptance.md)
-now passes with the agentd image, a real child, mTLS and concrete PostgreSQL policies.
-Next: review Phase 4 evidence under AGD-019, then proceed to HNS-001–004.
+Complete for the initial runnable application scope (AGD-001–020); see
+[Phase 4 closure evidence](docs/phase-4-evidence.md) and
+[ADRs 0022–0043](docs/adr/README.md) for implemented decisions.
+Next: Phase 5, starting with HNS-001–004 and the Codex adapter.
 Live deployment qualification still requires a trusted homelab evidence publisher
 and repetition against live provider observations; follow the
 [hosting runbook](docs/operations/agentd-hosting.md). Fixture observations do not
@@ -1577,7 +1571,9 @@ belongs with Phase 6 recovery (REC-002–006); ambiguous outcomes remain pending
 until recovery can establish safety. Trusted checkpoint publication also remains
 Phase 6. Retain the homelab scope and no-cost RC track.
 
-Exit when AR can reliably start, monitor, interrupt, lose, and reconnect to a controlled test harness without trusting sandbox-reported security state.
+The controlled-harness application exit criterion is met: authenticated start,
+monitoring, interrupt and reconnect retain trusted authority and durable replay
+checks. This does not qualify an untested live deployment.
 
 ### Phase 5 — Codex adapter and agent runtime package
 
