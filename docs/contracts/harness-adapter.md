@@ -2,6 +2,13 @@
 
 Status: Normative Phase 0 contract.
 
+HNS-001 implements the Go interface and capability model in
+`internal/ports/harness` under [ADR-0044](../adr/0044-harness-application-port.md).
+These are application-port types, not a new wire schema. Registry/compatibility
+selection, conformance and canonical event mapping remain HNS-002–004; the Codex
+implementation follows immediately. A declared interface is not runtime validation
+or evidence that an adapter's capabilities have been qualified.
+
 ## Purpose and boundary
 
 `HarnessAdapter` translates a vendor/custom harness's structured protocol into ThinkPixelAR's vendor-neutral lifecycle, input, signal, checkpoint, and event contracts. Codex App Server is the first implementation target, but Codex thread/turn/item types do not become AR domain types.
@@ -263,4 +270,3 @@ An adapter is supported only for an exact immutable harness image/protocol and a
 - Usage observations never settle AG resources authoritatively.
 - Terminal observations require current fence and AR state-machine validation.
 - Protocol input/output, diagnostics, and cardinality are bounded before crossing trust boundaries.
-
