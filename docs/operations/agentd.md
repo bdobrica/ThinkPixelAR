@@ -8,7 +8,7 @@ homelab evidence and remaining live acceptance. Harness launch requires an admit
 command and never establishes trusted Ready state.
 
 `agentd.NewProcesses` validates and copies bootstrap launch configuration.
-Start launches the configured direct argv with an empty environment and returns
+Generic Start launches the configured direct argv with an empty environment and returns
 a local process ID. Stop and Restart require that exact ID; restart returns a
 fresh ID. The controller serializes operations without a queue and uses the
 configured launch/grace/kill budgets, narrowed by caller deadlines. Stop escalates
@@ -16,8 +16,15 @@ SIGTERM to SIGKILL for the group and reaps the leader. A timed-out launch is cle
 up before another launch is allowed. Start does not imply adapter readiness, and
 Stop does not establish full sandbox cleanup. No CLI launch override is exposed.
 
-`NewProcessesWithCapture` opts into stdout/stderr capture; `NewProcesses` retains
-null standard streams. Retrieve `Output(processID)` after Start and consume its
+For `codex-app-server`, the [registered driver](codex-compatibility.md) instead
+uses private protocol pipes and a fresh ephemeral home with a fixed environment.
+Start/Restart require the pinned initialize/initialized exchange before success;
+failure stops the child. This is protocol readiness only, not a vendor thread or
+trusted AR Session readiness. The home is removed after reaping.
+
+`NewProcessesWithCapture` opts into stdout/stderr capture; generic `NewProcesses`
+retains null standard streams. Codex stdout belongs exclusively to its protocol
+driver, while stderr remains suppressed capture. Retrieve `Output(processID)` after Start and consume its
 single-consumer Receive stream. Complete adapter records can use EmitEvent;
 vendor normalization is still Phase 5 work. Each restart has an independent
 capture. Capture uses the existing configured diagnostic/event/queue byte and
@@ -36,8 +43,9 @@ Close abandons and clears capture and stops its live child. See
 
 `Processes.Status` returns a private local process observation without waiting on
 Start/Stop or output draining. It includes the opaque process ID, state, observed
-exit code/signal and a fixed failure reason. RUNNING means OS process launch,
-not adapter readiness or authorized progress. `Processes.Heartbeat` maps current
+exit code/signal and a fixed failure reason. Generic RUNNING means OS process launch;
+the Codex path also requires initialization and sets the local `ProtocolReady`
+observation. Neither establishes authorized progress. `Processes.Heartbeat` maps current
 state into the existing v1 message; wire sequence counters and active operation
 must come from the current admitted dispatcher, not the output-capture sequence.
 

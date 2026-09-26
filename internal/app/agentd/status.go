@@ -21,12 +21,13 @@ const (
 // ExitCode and Signal are meaningful only when ExitObserved is true. No PID,
 // paths, argv, environment, child output or OS error strings are exposed.
 type ProcessStatus struct {
-	ProcessID    primitives.ID
-	State        agentdv1.Heartbeat_ProcessState
-	ExitObserved bool
-	ExitCode     int
-	Signal       int
-	Failure      ProcessFailure
+	ProcessID     primitives.ID
+	State         agentdv1.Heartbeat_ProcessState
+	ExitObserved  bool
+	ExitCode      int
+	Signal        int
+	Failure       ProcessFailure
+	ProtocolReady bool // Local registered-handshake observation, never Run authority.
 }
 type processObservation struct{ value atomic.Pointer[ProcessStatus] }
 
@@ -39,6 +40,10 @@ func (o *processObservation) status() ProcessStatus {
 func (o *processObservation) publish(s ProcessStatus) {
 	for {
 		old := o.value.Load()
+		// A handshake may finish while the child is already being reaped.
+		if old != nil && old.ProcessID == s.ProcessID && old.State == agentdv1.Heartbeat_STOPPING && s.State == agentdv1.Heartbeat_RUNNING {
+			return
+		}
 		// A concurrent stop/drain notification cannot overwrite terminal evidence.
 		if old != nil && old.ProcessID == s.ProcessID && (old.State == agentdv1.Heartbeat_EXITED || old.State == agentdv1.Heartbeat_FAILED) && (s.State == agentdv1.Heartbeat_STOPPING || s.State == agentdv1.Heartbeat_RUNNING) {
 			return

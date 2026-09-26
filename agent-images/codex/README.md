@@ -83,12 +83,14 @@ operator home or an unrelated cache. Do not commit these binary inputs.
 
 The image runs as UID/GID `65532`. Its entrypoint is **agentd**, which awaits the
 protected bootstrap and authenticated dispatch; Codex does not start automatically.
-The future adapter executes `/usr/local/bin/codex app-server --listen stdio://`
-directly. Production startup/handshake is CDX-003, followed by thread/turn/events/
-interrupt; this image alone does not implement them.
+The agentd Codex driver executes the fixed command documented in the
+[compatibility policy](../../docs/operations/codex-compatibility.md) and verifies
+its startup handshake (CDX-003). Rebuild the image to include that supervisor
+change. Thread/turn/events/interrupt remain subsequent adapter work.
 
-Mount the Workspace at `/workspace`. Supply writable ephemeral `/tmp` and a fresh
-execution-local home. `/state/codex` is only a mount location for subsequently
+Mount the Workspace at `/workspace` and supply writable ephemeral `/tmp`.
+Agentd creates and cleans up a fresh process-local home there. `/state/codex` is
+only a mount location for subsequently
 qualified vendor state; the image does not set `CODEX_HOME` to durable storage or
 declare credential-bearing home content safe to checkpoint. Bootstrap credentials
 remain under the protected agentd projection. No operator configuration, credential,

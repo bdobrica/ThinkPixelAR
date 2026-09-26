@@ -46,9 +46,21 @@ rerun this probe plus the implemented Codex conformance/integration cases. Recor
 new OCI/platform digests during packaging. Never silently replace an immutable
 Session's runtime or infer vendor-state migration safety from a version number.
 
-Do not enable experimental methods to make an incompatible build pass. Production
-startup and fail-fast enforcement remain CDX-003/014. A missing capability fails
-explicitly. Resume/fork/state portability require their own evidence, and the
+Do not enable experimental methods to make an incompatible build pass.
+[Supervised startup](../evidence/cdx-003-startup.md) now enforces the pinned
+initialization identity; broader version incompatibility handling remains CDX-014.
+For `adapter_kind: codex-app-server`, bootstrap must use exactly:
+
+```json
+["/usr/local/bin/codex", "app-server", "--listen", "stdio://", "-c", "check_for_update_on_startup=false"]
+```
+
+The child receives a fresh ephemeral home and no inherited supervisor environment.
+Its handshake is bounded by the command/startup deadline and a ten-second ceiling.
+Failed initialization stops the child; successful initialization does not create
+a thread or establish AR Session readiness. See [ADR-0050](../adr/0050-codex-supervised-initialization.md).
+A missing capability fails explicitly. Resume/fork/state portability require their
+own evidence, and the
 example `codex/thread-v1` state format is not yet a qualified checkpoint format.
 The Go verification gate does not vulnerability-scan this Rust executable. See
 [CDX-002 image evidence](../evidence/cdx-002-codex-image.md) for actual artifact

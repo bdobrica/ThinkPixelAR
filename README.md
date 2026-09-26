@@ -10,7 +10,8 @@ It owns Session continuity, bounded Execution materialization, sandbox lifecycle
 
 Architecture, engineering foundations, persistence, the homelab Kubernetes/Kata
 substrate, and the initial `thinkpixel-agentd` control/transport path are
-implemented. Phase 5 is active: the Codex runtime is pinned and packaged, and
+implemented. Phase 5 is active: the Codex runtime is pinned, packaged, and its
+startup handshake is implemented through `agentd` (see [evidence](docs/evidence/cdx-003-startup.md));
 the immediate target is one real Codex turn inside the existing Kata-backed
 sandbox.
 

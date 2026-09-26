@@ -11,6 +11,7 @@ import (
 	"time"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
@@ -25,7 +26,8 @@ var (
 
 // Processes controls one local child group. IDs are process observations, not AR
 // HarnessHandles or authority. Call only after authenticated command admission.
-// Start means OS launch, not a completed adapter handshake or Ready state.
+// Generic Start means OS launch. The registered Codex path additionally requires
+// its initialization handshake; neither result establishes AR Session readiness.
 type Processes struct {
 	gate           sync.Mutex
 	lifeOnce       sync.Once
@@ -37,6 +39,7 @@ type Processes struct {
 	shutdownDone   chan struct{}
 	shutdownErr    error
 	config         HarnessConfig
+	codex          bool
 	commandBytes   uint32
 	current        *child
 	captureLimits  *agentdv1.Limits
@@ -55,6 +58,8 @@ type child struct {
 	err            error // Published by closing done.
 	capture        *Capture
 	stdout, stderr *captureWriter
+	codex          *codex.Client
+	codexHome      string
 }
 
 // Status remains available while launch, stop or output draining holds the operation gate.
@@ -72,7 +77,11 @@ func NewProcesses(c Config) (*Processes, error) {
 	}
 	h := c.Harness
 	h.Argv = slices.Clone(h.Argv)
-	return &Processes{config: h, commandBytes: c.Limits.CommandBytes}, nil
+	isCodex := c.AdapterKind == codex.Kind
+	if isCodex && !slices.Equal(h.Argv, codex.Command()) {
+		return nil, ErrConfig
+	}
+	return &Processes{config: h, codex: isCodex, commandBytes: c.Limits.CommandBytes}, nil
 }
 
 // NewProcessesWithCapture opts into bounded, redacted capture. A nil sanitizer
@@ -213,17 +222,29 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		cmd.Stderr = c.stderr
 		cmd.WaitDelay = time.Duration(p.config.KillWaitMS) * time.Millisecond
 	}
+	closeChildPipes := func() {}
+	if p.codex {
+		closeChildPipes, err = c.prepareCodex()
+		if err != nil {
+			if c.capture != nil {
+				c.capture.Close()
+			}
+			return "", ErrProcess
+		}
+	}
 	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_STARTING})
 	if cmd.Start() != nil {
+		closeChildPipes()
+		_ = c.closeCodex()
 		p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_FAILED, Failure: ProcessLaunchFailed})
 		if c.capture != nil {
 			c.capture.Close()
 		}
 		return "", ErrProcess
 	}
+	closeChildPipes()
 	p.current = c
 	p.active.Store(c)
-	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_RUNNING})
 	go c.reap()
 	if c.capture != nil {
 		go func() {
@@ -234,10 +255,24 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 			}
 		}()
 	}
+	if c.codex != nil {
+		if err := c.codex.Initialize(ctx); err != nil {
+			_ = p.stop(context.Background(), id, true)
+			return "", err
+		}
+	}
 	if ctx.Err() != nil || p.closing.Load() {
 		_ = p.stop(context.Background(), id, true)
 		return "", ErrProcessDeadline
 	}
+	if c.codex != nil {
+		select {
+		case <-c.done:
+			return "", ErrProcess
+		default:
+		}
+	}
+	p.observation.publish(ProcessStatus{ProcessID: id, State: agentdv1.Heartbeat_RUNNING, ProtocolReady: c.codex != nil})
 	return id, nil
 }
 func (c *child) reap() {
@@ -269,6 +304,9 @@ func (c *child) reap() {
 	waitErr := c.cmd.Wait() // Exit code is not Execution success.
 	c.reaped = true
 	c.mu.Unlock()
+	if c.closeCodex() != nil {
+		c.err = ErrProcess
+	}
 	if c.capture != nil {
 		var exit *exec.ExitError
 		if waitErr != nil && !errors.As(waitErr, &exit) {

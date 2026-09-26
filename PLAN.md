@@ -1600,7 +1600,9 @@ CDX-002 packages the local demo runtime under
 [artifact evidence and limits](docs/evidence/cdx-002-codex-image.md). Licensing
 follows [ADR-0049](docs/adr/0049-use-based-dependency-licensing.md); local demo
 work has no license-exception expiry, and distribution obligations remain release work.
-Next: implement Codex startup/thread/turn/events/interrupt (CDX-003–004, 006–009)
+CDX-003 adds supervised startup and the pinned handshake; see
+[startup evidence](docs/evidence/cdx-003-startup.md).
+Next: implement Codex thread/turn/events/interrupt (CDX-004, 006–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

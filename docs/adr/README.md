@@ -64,3 +64,4 @@ The allowed base statuses are `Proposed`, `Accepted`, `Rejected`, `Deprecated`, 
 - [ADR-0048: Package the Codex demo harness with agentd](0048-codex-demo-runtime-image.md) — Accepted
 
 - [ADR-0049: Admit dependencies according to intended use and license obligations](0049-use-based-dependency-licensing.md) — Accepted; supersedes ADR-0048 license exception only
+- [ADR-0050: Initialize the pinned Codex child through agentd](0050-codex-supervised-initialization.md) — Accepted
