@@ -28,6 +28,14 @@ type EventPolicy interface {
 	ProcessOutput(context.Context, primitives.ID, string) (string, error)
 }
 
+// ResultReferencePolicy optionally extends EventPolicy. Trusted composition may
+// finalize an artifact from content it already approved for this operation. It
+// must enforce protected storage/access and context bounds. No vendor turn,
+// error, path or reasoning is supplied. Empty means no captured reference.
+type ResultReferencePolicy interface {
+	ResultReference(context.Context, primitives.ID, string) (string, error)
+}
+
 // Events binds the accepted turn to trusted correlation. The caller must verify
 // the current authority/fence before opening and again before publishing each
 // candidate. This pull stream does not allocate durable Session sequence numbers.
@@ -99,6 +107,8 @@ type eventStream struct {
 	failed       error
 	items        map[string]*eventItem
 	nextRead     time.Time
+	usage        *harness.UsagePayload
+	completion   *harness.ObservationPayload
 }
 
 func (*eventStream) String() string     { return "[restricted Codex events]" }
@@ -152,6 +162,9 @@ func (s *eventStream) Next(ctx context.Context) (event harness.HarnessEvent, err
 			s.client.Close()
 		}
 	}()
+	if s.completion != nil {
+		return s.finish(*s.completion)
+	}
 	for {
 		if wait := time.Until(s.nextRead); wait > 0 {
 			timer := time.NewTimer(wait)
@@ -185,7 +198,7 @@ func (s *eventStream) Next(ctx context.Context) (event harness.HarnessEvent, err
 		event, err = s.normalize(ctx, raw)
 		clear(raw)
 		if err != nil || s.end {
-			if err == nil {
+			if err == nil && event.Type == "" {
 				err = io.EOF
 			}
 			return event, err

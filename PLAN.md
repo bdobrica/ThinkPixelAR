@@ -1608,7 +1608,9 @@ CDX-006 maps admitted Execution text to bounded turn-start dispatch; see
 [turn-start evidence](docs/evidence/cdx-006-turn-start.md).
 CDX-007 adds bounded Codex item/message/tool/process candidate streaming; see
 [stream evidence and composition limits](docs/evidence/cdx-007-streamed-events.md).
-Next: implement Codex completion/interrupt (CDX-008–009)
+CDX-008 adds terminal observations, usage snapshots and policy-provided result references;
+see [completion evidence](docs/evidence/cdx-008-completion.md).
+Next: implement Codex interrupt (CDX-009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

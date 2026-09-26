@@ -222,7 +222,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [ ] CDX-005 Implement thread resume.
 - [x] CDX-006 Implement turn start mapped to AR Execution input. — completed 2026-09-26; [turn-start evidence](docs/evidence/cdx-006-turn-start.md). Required `codex-turn.v1`, bounded text mapping, pinned input digest/current fence, durable at-most-once dispatch and real pinned turn acceptance. Events/completion/interrupt and live model/Kata qualification remain CDX-007–009/016.
 - [x] CDX-007 Normalize Codex streamed item/message/tool/process events into AR Runtime Events. — completed 2026-09-26 at the [ADR-0046 candidate boundary](docs/adr/0046-harness-candidate-events.md); [stream evidence](docs/evidence/cdx-007-streamed-events.md). Bounded pinned mapping, correlated identities, policy-gated content and real App Server message stream via local Responses SSE. Authenticated event delivery/durable publication/SSE remain application composition/Phase 6; completion/usage remain CDX-008.
-- [ ] CDX-008 Implement turn completion mapping and usage/reference capture without trusting it for authoritative AG accounting.
+- [x] CDX-008 Implement turn completion mapping and usage/reference capture without trusting it for authoritative AG accounting. — completed 2026-09-26 at the candidate boundary; [completion evidence](docs/evidence/cdx-008-completion.md). Real pinned success/failure checked; protected result references require trusted policy, usage never settles AG accounting.
 - [ ] CDX-009 Implement turn interrupt/cancellation.
 - [ ] CDX-010 Implement malformed protocol/event handling and safe adapter failure.
 - [ ] CDX-011 Implement App Server crash detection and recovery classification.

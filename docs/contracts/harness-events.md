@@ -94,6 +94,8 @@ it does not establish current authority. The initial mappings are:
 | Pinned notification/item | Candidate |
 | --- | --- |
 | `turn/started` | `execution.started` observation |
+| `turn/completed` | `execution.completion-observed` with `completed` or `interrupted`; `execution.failure-observed` with `failed` |
+| `thread/tokenUsage/updated` | Capture latest thread total; emit one `usage.observed` before the terminal candidate if reported |
 | `item/agentMessage/delta` | `message.delta`, only through trusted content policy |
 | Completed `agentMessage` | `message.completed`, only when all observed deltas passed policy and the final text matches their hash |
 | Started/completed `commandExecution` | `process.started` / `process.completed`; selected exit code only |
@@ -103,8 +105,9 @@ it does not establish current authority. The initial mappings are:
 Reasoning (including summaries), plans, user input, hook prompts and compaction
 content are discarded before candidate allocation. Bounded status/rate-limit hints
 and MCP progress text are discarded. Unknown methods/items and all server requests
-fail closed; this mapper never grants a tool permission. `turn/completed` ends the
-stream without publishing a completion or usage candidate (CDX-008).
+fail closed; this mapper never grants a tool permission. Correlated `error`
+notifications are discarded while awaiting `turn/completed`; neither an error
+notification nor EOF substitutes for a terminal observation.
 
 Each subscription permits at most 1024 mapped item identities. Inline payloads
 obey the negotiated limit (at most 64 KiB), vendor JSONL frames are at most 64 KiB,
@@ -118,7 +121,8 @@ Message completion checks a rolling hash without retaining the original text.
 Suppressed fragments suppress that message's completion rather than inventing a
 complete message. Exact repeated item lifecycle payloads are deduplicated;
 conflicting repeats, unknown-item deltas, type changes, unfinished mapped items
-at turn end, truncated streams and sequence exhaustion fail. Deltas have no vendor
+at a successful turn end, truncated streams and sequence exhaustion fail. Failed
+or interrupted turns may end with unfinished items; no item completions are invented. Deltas have no vendor
 event identifier: identical text fragments remain distinct ordered fragments.
 Only one subscription is allowed; no disconnect/replay recovery is claimed.
 
@@ -134,3 +138,32 @@ App Server message streaming with a local Responses fixture. Authenticated event
 delivery/publication, durable Session sequencing, SSE and current-authority checks
 at ingestion remain application composition/Phase 6 work; this does not qualify
 a deployed Codex/Kata stream or the full HarnessAdapter.
+
+### Completion and usage (CDX-008)
+
+The terminal candidate is returned before EOF, once per subscription. Interrupted
+means a vendor interruption observation, not an AG cancellation acknowledgment.
+None of the terminal or usage types projects directly to an authoritative Runtime
+Event. Missing terminal notification remains an integrity failure.
+
+Usage is the latest reported **thread-cumulative** `total.inputTokens` and
+`total.outputTokens`, not a sum of snapshots or the `last` model call. Counts are
+nonnegative pinned int64 values; regression of selected totals fails integrity.
+Repeated snapshots are coalesced. Missing usage emits no candidate (unknown, not
+zero). Usage requires negotiated `usage-observation`. This single-turn client
+currently creates a fresh thread; future resume/multi-turn support must retain
+these snapshot semantics and must not add snapshots across turns. No costs,
+reservation release, AG accounting or LLMGW settlement are derived from them.
+
+An `EventPolicy` may also implement `ResultReferencePolicy` to finalize a protected
+artifact from content it has already approved. It receives only the AR operation
+ID and closed terminal reason, never raw vendor turn/items/errors or paths. Empty
+or absent policy omits the reference. Trusted composition owns storage, access and
+classification; the mapper validates reference bounds and fails closed on policy
+errors. No artifact persistence is claimed by the adapter alone.
+
+The stream retains one usage snapshot and at most one pending terminal payload;
+it does not retain a transcript. Raw errors and terminal item copies are discarded.
+[Completion evidence](../evidence/cdx-008-completion.md) covers real pinned success
+and failure with local fixtures. Delivery and durable publication retain the
+application-composition limitations above.

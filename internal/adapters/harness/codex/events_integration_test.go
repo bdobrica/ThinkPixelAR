@@ -44,6 +44,8 @@ func TestPinnedTurnEvents(t *testing.T) {
 	defer stream.Close()
 	var kinds []string
 	var text string
+	var usage harness.UsagePayload
+	var completion harness.ObservationPayload
 	for {
 		e, err := stream.Next(ctx)
 		if err == io.EOF {
@@ -53,14 +55,53 @@ func TestPinnedTurnEvents(t *testing.T) {
 			t.Fatalf("real stream after %v: %v", kinds, err)
 		}
 		kinds = append(kinds, e.Type)
+		if e.Type == harness.UsageObserved {
+			_ = json.Unmarshal(e.Content.Inline, &usage)
+		}
+		if e.Type == harness.ExecutionCompletionObserved {
+			_ = json.Unmarshal(e.Content.Inline, &completion)
+		}
 		if e.Type == harness.MessageDelta {
 			var p harness.MessageDeltaPayload
 			_ = json.Unmarshal(e.Content.Inline, &p)
 			text += p.Text
 		}
 	}
-	if calls.Load() != 1 || text != "fixture response" || len(kinds) != 3 || kinds[0] != harness.ExecutionStarted || kinds[1] != harness.MessageDelta || kinds[2] != harness.MessageCompleted {
+	if calls.Load() != 1 || text != "fixture response" || usage.InputTokens != 5 || usage.OutputTokens != 2 || completion.ReasonCode != "completed" || len(kinds) != 5 || kinds[0] != harness.ExecutionStarted || kinds[1] != harness.MessageDelta || kinds[2] != harness.MessageCompleted || kinds[3] != harness.UsageObserved || kinds[4] != harness.ExecutionCompletionObserved {
 		t.Fatalf("unexpected mapped stream: calls=%d types=%v", calls.Load(), kinds)
 	}
 	t.Log("real pinned App Server emitted ordered message candidates from local Responses SSE")
+}
+
+func TestPinnedTurnFailure(t *testing.T) {
+	c, ctx := pinnedTurnClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "secret-canary", http.StatusBadRequest)
+	})
+	if _, err := c.StartTurn(ctx, turnOperation, turnInput, "Return one word."); err != nil {
+		t.Fatal(err)
+	}
+	h, op, caps, limits := eventOptions()
+	h.VendorSessionReference = c.threadID
+	stream, err := c.Events(h, op, caps, limits, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	var kinds []string
+	for {
+		e, err := stream.Next(ctx)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("real failure stream after %v: %v", kinds, err)
+		}
+		kinds = append(kinds, e.Type)
+		if e.Type == harness.ExecutionFailureObserved && string(e.Content.Inline) != `{"reason_code":"failed"}` {
+			t.Fatal("unexpected failure payload")
+		}
+	}
+	if len(kinds) != 2 || kinds[0] != harness.ExecutionStarted || kinds[1] != harness.ExecutionFailureObserved {
+		t.Fatal(kinds)
+	}
 }

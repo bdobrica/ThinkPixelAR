@@ -162,32 +162,28 @@ func (s *eventStream) normalize(ctx context.Context, raw []byte) (harness.Harnes
 		if !s.started {
 			return none, harness.ErrStreamIntegrity
 		}
-		switch field(turn, "status") {
-		case "completed", "interrupted", "failed":
-		default:
-			return none, harness.ErrProtocol
-		}
-		for _, item := range s.items {
-			if !item.done {
-				return none, harness.ErrStreamIntegrity
-			}
-		}
-		// Stream boundary only. Completion/usage/reference mapping is CDX-008;
-		// EOF cannot establish Execution success, including after a failed turn.
-		s.end = true
-		return none, nil
+		return s.complete(ctx, turn)
 	}
 	if !s.started || field(p, "threadId") != s.client.threadID {
 		return none, harness.ErrStreamIntegrity
-	}
-	// Usage is a thread-scoped observation, and remains CDX-008.
-	if method == "thread/tokenUsage/updated" {
-		return none, nil
 	}
 	if field(p, "turnId") != s.client.turnID {
 		return none, harness.ErrStreamIntegrity
 	}
 	switch method {
+	case "thread/tokenUsage/updated":
+		return none, s.captureUsage(p)
+	case "error":
+		// Retry/failure diagnostics do not establish a terminal outcome. Wait for
+		// turn/completed; EOF still fails integrity. Never expose error content.
+		var retry bool
+		if !keys(p, "threadId turnId error willRetry") || string(p["willRetry"]) == "null" || json.Unmarshal(p["willRetry"], &retry) != nil {
+			return none, harness.ErrProtocol
+		}
+		if _, err := object(p["error"]); err != nil {
+			return none, harness.ErrProtocol
+		}
+		return none, nil
 	case "item/reasoning/textDelta", "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded",
 		"item/plan/delta", "turn/plan/updated", "turn/diff/updated", "item/fileChange/outputDelta":
 		return none, nil // No content policy, ID allocation or output for private data.

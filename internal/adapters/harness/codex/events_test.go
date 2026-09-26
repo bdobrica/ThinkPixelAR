@@ -18,7 +18,7 @@ import (
 func eventOptions() (harness.HarnessHandle, runtimebinding.OperationIdentity, harness.Capabilities, harness.AdapterLimits) {
 	id := turnInput
 	digest := "sha256:" + strings.Repeat("a", 64)
-	return harness.HarnessHandle{ID: id, ProcessInstanceID: id, Fence: harness.Fence{TenantID: id, SessionID: id, ExecutionID: id, AttemptID: id, SandboxBindingID: id, Generation: 1, AttemptOrdinal: 1}, AdapterKind: Kind, AdapterBuildDigest: digest, NegotiationDigest: digest, VendorSessionReference: testThreadID}, runtimebinding.OperationIdentity{ID: turnOperation, RequestDigest: digest}, harness.Capabilities{harness.StructuredEvents: harness.Supported, harness.Streaming: harness.Supported, harness.StructuredToolEvents: harness.Supported, harness.StructuredProcessEvents: harness.Supported}, harness.AdapterLimits{EventBytes: 4096, EventsPerSecond: 1000, BufferedEvents: 1}
+	return harness.HarnessHandle{ID: id, ProcessInstanceID: id, Fence: harness.Fence{TenantID: id, SessionID: id, ExecutionID: id, AttemptID: id, SandboxBindingID: id, Generation: 1, AttemptOrdinal: 1}, AdapterKind: Kind, AdapterBuildDigest: digest, NegotiationDigest: digest, VendorSessionReference: testThreadID}, runtimebinding.OperationIdentity{ID: turnOperation, RequestDigest: digest}, harness.Capabilities{harness.StructuredEvents: harness.Supported, harness.Streaming: harness.Supported, harness.UsageObservation: harness.Supported, harness.StructuredToolEvents: harness.Supported, harness.StructuredProcessEvents: harness.Supported}, harness.AdapterLimits{EventBytes: 4096, EventsPerSecond: 1000, BufferedEvents: 1}
 }
 
 // Fixture policy is deliberately limited to fixture content; not production
@@ -111,7 +111,7 @@ func TestEventMapping(t *testing.T) {
 		turnNotification("turn/completed", "completed")
 	s, _ := fixtureEvents(t, wire, fixtureEventPolicy{})
 	events := readEvents(t, s)
-	want := []string{harness.ExecutionStarted, harness.MessageDelta, harness.MessageDelta, harness.MessageCompleted, harness.ProcessStarted, harness.ProcessOutput, harness.ProcessCompleted, harness.ToolStarted, harness.ToolFailed, harness.ToolStarted, harness.ToolCompleted, harness.ToolStarted, harness.ToolCompleted}
+	want := []string{harness.ExecutionStarted, harness.MessageDelta, harness.MessageDelta, harness.MessageCompleted, harness.ProcessStarted, harness.ProcessOutput, harness.ProcessCompleted, harness.ToolStarted, harness.ToolFailed, harness.ToolStarted, harness.ToolCompleted, harness.ToolStarted, harness.ToolCompleted, harness.ExecutionCompletionObserved}
 	if len(events) != len(want) {
 		t.Fatalf("events: %d", len(events))
 	}
@@ -149,7 +149,7 @@ func TestEventMapping(t *testing.T) {
 func TestEventsSuppressWithoutPolicy(t *testing.T) {
 	wire := turnNotification("turn/started", "inProgress") + itemNotification("agentMessage", "m", false, map[string]any{"text": ""}) + deltaNotification("item/agentMessage/delta", "m", "secret-canary") + itemNotification("agentMessage", "m", true, map[string]any{"text": "secret-canary"}) + turnNotification("turn/completed", "completed")
 	s, _ := fixtureEvents(t, wire, nil)
-	if got := readEvents(t, s); len(got) != 1 || got[0].Type != harness.ExecutionStarted {
+	if got := readEvents(t, s); len(got) != 2 || got[1].Type != harness.ExecutionCompletionObserved || got[0].Type != harness.ExecutionStarted {
 		t.Fatal("default content suppression")
 	}
 }
