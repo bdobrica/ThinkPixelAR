@@ -12,6 +12,7 @@ import (
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/control"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
@@ -40,6 +41,7 @@ type Processes struct {
 	shutdownErr    error
 	config         HarnessConfig
 	codex          bool
+	createThread   bool
 	commandBytes   uint32
 	current        *child
 	captureLimits  *agentdv1.Limits
@@ -60,6 +62,7 @@ type child struct {
 	stdout, stderr *captureWriter
 	codex          *codex.Client
 	codexHome      string
+	threadID       string // Accessed only under the process operation gate.
 }
 
 // Status remains available while launch, stop or output draining holds the operation gate.
@@ -81,7 +84,11 @@ func NewProcesses(c Config) (*Processes, error) {
 	if isCodex && !slices.Equal(h.Argv, codex.Command()) {
 		return nil, ErrConfig
 	}
-	return &Processes{config: h, codex: isCodex, commandBytes: c.Limits.CommandBytes}, nil
+	createThread := slices.Contains(c.Capabilities, control.ThreadCapability)
+	if createThread && (!isCodex || !slices.Contains(c.RequiredCapabilities, control.ThreadCapability)) {
+		return nil, ErrConfig
+	}
+	return &Processes{config: h, codex: isCodex, createThread: createThread, commandBytes: c.Limits.CommandBytes}, nil
 }
 
 // NewProcessesWithCapture opts into bounded, redacted capture. A nil sanitizer
@@ -172,6 +179,10 @@ func (p *Processes) Stop(ctx context.Context, id primitives.ID) error {
 	return err
 }
 func (p *Processes) Restart(ctx context.Context, id primitives.ID) (primitives.ID, error) {
+	// A new thread would silently break Session continuity. Resume is CDX-005.
+	if p.createThread {
+		return "", ErrControl
+	}
 	return p.operation(ctx, p.stopBudget()+time.Duration(p.config.StartTimeoutMS)*time.Millisecond, func(ctx context.Context) (primitives.ID, error) {
 		if err := p.stop(ctx, id, false); err != nil {
 			return "", err
@@ -259,6 +270,13 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		if err := c.codex.Initialize(ctx); err != nil {
 			_ = p.stop(context.Background(), id, true)
 			return "", err
+		}
+		if p.createThread {
+			c.threadID, err = c.codex.StartThread(ctx, p.config.WorkingDirectory)
+			if err != nil {
+				_ = p.stop(context.Background(), id, true)
+				return "", err
+			}
 		}
 	}
 	if ctx.Err() != nil || p.closing.Load() {

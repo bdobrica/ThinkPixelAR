@@ -135,3 +135,36 @@ it never sends that operation again. PENDING is ambiguous and UNKNOWN is a repor
 uncertain outcome; either blocks new commands on the sandbox until trusted recovery.
 ACKNOWLEDGED is only a correlated transport outcome, never Execution completion.
 The 128-command lifetime budget and single outstanding command include STATUS.
+
+## Optional Codex thread creation
+
+`codex-thread.v1` extends `process-control.v1` START for the pinned
+`codex-app-server` adapter. It must be supported **and required** on both peers;
+without it the existing initialization-only behavior is preserved. START sends
+one `thread/start` with the configured working directory, `approvalPolicy: never`,
+`sandbox: read-only`, and `ephemeral: false`. Both the matching response and
+`thread/started` must confirm the same vendor identity. Cancellation or ambiguous
+outcomes never trigger a second creation request.
+
+Before START acknowledgement, agentd sends PROCESS_STATUS with schema
+`codex-thread.v1`, no artifact reference, and exactly this canonical JSON shape
+(field order as shown, no whitespace or extra keys, maximum 256 bytes):
+
+```json
+{"process_id":"<AR UUIDv7>","thread_id":"<lowercase vendor UUID>"}
+```
+
+The envelope repeats the START operation, request digest and HarnessHandle. These
+are candidate identity observations. The local durable policy validates current
+Attempt/generation, live authority, connection epoch and the committed START claim
+before inserting immutable HarnessBinding metadata and linking the Attempt in one
+transaction. Adapter/build and harness negotiation pins come from trusted
+materialization, never the observation. Identical reports are idempotent;
+conflicting identities fail closed. START ACK is rejected until this record exists.
+No Session/Execution lifecycle state or authority is granted by the report.
+
+RESTART and a new START for a Session with a saved HarnessBinding are rejected in
+this mode until resume is implemented. The tenant-scoped binding reader supplies
+identity for continuation/checkpoint composition; it neither authorizes access nor
+proves that vendor files have been checkpointed. Homes remain ephemeral under
+ADR-0050. No Protobuf field or generated artifact changes.

@@ -28,6 +28,7 @@ type commandResult struct {
 	digest string
 	failed bool
 	status ProcessStatus
+	thread control.ThreadStarted
 }
 
 // ProcessControl serializes the process capability and retains a bounded ledger
@@ -123,6 +124,13 @@ func (p *ProcessControl) execute(ctx context.Context, f *agentdv1.Envelope) comm
 	}
 	result.failed = err != nil
 	result.status = p.processes.Status()
+	if err == nil && c.Kind == agentdv1.Command_START && p.processes.createThread {
+		// Start has released its gate and the dispatcher still owns its operation.
+		p.processes.gate.Lock()
+		child := p.processes.current
+		result.thread = control.ThreadStarted{ProcessID: child.id, ThreadID: child.threadID}
+		p.processes.gate.Unlock()
+	}
 	p.operations[f.OperationId] = result
 	return result
 }
@@ -382,6 +390,12 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 		case done := <-results:
 			busy = false
 			active = ""
+			if !done.result.failed && done.result.thread.ThreadID != "" {
+				raw, _ := json.Marshal(done.result.thread)
+				if err := send(&agentdv1.Envelope{OperationId: done.frame.OperationId, RequestDigest: done.frame.RequestDigest, HarnessHandle: done.frame.HarnessHandle, Body: &agentdv1.Envelope_Observation{Observation: &agentdv1.Observation{Kind: agentdv1.Observation_PROCESS_STATUS, PayloadSchema: control.ThreadCapability, Payload: raw}}}); err != nil {
+					return err
+				}
+			}
 			if !done.result.failed {
 				handle = done.frame.HarnessHandle
 				// Disconnect permanently abandons that process's capture. A

@@ -64,6 +64,14 @@ func TestProcessControlReplayAndFencing(t *testing.T) {
 }
 
 func TestAuthenticatedProcessControlExchange(t *testing.T) {
+	authenticatedProcessControlExchange(t, false)
+}
+
+func TestAuthenticatedCodexThreadExchange(t *testing.T) {
+	authenticatedProcessControlExchange(t, true)
+}
+
+func authenticatedProcessControlExchange(t *testing.T, thread bool) {
 	files := transportFixture(t)
 	b, err := decodeTransport(files)
 	if err != nil {
@@ -90,6 +98,12 @@ func TestAuthenticatedProcessControlExchange(t *testing.T) {
 	p.config.Argv = []string{p.config.Argv[0], "-test.run=^TestStructuredHarnessChild$", "structured-fixture", socket}
 	p.captureLimits = protocol.HardLimits()
 	p.sanitizer = func(_ OutputSource, raw []byte) ([]byte, error) { return harnessfixture.Sanitize(raw) }
+	if thread {
+		p.config.Argv = []string{p.config.Argv[0], "-test.run=^TestCodexChild$", "codex-fixture", "thread"}
+		p.codex, p.createThread, p.sanitizer = true, true, nil
+		b.config.Capabilities = append(b.config.Capabilities, control.ThreadCapability)
+		b.config.RequiredCapabilities = append(b.config.RequiredCapabilities, control.ThreadCapability)
+	}
 	adapter := harnessfixture.Adapter{Path: socket}
 	ctl := &ProcessControl{processes: p, configuration: "test-config", operations: map[string]commandResult{}}
 	cfg, err := b.ClientConfig(ctl.CheckClient)
@@ -149,6 +163,18 @@ func TestAuthenticatedProcessControlExchange(t *testing.T) {
 						return err
 					}
 					if o := response.GetObservation(); o != nil {
+						if thread {
+							if o.Kind == agentdv1.Observation_DIAGNOSTIC && o.PayloadSchema == control.Capability+"/stderr" && string(o.Payload) == "[REDACTED]" {
+								continue
+							}
+							v, e := control.ThreadObservation(response)
+							if e != nil || v.ThreadID != "01950000-0000-7000-8000-000000000099" || response.OperationId != start.OperationId || response.RequestDigest != start.RequestDigest {
+								finished <- control.ErrControl
+								return control.ErrControl
+							}
+							ready = true
+							continue
+						}
 						if o.Kind != agentdv1.Observation_DIAGNOSTIC || o.PayloadSchema != control.Capability+"/stdout" || string(o.Payload) != "fixture.v1 ready" {
 							finished <- control.ErrControl
 							return control.ErrControl
@@ -164,6 +190,10 @@ func TestAuthenticatedProcessControlExchange(t *testing.T) {
 						continue
 					}
 					ack := response.GetAcknowledgement()
+					if thread && !ready {
+						finished <- control.ErrControl
+						return control.ErrControl
+					}
 					if ack == nil || response.OperationId != command.OperationId || ack.RequestDigest != command.RequestDigest || ack.AcceptedSequence != command.Sequence {
 						finished <- control.ErrControl
 						return control.ErrControl

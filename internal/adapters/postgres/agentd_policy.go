@@ -10,6 +10,7 @@ import (
 	"time"
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/control"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/protocol"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentd"
@@ -28,6 +29,7 @@ type AgentdMaterialization struct {
 	Challenge                                                []byte
 	GrantDigest, AuthorityReference, Revision, RequestDigest string
 	HarnessHandle                                            string
+	HarnessNegotiationDigest                                 string
 	Deadline, BootstrapDeadline                              time.Time
 }
 
@@ -71,6 +73,9 @@ func (p *AgentdPolicy) validate(ctx context.Context, tx *sql.Tx, b sandbox.Bindi
 		return ErrAgentdPolicy
 	}
 	if !slices.Contains(c.RequiredCapabilities, control.Capability) || !slices.Contains(c.RequiredCapabilities, "rotation.v1") {
+		return ErrAgentdPolicy
+	}
+	if slices.Contains(c.Capabilities, control.ThreadCapability) && (c.AdapterKind != codex.Kind || !slices.Contains(c.RequiredCapabilities, control.ThreadCapability) || !slices.Equal(c.Harness.Argv, codex.Command()) || !credentialDigest(m.HarnessNegotiationDigest)) {
 		return ErrAgentdPolicy
 	}
 	if _, err := primitives.ParseID(m.HarnessHandle); err != nil {
@@ -222,6 +227,17 @@ func (p *AgentdPolicy) AuthorizeFrame(ctx context.Context, i sandbox.ComputeInte
 			return err
 		}
 		if f.GetCommand() != nil {
+			if slices.Contains(m.Config.RequiredCapabilities, control.ThreadCapability) {
+				if f.GetCommand().Kind == agentdv1.Command_RESTART {
+					return ErrAgentdPolicy
+				}
+				if f.GetCommand().Kind == agentdv1.Command_START {
+					var exists bool
+					if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM harness_bindings WHERE tenant_id=$1 AND session_id=$2)`, s.TenantID, s.SessionID).Scan(&exists); err != nil || exists {
+						return ErrAgentdPolicy
+					}
+				}
+			}
 			var count, pending int
 			if err = tx.QueryRowContext(ctx, `SELECT count(*),count(*) FILTER(WHERE outcome<>'ACKNOWLEDGED') FROM agentd_commands WHERE tenant_id=$1 AND sandbox_binding_id=$2`, s.TenantID, s.SandboxID).Scan(&count, &pending); err != nil {
 				return err
@@ -239,10 +255,22 @@ func (p *AgentdPolicy) AuthorizeFrame(ctx context.Context, i sandbox.ComputeInte
 			if err != nil || digest != f.RequestDigest || cid != f.ConnectionId || epoch != f.ConnectionEpoch {
 				return ErrAgentdPolicy
 			}
+			if f.GetObservation() != nil {
+				if outcome != "PENDING" && outcome != "ACKNOWLEDGED" {
+					return ErrAgentdPolicy
+				}
+				return persistThread(ctx, tx, b, m, f)
+			}
 			next := "UNKNOWN"
 			if ack := f.GetAcknowledgement(); ack != nil {
 				if ack.MessageId != mid || ack.RequestDigest != digest || ack.AcceptedSequence != sequence || ack.EventCredit != 0 {
 					return ErrAgentdPolicy
+				}
+				if slices.Contains(m.Config.RequiredCapabilities, control.ThreadCapability) && digest == control.Digest(agentdv1.Command_START, agentd.ConfigurationDigest(m.Config), m.HarnessHandle) {
+					var exists bool
+					if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM harness_bindings WHERE tenant_id=$1 AND harness_binding_id=$2 AND start_operation_id=$3 AND start_request_digest=$4)`, s.TenantID, m.HarnessHandle, f.OperationId, digest).Scan(&exists); err != nil || !exists {
+						return ErrAgentdPolicy
+					}
 				}
 				next = "ACKNOWLEDGED"
 			}
@@ -275,6 +303,15 @@ func policyFrame(f *agentdv1.Envelope, m AgentdMaterialization) (string, error) 
 			return "", ErrAgentdPolicy
 		}
 		return "AR", nil
+	}
+	if o := f.GetObservation(); o != nil && o.PayloadSchema == control.ThreadCapability {
+		if !slices.Contains(m.Config.RequiredCapabilities, control.ThreadCapability) || f.HarnessHandle != m.HarnessHandle || f.OperationId == "" || f.RequestDigest != control.Digest(agentdv1.Command_START, agentd.ConfigurationDigest(m.Config), m.HarnessHandle) {
+			return "", ErrAgentdPolicy
+		}
+		if _, err := control.ThreadObservation(f); err != nil {
+			return "", ErrAgentdPolicy
+		}
+		return "AGENTD", nil
 	}
 	if f.OperationId != "" && f.GetAcknowledgement() == nil && f.GetFailure() == nil {
 		return "", ErrAgentdPolicy

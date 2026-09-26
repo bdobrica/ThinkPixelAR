@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -56,6 +57,9 @@ func policyFixtureConfigured(t *testing.T, unissued bool, configure func(*agentd
 	m.Config.Harness.StopGraceMS = 1000
 	if configure != nil {
 		configure(&m.Config)
+	}
+	if slices.Contains(m.Config.RequiredCapabilities, control.ThreadCapability) {
+		m.HarnessNegotiationDigest = testDigest('d')
 	}
 	var issuer string
 	if err = db.QueryRow(`SELECT grant_digest,authority_namespace,authority_reference FROM executions WHERE tenant_id=$1 AND execution_id=$2`, s.TenantID, s.ExecutionID).Scan(&m.GrantDigest, &issuer, &m.AuthorityReference); err != nil {

@@ -26,12 +26,15 @@ func Command() []string {
 // The supervisor must stop the child after a failed handshake. Raw frames and
 // initialization metadata never become diagnostics or canonical runtime events.
 type Client struct {
-	gate      sync.Mutex
-	closeOnce sync.Once
-	in        io.WriteCloser
-	out       io.ReadCloser
-	reader    *bufio.Reader
-	attempted bool
+	gate                sync.Mutex
+	closeOnce           sync.Once
+	in                  io.WriteCloser
+	out                 io.ReadCloser
+	reader              *bufio.Reader
+	attempted           bool
+	initialized         bool
+	threadAttempted     bool
+	threadID, threadCWD string
 }
 
 // NewClient requires pipes whose Close interrupts pending reads/writes.
@@ -112,6 +115,7 @@ func (c *Client) Initialize(ctx context.Context) (err error) {
 	if _, err := io.WriteString(c.in, "{\"method\":\"initialized\",\"params\":{}}\n"); err != nil {
 		return harness.ErrOutcomeUnknown
 	}
+	c.initialized = true
 	return nil
 }
 

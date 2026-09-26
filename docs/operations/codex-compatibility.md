@@ -12,7 +12,8 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Stable schema export | 312 JSON files; SHA-256 `5b0fbb54807f53f2286a0aab3428cd6893ef7cdfc0efa0f3151450d70a80ddd6`. Lexically ordered relative path + NUL + original bytes for each `.json` file; no experimental export flag. |
 | Transport | Child stdio, newline-delimited JSON requests/responses/notifications. No remote listener. |
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
-| Next implementation surface | `thread/start`, `thread/resume`, `turn/start`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
+| Thread creation | `thread/start` and matching `thread/started`; real pinned amd64 execution and PostgreSQL identity persistence checked by CDX-004. |
+| Next implementation surface | `thread/resume`, `turn/start`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
 | ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts: amd64 packaged protocol/tools/supervisor smoke, ARM64 emulated startup only. Native ARM64/Kata/model-turn evidence remains CDX-016 and the intervening adapter work. |
 
@@ -57,8 +58,15 @@ For `adapter_kind: codex-app-server`, bootstrap must use exactly:
 
 The child receives a fresh ephemeral home and no inherited supervisor environment.
 Its handshake is bounded by the command/startup deadline and a ten-second ceiling.
-Failed initialization stops the child; successful initialization does not create
-a thread or establish AR Session readiness. See [ADR-0050](../adr/0050-codex-supervised-initialization.md).
+Failed initialization stops the child. With required `codex-thread.v1`, START also
+creates a thread before acknowledging; without it, startup remains handshake-only.
+Neither establishes AR Session readiness. See [ADR-0050](../adr/0050-codex-supervised-initialization.md).
+Enable thread creation by including `codex-thread.v1` in both supported and required
+capabilities on agentd and AR expectations, and supplying the selected harness
+registry negotiation digest in trusted `AgentdMaterialization.HarnessNegotiationDigest`.
+This is the harness negotiation digest, not the transport Welcome digest. The
+local durable policy persists the correlated identity before accepting START ACK.
+See [thread evidence and limits](../evidence/cdx-004-thread.md).
 A missing capability fails explicitly. Resume/fork/state portability require their
 own evidence, and the
 example `codex/thread-v1` state format is not yet a qualified checkpoint format.

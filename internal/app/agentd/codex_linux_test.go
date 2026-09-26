@@ -17,6 +17,7 @@ import (
 
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/control"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sandboxtransport/protocol"
 )
 
@@ -51,6 +52,23 @@ func TestCodexChild(t *testing.T) {
 	_, _ = io.WriteString(os.Stdout, `{"id":1,"result":{"userAgent":"thinkpixelar/`+version+` (Linux)"}}`+"\n")
 	if !s.Scan() || string(s.Bytes()) != `{"method":"initialized","params":{}}` {
 		syscall.Exit(74)
+	}
+	if mode == "thread" {
+		if !s.Scan() {
+			syscall.Exit(75)
+		}
+		var start struct {
+			Method string `json:"method"`
+			Params struct {
+				CWD string `json:"cwd"`
+			} `json:"params"`
+		}
+		if json.Unmarshal(s.Bytes(), &start) != nil || start.Method != "thread/start" {
+			syscall.Exit(76)
+		}
+		thread := map[string]any{"id": "01950000-0000-7000-8000-000000000099", "cwd": start.Params.CWD, "cliVersion": codex.Version, "ephemeral": false}
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"id": 2, "result": map[string]any{"thread": thread, "cwd": start.Params.CWD, "approvalPolicy": "never", "sandbox": map[string]any{"type": "readOnly", "networkAccess": false}}})
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"method": "thread/started", "params": map[string]any{"thread": thread}})
 	}
 	_, _ = io.WriteString(os.Stderr, "credential-canary\n")
 	for s.Scan() {
@@ -141,6 +159,15 @@ func TestCodexBootstrapCommand(t *testing.T) {
 	if err != nil || !p.codex {
 		t.Fatal("Codex not selected", err)
 	}
+	c.Capabilities = append(c.Capabilities, control.ThreadCapability)
+	if _, err := NewProcesses(c); err == nil {
+		t.Fatal("optional thread capability accepted")
+	}
+	c.RequiredCapabilities = append(c.RequiredCapabilities, control.ThreadCapability)
+	p, err = NewProcesses(c)
+	if err != nil || !p.createThread {
+		t.Fatal("thread mode not selected", err)
+	}
 	c.Harness.Argv = append(c.Harness.Argv, "--listen", "ws://0.0.0.0:9999")
 	if _, err := NewProcesses(c); err == nil {
 		t.Fatal("unregistered command accepted")
@@ -158,6 +185,11 @@ func TestCodexReadinessCannotResurrectStoppingProcess(t *testing.T) {
 
 // This exercises production startup and command replay without model access.
 func TestPinnedCodexSupervisedStartup(t *testing.T) {
+	t.Run("handshake", func(t *testing.T) { pinnedCodexStartup(t, false) })
+	t.Run("thread", func(t *testing.T) { pinnedCodexStartup(t, true) })
+}
+
+func pinnedCodexStartup(t *testing.T, thread bool) {
 	binary := os.Getenv("THINKPIXELAR_TEST_CODEX_BINARY")
 	if binary == "" {
 		t.Skip("set THINKPIXELAR_TEST_CODEX_BINARY for pinned supervised startup")
@@ -176,6 +208,7 @@ func TestPinnedCodexSupervisedStartup(t *testing.T) {
 		t.Fatal("executable pin mismatch")
 	}
 	p := codexFixture(t, "ready")
+	p.createThread = thread
 	p.config.Argv = codex.Command()
 	p.config.Argv[0] = binary // Test-only path; production bootstrap requires packaged location.
 	p.config.StartTimeoutMS = 10000
@@ -185,7 +218,15 @@ func TestPinnedCodexSupervisedStartup(t *testing.T) {
 	fstart := controlCommand(t, agentdv1.Command_START, "01950000-0000-7000-8000-000000000001")
 	r := c.execute(ctx, fstart)
 	if r.failed || !r.status.ProtocolReady {
-		t.Fatal("pinned supervised handshake failed")
+		t.Fatal("pinned supervised startup failed", r.status.State, r.status.Failure)
+	}
+	if thread {
+		if !codex.ValidThreadID(r.thread.ThreadID) || r.thread.ProcessID != r.status.ProcessID {
+			t.Fatal("thread identity missing")
+		}
+		if _, err := p.Restart(ctx, r.status.ProcessID); err == nil {
+			t.Fatal("restart silently replaced thread")
+		}
 	}
 	if replay := c.execute(ctx, fstart); replay != r {
 		t.Fatal("replay launched another process")
