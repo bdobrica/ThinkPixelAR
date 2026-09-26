@@ -36,6 +36,7 @@ type Client struct {
 	initialized                       bool
 	threadAttempted                   bool
 	threadID, threadCWD               string
+	threadResumeID                    string
 	turnOperation, turnDigest, turnID string
 	eventsOpened                      bool
 	interruptGate                     sync.Mutex

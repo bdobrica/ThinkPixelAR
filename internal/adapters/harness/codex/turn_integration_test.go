@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -18,6 +19,18 @@ import (
 // A real pinned App Server accepts the turn; a loopback-only model fixture
 // prevents provider calls and uses no API keys or inherited operator state.
 func pinnedTurnClient(t *testing.T, handler http.HandlerFunc) (*Client, context.Context) {
+	t.Helper()
+	home, launch, ctx := pinnedThreadFactory(t, handler)
+	c, _ := launch(home)
+	if _, e := c.StartThread(ctx, home); e != nil {
+		t.Fatal(e)
+	}
+	return c, ctx
+}
+
+// Each launch gets fresh pipes and a process, with only the explicit test home
+// retained. Production restoration and credential injection are separate work.
+func pinnedThreadFactory(t *testing.T, handler http.HandlerFunc) (string, func(string) (*Client, func()), context.Context) {
 	t.Helper()
 	binary := os.Getenv("THINKPIXELAR_TEST_CODEX_BINARY")
 	if binary == "" {
@@ -39,33 +52,35 @@ func pinnedTurnClient(t *testing.T, handler http.HandlerFunc) (*Client, context.
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	home := t.TempDir()
-	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 40*time.Second)
 	t.Cleanup(cancel)
 	args := append(Command()[1:], "-c", `model="fixture"`, "-c", `model_provider="fixture"`, "-c", `model_providers.fixture.name="fixture"`, "-c", "model_providers.fixture.base_url="+strconv.Quote(server.URL+"/v1"), "-c", `model_providers.fixture.wire_api="responses"`, "-c", `model_providers.fixture.requires_openai_auth=false`)
-	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Env = []string{"HOME=" + home, "CODEX_HOME=" + home, "PATH=/usr/bin:/bin", "LANG=C.UTF-8"}
-	cmd.Dir = home
-	cmd.Stderr = io.Discard
-	in, e := cmd.StdinPipe()
-	if e != nil {
-		t.Fatal(e)
+	launch := func(home string) (*Client, func()) {
+		cmd := exec.CommandContext(ctx, binary, args...)
+		cmd.Env = []string{"HOME=" + home, "CODEX_HOME=" + home, "PATH=/usr/bin:/bin", "LANG=C.UTF-8"}
+		cmd.Dir = home
+		cmd.Stderr = io.Discard
+		in, e := cmd.StdinPipe()
+		if e != nil {
+			t.Fatal(e)
+		}
+		out, e := cmd.StdoutPipe()
+		if e != nil {
+			t.Fatal(e)
+		}
+		if cmd.Start() != nil {
+			t.Fatal("start failed")
+		}
+		c := NewClient(in, out)
+		var once sync.Once
+		stop := func() { once.Do(func() { c.Close(); _ = cmd.Process.Kill(); _ = cmd.Wait() }) }
+		t.Cleanup(stop)
+		if e := c.Initialize(ctx); e != nil {
+			t.Fatal(e)
+		}
+		return c, stop
 	}
-	out, e := cmd.StdoutPipe()
-	if e != nil {
-		t.Fatal(e)
-	}
-	if cmd.Start() != nil {
-		t.Fatal("start failed")
-	}
-	c := NewClient(in, out)
-	t.Cleanup(func() { c.Close(); _ = cmd.Process.Kill(); _ = cmd.Wait() })
-	if e := c.Initialize(ctx); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := c.StartThread(ctx, home); e != nil {
-		t.Fatal(e)
-	}
-	return c, ctx
+	return home, launch, ctx
 }
 
 func TestPinnedTurnStart(t *testing.T) {

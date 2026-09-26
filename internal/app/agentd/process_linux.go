@@ -184,7 +184,8 @@ func (p *Processes) Stop(ctx context.Context, id primitives.ID) error {
 	return err
 }
 func (p *Processes) Restart(ctx context.Context, id primitives.ID) (primitives.ID, error) {
-	// A new thread would silently break Session continuity. Resume is CDX-005.
+	// A new thread would silently break Session continuity. The resume driver
+	// exists, but trusted vendor-state restoration is not wired here (CDX-012).
 	if p.createThread {
 		return "", ErrControl
 	}

@@ -100,6 +100,15 @@ func (c *Client) StartTurn(ctx context.Context, operation, inputID primitives.ID
 			return "", harness.ErrProtocol
 		}
 		switch method {
+		case "thread/tokenUsage/updated", "thread/goal/cleared":
+			// Resume emits historical usage/goal hints after its response. They
+			// are not observations for this new AR Execution and are discarded
+			// only before turn acceptance, within the existing frame budget.
+			params, e := object(frame["params"])
+			var target string
+			if c.threadResumeID == "" || e != nil || json.Unmarshal(params["threadId"], &target) != nil || target != c.threadID {
+				return "", harness.ErrProtocol
+			}
 		case "remoteControl/status/changed", "configWarning", "warning", "skills/changed", "mcpServer/startupStatus/updated", "thread/status/changed":
 			// Only bounded startup/status hints may precede acceptance. Never publish raw data.
 		default:

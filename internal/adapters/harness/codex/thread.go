@@ -31,9 +31,25 @@ func ValidThreadID(id string) bool {
 }
 
 // StartThread creates one thread per initialized process. The fixed read-only,
-// no-approval policy grants no extra permissions; turn policy is separate work.
+// no-approval policy grants no extra permissions.
 // A failed request is never retried because its vendor outcome may be unknown.
-func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err error) {
+func (c *Client) StartThread(ctx context.Context, cwd string) (string, error) {
+	return c.openThread(ctx, cwd, "")
+}
+
+// ResumeThread resumes the exact vendor identity from state already restored by
+// trusted composition into this child's isolated CODEX_HOME. The caller must
+// validate checkpoint integrity, runtime pins and current authority first. This
+// driver neither restores files nor accepts vendor paths/history as authority.
+// Missing or incompatible state fails closed; it never falls back to creation.
+func (c *Client) ResumeThread(ctx context.Context, cwd, threadID string) (string, error) {
+	if !ValidThreadID(threadID) {
+		return "", harness.ErrInvalid
+	}
+	return c.openThread(ctx, cwd, threadID)
+}
+
+func (c *Client) openThread(ctx context.Context, cwd, resumeID string) (id string, err error) {
 	if !c.gate.TryLock() {
 		return "", harness.ErrConflict
 	}
@@ -42,7 +58,7 @@ func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err er
 		return "", harness.ErrInvalid
 	}
 	if c.threadAttempted {
-		if c.threadCWD != cwd {
+		if c.threadCWD != cwd || c.threadResumeID != resumeID {
 			return "", harness.ErrConflict
 		}
 		if c.threadID == "" {
@@ -53,7 +69,7 @@ func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err er
 	if ctx.Err() != nil {
 		return "", harness.ErrOutcomeUnknown
 	}
-	c.threadAttempted, c.threadCWD = true, cwd
+	c.threadAttempted, c.threadCWD, c.threadResumeID = true, cwd, resumeID
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(ctx, c.Close)
@@ -66,7 +82,17 @@ func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err er
 			c.Close()
 		}
 	}()
-	request, _ := json.Marshal(map[string]any{"id": 2, "method": "thread/start", "params": map[string]any{"cwd": cwd, "approvalPolicy": "never", "sandbox": "read-only", "ephemeral": false}})
+	method := "thread/start"
+	params := map[string]any{"cwd": cwd, "approvalPolicy": "never", "sandbox": "read-only"}
+	if resumeID == "" {
+		params["ephemeral"] = false
+	} else {
+		method = "thread/resume"
+		params["threadId"] = resumeID
+		// Do not hydrate old messages/reasoning into the protocol response.
+		params["excludeTurns"] = true
+	}
+	request, _ := json.Marshal(map[string]any{"id": 2, "method": method, "params": params})
 	request = append(request, '\n')
 	if _, err := c.in.Write(request); err != nil {
 		return "", harness.ErrOutcomeUnknown
@@ -99,6 +125,15 @@ func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err er
 			if err != nil {
 				return "", err
 			}
+			if resumeID != "" {
+				thread, _ := object(result["thread"])
+				status, e := object(thread["status"])
+				if responseID != resumeID || e != nil || string(status["type"]) != `"idle"` {
+					return "", harness.ErrProtocol
+				}
+				c.threadID = responseID
+				return responseID, nil
+			}
 		} else {
 			var method string
 			// The pinned server adds emission timestamps to notifications.
@@ -113,9 +148,16 @@ func (c *Client) StartThread(ctx context.Context, cwd string) (id string, err er
 				return "", harness.ErrProtocol
 			}
 			switch method {
+			case "thread/status/changed":
+				params, e := object(frame["params"])
+				var target string
+				status, statusErr := object(params["status"])
+				if resumeID == "" || e != nil || json.Unmarshal(params["threadId"], &target) != nil || target != resumeID || statusErr != nil || string(status["type"]) != `"idle"` {
+					return "", harness.ErrProtocol
+				}
 			case "thread/started":
 				params, err := object(frame["params"])
-				if err != nil || notificationID != "" {
+				if err != nil || notificationID != "" || resumeID != "" {
 					return "", harness.ErrProtocol
 				}
 				notificationID, err = threadIdentity(params["thread"], cwd)

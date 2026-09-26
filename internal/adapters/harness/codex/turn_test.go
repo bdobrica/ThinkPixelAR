@@ -19,22 +19,29 @@ const testTurnID = "01950000-0000-7000-8000-000000000003"
 func TestStartTurn(t *testing.T) {
 	good := `{"id":3,"result":{"turn":{"id":"` + testTurnID + `","status":"inProgress","items":[],"error":null}}}` + "\n"
 	for name, response := range map[string]string{
-		"accepted":          good,
-		"hint":              "{\"method\":\"thread/status/changed\",\"params\":{}}\n" + good,
-		"wrong rpc":         strings.Replace(good, `"id":3`, `"id":4`, 1),
-		"duplicate rpc":     strings.Replace(good, `"id":3`, `"id":3,"id":3`, 1),
-		"vendor error":      "{\"id\":3,\"error\":{\"message\":\"secret-canary\"}}\n",
-		"bad turn":          strings.Replace(good, testTurnID, "/private/secret", 1),
-		"already completed": strings.Replace(good, "inProgress", "completed", 1),
-		"server request":    "{\"id\":5,\"method\":\"item/permissions/requestApproval\",\"params\":{}}\n",
-		"truncated":         good[:20],
-		"oversize":          strings.Repeat("x", maxHandshakeBytes+1),
+		"accepted":            good,
+		"resume hints":        usageNotification(5, 2) + notification("thread/goal/cleared", map[string]any{"threadId": testThreadID}) + good,
+		"resume wrong thread": strings.Replace(usageNotification(5, 2), testThreadID, testTurnID, 1) + good,
+		"unexpected history":  usageNotification(5, 2) + good,
+		"resume hint flood":   strings.Repeat(notification("thread/goal/cleared", map[string]any{"threadId": testThreadID}), 33) + good,
+		"hint":                "{\"method\":\"thread/status/changed\",\"params\":{}}\n" + good,
+		"wrong rpc":           strings.Replace(good, `"id":3`, `"id":4`, 1),
+		"duplicate rpc":       strings.Replace(good, `"id":3`, `"id":3,"id":3`, 1),
+		"vendor error":        "{\"id\":3,\"error\":{\"message\":\"secret-canary\"}}\n",
+		"bad turn":            strings.Replace(good, testTurnID, "/private/secret", 1),
+		"already completed":   strings.Replace(good, "inProgress", "completed", 1),
+		"server request":      "{\"id\":5,\"method\":\"item/permissions/requestApproval\",\"params\":{}}\n",
+		"truncated":           good[:20],
+		"oversize":            strings.Repeat("x", maxHandshakeBytes+1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			input, in := io.Pipe()
 			out, output := io.Pipe()
 			c := NewClient(in, out)
 			c.threadID, c.threadCWD = testThreadID, "/workspace"
+			if strings.HasPrefix(name, "resume ") {
+				c.threadResumeID = testThreadID
+			}
 			defer c.Close()
 			done := make(chan struct{})
 			go func() {
@@ -66,7 +73,7 @@ func TestStartTurn(t *testing.T) {
 				_, _ = io.WriteString(output, response)
 			}()
 			id, err := c.StartTurn(t.Context(), turnOperation, turnInput, "unicode λ\n\"prompt\"")
-			if name == "accepted" || name == "hint" {
+			if name == "accepted" || name == "hint" || name == "resume hints" {
 				if err != nil || id != testTurnID {
 					t.Fatal("turn rejected", err)
 				}

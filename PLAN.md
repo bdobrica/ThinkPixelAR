@@ -1627,7 +1627,7 @@ Implement:
 - conformance harness;
 - Codex App Server adapter;
 - Codex OCI runtime package;
-- thread creation/resume;
+- thread creation/resume (CDX-004/005 protocol paths complete; trusted cold-resume composition remains Phase 6);
 - turn execution;
 - streaming normalization;
 - interrupt;

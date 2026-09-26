@@ -14,11 +14,12 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Transport | Child stdio, newline-delimited JSON requests/responses/notifications. No remote listener. |
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
 | Thread creation | `thread/start` and matching `thread/started`; real pinned amd64 execution and PostgreSQL identity persistence checked by CDX-004. |
+| Thread resume | `thread/resume` by exact ID from pre-restored state; local pinned amd64 process replacement preserves conversation context. [Evidence and limits](../evidence/cdx-005-thread-resume.md). |
 | Turn start | `turn/start` maps bounded AR Execution text to the current thread; real pinned amd64 acceptance tested with a loopback model fixture. |
 | Stream normalization | `Client.Events` maps pinned message/tool/process notifications to Confidential harness candidates. Real App Server message streaming checked with local Responses SSE; [scope and limits](../evidence/cdx-007-streamed-events.md). |
 | Completion / usage | Terminal candidates, latest thread usage and trusted result references; real pinned success/failure tested with local model fixtures. [Evidence](../evidence/cdx-008-completion.md). |
 | Interrupt | Pinned `turn/interrupt`, bounded acknowledgement and retained interleaved notifications; real interrupted turn checked. Supervisor keeps bounded stop/reap. [Evidence](../evidence/cdx-009-interrupt.md). |
-| Next implementation surface | Application Session/Execution/event composition and durable continuation; `thread/resume` remains unimplemented. |
+| Next implementation surface | Application Session/Execution/event composition, trusted vendor-state restoration and agentd cold resume. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
 | ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts. [CDX-016](../evidence/cdx-016-kata-codex.md) passed native ARM64 supervisor and driver turn probes in a controller-created Kata guest, with loopback model responses and independent KVM correlation. This is not live gateway or application-hosting qualification. |
 
