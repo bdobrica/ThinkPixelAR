@@ -30,13 +30,19 @@ func Command(f *agentdv1.Envelope, configuration string) error {
 		return ErrControl
 	}
 	c := f.GetCommand()
-	if c.ConfigurationDigest != configuration || c.PayloadSchema != Capability || len(c.Payload) != 0 || c.ArtifactReference != "" {
-		return ErrControl
-	}
-	switch c.Kind {
-	case agentdv1.Command_START, agentdv1.Command_STOP, agentdv1.Command_RESTART, agentdv1.Command_INTERRUPT, agentdv1.Command_STATUS:
-	default:
-		return ErrControl
+	if c.Kind == agentdv1.Command_EXECUTE {
+		if err := turnCommand(f, configuration); err != nil {
+			return err
+		}
+	} else {
+		if c.ConfigurationDigest != configuration || c.PayloadSchema != Capability || len(c.Payload) != 0 || c.ArtifactReference != "" {
+			return ErrControl
+		}
+		switch c.Kind {
+		case agentdv1.Command_START, agentdv1.Command_STOP, agentdv1.Command_RESTART, agentdv1.Command_INTERRUPT, agentdv1.Command_STATUS:
+		default:
+			return ErrControl
+		}
 	}
 	if _, err := primitives.ParseID(f.HarnessHandle); err != nil {
 		return ErrControl
@@ -44,7 +50,7 @@ func Command(f *agentdv1.Envelope, configuration string) error {
 	if _, err := primitives.ParseID(f.OperationId); err != nil {
 		return ErrControl
 	}
-	if f.RequestDigest != Digest(c.Kind, configuration, f.HarnessHandle) || f.SentUnixMs <= 0 || f.DeadlineUnixMs <= f.SentUnixMs || f.DeadlineUnixMs <= time.Now().UnixMilli() {
+	if (c.Kind != agentdv1.Command_EXECUTE && f.RequestDigest != Digest(c.Kind, configuration, f.HarnessHandle)) || f.SentUnixMs <= 0 || f.DeadlineUnixMs <= f.SentUnixMs || f.DeadlineUnixMs <= time.Now().UnixMilli() {
 		return ErrControl
 	}
 	return nil

@@ -13,7 +13,8 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Transport | Child stdio, newline-delimited JSON requests/responses/notifications. No remote listener. |
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
 | Thread creation | `thread/start` and matching `thread/started`; real pinned amd64 execution and PostgreSQL identity persistence checked by CDX-004. |
-| Next implementation surface | `thread/resume`, `turn/start`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
+| Turn start | `turn/start` maps bounded AR Execution text to the current thread; real pinned amd64 acceptance tested with a loopback model fixture. |
+| Next implementation surface | `thread/resume`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
 | ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts: amd64 packaged protocol/tools/supervisor smoke, ARM64 emulated startup only. Native ARM64/Kata/model-turn evidence remains CDX-016 and the intervening adapter work. |
 
@@ -78,3 +79,20 @@ The [official OpenAI App Server documentation](https://learn.chatgpt.com/docs/ap
 describes initialization, stdio and version-specific schema export. This evolving
 documentation is guidance; the pinned binary/schema and recorded tests determine
 this repository's actual compatibility claim.
+
+## Enable the first turn
+
+Require `codex-turn.v1` alongside thread/process control in bootstrap and AR peer
+expectations. Build a `harness.ExecuteRequest` for the bound Execution with a
+stable operation ID, InputID, current fence, finite deadline and inline
+`text/plain` content. Encode with `control.ExecutionInput`, compute
+`control.TurnDigest(configurationDigest, handleID, payload)`, and use that digest
+in the request's Operation. `agentdserver.ExecutionCommand` produces the trusted
+plan entry after validating the mapping. Register the same operation ID/digest in
+`AgentdMaterialization.ExecuteOperationID` / `ExecuteDigest` before admission.
+Plan START before EXECUTE. Do not store prompt text in materialization/config.
+
+This is an application composition seam; the public Execution submission service
+remains Phase 6. Provider/LLMGW configuration and credentials retain their existing
+work. The [CDX-006 evidence](../evidence/cdx-006-turn-start.md) establishes turn
+acceptance, not a completed model turn or deployed image qualification.

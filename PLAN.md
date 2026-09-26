@@ -1604,7 +1604,9 @@ CDX-003 adds supervised startup and the pinned handshake; see
 [startup evidence](docs/evidence/cdx-003-startup.md).
 CDX-004 adds negotiated thread creation and durable HarnessBinding identity; see
 [thread persistence evidence](docs/evidence/cdx-004-thread.md).
-Next: implement Codex turn/events/interrupt (CDX-006–009)
+CDX-006 maps admitted Execution text to bounded turn-start dispatch; see
+[turn-start evidence](docs/evidence/cdx-006-turn-start.md).
+Next: implement Codex events/completion/interrupt (CDX-007–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

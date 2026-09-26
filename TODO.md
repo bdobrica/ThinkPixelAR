@@ -220,7 +220,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [x] CDX-003 Implement Codex App Server startup and protocol handshake. — completed 2026-09-26; [supervised startup evidence](docs/evidence/cdx-003-startup.md), ADR-0050. Fixed command, bounded stable handshake with exact version identity, isolated ephemeral home, failed-start cleanup and replay checks; real pinned amd64 binary verified. Thread creation and live Kata qualification remain CDX-004/016.
 - [x] CDX-004 Implement thread creation and persist vendor thread identity in HarnessBinding/checkpoint state. — completed 2026-09-26; [thread persistence evidence](docs/evidence/cdx-004-thread.md). Negotiated thread creation, correlated identity persisted in HarnessBinding and linked to Attempt before START acknowledgement; readable for checkpoint composition. Vendor files/checkpoint publication remain CDX-012 and Phase 6.
 - [ ] CDX-005 Implement thread resume.
-- [ ] CDX-006 Implement turn start mapped to AR Execution input.
+- [x] CDX-006 Implement turn start mapped to AR Execution input. — completed 2026-09-26; [turn-start evidence](docs/evidence/cdx-006-turn-start.md). Required `codex-turn.v1`, bounded text mapping, pinned input digest/current fence, durable at-most-once dispatch and real pinned turn acceptance. Events/completion/interrupt and live model/Kata qualification remain CDX-007–009/016.
 - [ ] CDX-007 Normalize Codex streamed item/message/tool/process events into AR Runtime Events.
 - [ ] CDX-008 Implement turn completion mapping and usage/reference capture without trusting it for authoritative AG accounting.
 - [ ] CDX-009 Implement turn interrupt/cancellation.

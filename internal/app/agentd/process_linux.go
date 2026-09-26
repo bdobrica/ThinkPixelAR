@@ -42,6 +42,7 @@ type Processes struct {
 	config         HarnessConfig
 	codex          bool
 	createThread   bool
+	executeTurn    bool
 	commandBytes   uint32
 	current        *child
 	captureLimits  *agentdv1.Limits
@@ -88,7 +89,11 @@ func NewProcesses(c Config) (*Processes, error) {
 	if createThread && (!isCodex || !slices.Contains(c.RequiredCapabilities, control.ThreadCapability)) {
 		return nil, ErrConfig
 	}
-	return &Processes{config: h, codex: isCodex, createThread: createThread, commandBytes: c.Limits.CommandBytes}, nil
+	executeTurn := slices.Contains(c.Capabilities, control.TurnCapability)
+	if executeTurn && (!createThread || !slices.Contains(c.RequiredCapabilities, control.TurnCapability)) {
+		return nil, ErrConfig
+	}
+	return &Processes{config: h, codex: isCodex, createThread: createThread, executeTurn: executeTurn, commandBytes: c.Limits.CommandBytes}, nil
 }
 
 // NewProcessesWithCapture opts into bounded, redacted capture. A nil sanitizer

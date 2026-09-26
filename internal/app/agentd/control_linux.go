@@ -60,7 +60,7 @@ func NewProcessControl(c Config) (*ProcessControl, error) {
 func (p *ProcessControl) CheckClient(_ context.Context, f *agentdv1.Envelope) error {
 	switch {
 	case f.GetCommand() != nil:
-		return control.Command(f, p.configuration)
+		return p.checkCommand(f)
 	case f.GetRotation() != nil:
 		if f.GetRotation().Kind != agentdv1.Rotation_ISSUED && f.GetRotation().Kind != agentdv1.Rotation_REQUEST {
 			return control.ErrControl
@@ -71,12 +71,18 @@ func (p *ProcessControl) CheckClient(_ context.Context, f *agentdv1.Envelope) er
 	}
 	return nil
 }
+func (p *ProcessControl) checkCommand(f *agentdv1.Envelope) error {
+	if f.GetCommand().GetKind() == agentdv1.Command_EXECUTE && !p.processes.executeTurn {
+		return control.ErrControl
+	}
+	return control.Command(f, p.configuration)
+}
 func (p *ProcessControl) execute(ctx context.Context, f *agentdv1.Envelope) commandResult {
 	if !p.operation.TryLock() {
 		return commandResult{failed: true}
 	}
 	defer p.operation.Unlock()
-	if control.Command(f, p.configuration) != nil {
+	if p.checkCommand(f) != nil {
 		return commandResult{failed: true}
 	}
 	if old, ok := p.operations[f.OperationId]; ok {
@@ -101,6 +107,15 @@ func (p *ProcessControl) execute(ctx context.Context, f *agentdv1.Envelope) comm
 		}
 		p.handle = f.HarnessHandle
 		_, err = p.processes.Start(ctx)
+	case agentdv1.Command_EXECUTE:
+		if p.handle != f.HarnessHandle {
+			break
+		}
+		input, decodeErr := control.DecodeTurnInput(c.Payload)
+		if decodeErr != nil {
+			break
+		}
+		err = p.processes.startTurn(ctx, primitives.ID(f.OperationId), input)
 	case agentdv1.Command_STATUS:
 		if p.handle != "" && p.handle != f.HarnessHandle {
 			break
@@ -156,7 +171,7 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 		return ErrProcessBusy
 	}
 	defer p.gate.Unlock()
-	if !slices.Contains(s.Welcome().Capabilities, control.Capability) {
+	if !slices.Contains(s.Welcome().Capabilities, control.Capability) || (p.processes.executeTurn && !slices.Contains(s.Welcome().Capabilities, control.TurnCapability)) {
 		return ErrConfig
 	}
 	if !p.operation.TryLock() {
@@ -377,7 +392,7 @@ func (p *ProcessControl) Serve(ctx context.Context, s *grpctransport.Session, b 
 			if f.GetAcknowledgement() != nil {
 				continue
 			}
-			if f.GetCommand() == nil || busy || renewalPending || control.Command(f, p.configuration) != nil {
+			if f.GetCommand() == nil || busy || renewalPending || p.checkCommand(f) != nil {
 				return control.ErrControl
 			}
 			busy = true

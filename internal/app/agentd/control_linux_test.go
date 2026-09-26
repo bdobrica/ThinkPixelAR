@@ -71,7 +71,12 @@ func TestAuthenticatedCodexThreadExchange(t *testing.T) {
 	authenticatedProcessControlExchange(t, true)
 }
 
-func authenticatedProcessControlExchange(t *testing.T, thread bool) {
+func TestAuthenticatedCodexTurnExchange(t *testing.T) {
+	authenticatedProcessControlExchange(t, true, true)
+}
+
+func authenticatedProcessControlExchange(t *testing.T, thread bool, turns ...bool) {
+	turn := len(turns) == 1 && turns[0]
 	files := transportFixture(t)
 	b, err := decodeTransport(files)
 	if err != nil {
@@ -103,6 +108,12 @@ func authenticatedProcessControlExchange(t *testing.T, thread bool) {
 		p.codex, p.createThread, p.sanitizer = true, true, nil
 		b.config.Capabilities = append(b.config.Capabilities, control.ThreadCapability)
 		b.config.RequiredCapabilities = append(b.config.RequiredCapabilities, control.ThreadCapability)
+	}
+	if turn {
+		p.config.Argv[len(p.config.Argv)-1] = "turn"
+		p.executeTurn = true
+		b.config.Capabilities = append(b.config.Capabilities, control.TurnCapability)
+		b.config.RequiredCapabilities = append(b.config.RequiredCapabilities, control.TurnCapability)
 	}
 	adapter := harnessfixture.Adapter{Path: socket}
 	ctl := &ProcessControl{processes: p, configuration: "test-config", operations: map[string]commandResult{}}
@@ -150,7 +161,12 @@ func authenticatedProcessControlExchange(t *testing.T, thread bool) {
 			}
 			ready := false
 			start := controlCommand(t, agentdv1.Command_START, string(handle))
-			for _, command := range []*agentdv1.Envelope{start, proto.Clone(start).(*agentdv1.Envelope), controlCommand(t, agentdv1.Command_STATUS, string(handle)), controlCommand(t, agentdv1.Command_INTERRUPT, string(handle))} {
+			commands := []*agentdv1.Envelope{start, proto.Clone(start).(*agentdv1.Envelope), controlCommand(t, agentdv1.Command_STATUS, string(handle)), controlCommand(t, agentdv1.Command_INTERRUPT, string(handle))}
+			if turn {
+				execute := turnCommand(t, string(handle))
+				commands = []*agentdv1.Envelope{start, execute, proto.Clone(execute).(*agentdv1.Envelope), controlCommand(t, agentdv1.Command_INTERRUPT, string(handle))}
+			}
+			for _, command := range commands {
 				if err := send(command); err != nil {
 					finished <- err
 					return err
@@ -238,4 +254,13 @@ func authenticatedProcessControlExchange(t *testing.T, thread bool) {
 	if len(ctl.operations) != 3 {
 		t.Fatal("duplicate mutation was re-executed")
 	}
+}
+
+func turnCommand(t *testing.T, handle string) *agentdv1.Envelope {
+	t.Helper()
+	f := controlCommand(t, agentdv1.Command_EXECUTE, handle)
+	f.GetCommand().PayloadSchema = control.TurnCapability
+	f.GetCommand().Payload = []byte(`{"input_id":"01950000-0000-7000-8000-000000000088","classification":"Confidential","text":"execution prompt"}`)
+	f.RequestDigest = control.TurnDigest(f.GetCommand().ConfigurationDigest, handle, f.GetCommand().Payload)
+	return f
 }

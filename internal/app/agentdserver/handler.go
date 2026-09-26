@@ -2,6 +2,7 @@
 package agentdserver
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"time"
@@ -24,6 +25,7 @@ type Rotation interface {
 type Command struct {
 	OperationID, ConfigurationDigest, HarnessHandle string
 	Kind                                            agentdv1.Command_Kind
+	Payload                                         []byte // Canonical, bounded execution input; never logged.
 	Deadline                                        time.Time
 }
 
@@ -47,6 +49,22 @@ func (h Handler) Serve(ctx context.Context, s *grpctransport.Session) error {
 	if err != nil || len(plan) > 128 {
 		return ErrSession
 	}
+	// Take ownership of transient input bytes; an external plan mutation must
+	// not change the operation after its digest/outcome is checked.
+	owned := make([]Command, len(plan))
+	copy(owned, plan)
+	for i := range owned {
+		if len(owned[i].Payload) > control.MaxTurnPayloadBytes {
+			return ErrSession
+		}
+		owned[i].Payload = bytes.Clone(owned[i].Payload)
+	}
+	plan = owned
+	defer func() {
+		for i := range plan {
+			clear(plan[i].Payload)
+		}
+	}()
 	w := s.Welcome()
 	deadline, ok := s.Context().Deadline()
 	if !ok {
@@ -102,6 +120,11 @@ func (h Handler) Serve(ctx context.Context, s *grpctransport.Session) error {
 			}
 			c := plan[index]
 			digest := control.Digest(c.Kind, c.ConfigurationDigest, c.HarnessHandle)
+			schema := control.Capability
+			if c.Kind == agentdv1.Command_EXECUTE {
+				digest = control.TurnDigest(c.ConfigurationDigest, c.HarnessHandle, c.Payload)
+				schema = control.TurnCapability
+			}
 			outcome, readErr := h.Outcomes.CommandOutcome(ctx, s.Peer().Identity.TenantID, s.Peer().Identity.SandboxID, primitives.ID(c.OperationID), digest)
 			if readErr == nil {
 				if outcome != transport.DispatchAcknowledged {
@@ -116,7 +139,7 @@ func (h Handler) Serve(ctx context.Context, s *grpctransport.Session) error {
 			// An absent outcome is never itself permission. Send's
 			// concrete frame policy must atomically claim the new operation; any
 			// existing, conflicting or ambiguous claim rejects before delivery.
-			f := &agentdv1.Envelope{OperationId: c.OperationID, HarnessHandle: c.HarnessHandle, RequestDigest: digest, DeadlineUnixMs: c.Deadline.UnixMilli(), Body: &agentdv1.Envelope_Command{Command: &agentdv1.Command{Kind: c.Kind, ConfigurationDigest: c.ConfigurationDigest, PayloadSchema: control.Capability}}}
+			f := &agentdv1.Envelope{OperationId: c.OperationID, HarnessHandle: c.HarnessHandle, RequestDigest: digest, DeadlineUnixMs: c.Deadline.UnixMilli(), Body: &agentdv1.Envelope_Command{Command: &agentdv1.Command{Kind: c.Kind, ConfigurationDigest: c.ConfigurationDigest, PayloadSchema: schema, Payload: c.Payload}}}
 			f.SentUnixMs = time.Now().UnixMilli()
 			if control.Command(f, c.ConfigurationDigest) != nil || send(f) != nil {
 				return ErrSession

@@ -30,6 +30,7 @@ type AgentdMaterialization struct {
 	GrantDigest, AuthorityReference, Revision, RequestDigest string
 	HarnessHandle                                            string
 	HarnessNegotiationDigest                                 string
+	ExecuteOperationID, ExecuteDigest                        string // Trusted input identity/digest; no prompt content.
 	Deadline, BootstrapDeadline                              time.Time
 }
 
@@ -77,6 +78,14 @@ func (p *AgentdPolicy) validate(ctx context.Context, tx *sql.Tx, b sandbox.Bindi
 	}
 	if slices.Contains(c.Capabilities, control.ThreadCapability) && (c.AdapterKind != codex.Kind || !slices.Contains(c.RequiredCapabilities, control.ThreadCapability) || !slices.Equal(c.Harness.Argv, codex.Command()) || !credentialDigest(m.HarnessNegotiationDigest)) {
 		return ErrAgentdPolicy
+	}
+	if slices.Contains(c.Capabilities, control.TurnCapability) {
+		if !slices.Contains(c.RequiredCapabilities, control.TurnCapability) || !slices.Contains(c.RequiredCapabilities, control.ThreadCapability) || !credentialDigest(m.ExecuteDigest) {
+			return ErrAgentdPolicy
+		}
+		if _, err := primitives.ParseID(m.ExecuteOperationID); err != nil {
+			return ErrAgentdPolicy
+		}
 	}
 	if _, err := primitives.ParseID(m.HarnessHandle); err != nil {
 		return ErrAgentdPolicy
@@ -227,6 +236,13 @@ func (p *AgentdPolicy) AuthorizeFrame(ctx context.Context, i sandbox.ComputeInte
 			return err
 		}
 		if f.GetCommand() != nil {
+			if f.GetCommand().Kind == agentdv1.Command_EXECUTE {
+				var ready bool
+				err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM harness_bindings h JOIN agentd_commands c ON c.tenant_id=h.tenant_id AND c.operation_id=h.start_operation_id WHERE h.tenant_id=$1 AND h.harness_binding_id=$2 AND h.attempt_id=$3 AND h.execution_id=$4 AND c.outcome='ACKNOWLEDGED')`, s.TenantID, m.HarnessHandle, s.AttemptID, s.ExecutionID).Scan(&ready)
+				if err != nil || !ready {
+					return ErrAgentdPolicy
+				}
+			}
 			if slices.Contains(m.Config.RequiredCapabilities, control.ThreadCapability) {
 				if f.GetCommand().Kind == agentdv1.Command_RESTART {
 					return ErrAgentdPolicy
@@ -298,6 +314,9 @@ func policyFrame(f *agentdv1.Envelope, m AgentdMaterialization) (string, error) 
 		return "", ErrAgentdPolicy
 	}
 	if f.GetCommand() != nil {
+		if f.GetCommand().Kind == agentdv1.Command_EXECUTE && (!slices.Contains(m.Config.RequiredCapabilities, control.TurnCapability) || f.OperationId != m.ExecuteOperationID || f.RequestDigest != m.ExecuteDigest) {
+			return "", ErrAgentdPolicy
+		}
 		raw, _ := json.Marshal(m.Config)
 		if f.HarnessHandle != m.HarnessHandle || control.Command(f, sandbox.Digest(raw)) != nil {
 			return "", ErrAgentdPolicy

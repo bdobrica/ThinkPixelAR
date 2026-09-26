@@ -168,3 +168,49 @@ this mode until resume is implemented. The tenant-scoped binding reader supplies
 identity for continuation/checkpoint composition; it neither authorizes access nor
 proves that vendor files have been checkpointed. Homes remain ephemeral under
 ADR-0050. No Protobuf field or generated artifact changes.
+
+## Optional Codex turn start
+
+`codex-turn.v1` registers EXECUTE for the pinned Codex driver. Both peers must
+support and require it together with `codex-thread.v1` and `process-control.v1`.
+Existing process-control commands retain their original digest/shape. EXECUTE
+uses `payload_schema: codex-turn.v1`, no artifact reference, and canonical JSON:
+
+```json
+{"input_id":"<AR UUIDv7>","classification":"Confidential","text":"Execution input"}
+```
+
+Field order and encoding are Go `encoding/json` output for the typed payload.
+Extra/duplicate fields, noncanonical encoding, invalid UTF-8 and empty text are
+rejected. Text is bounded to 16 KiB; the escaped payload to 100 KiB and the selected
+transport command limit. Classifications are Public, Internal or Confidential.
+`agentdserver.ExecutionCommand` maps `harness.ExecuteRequest` with matching handle
+fence and `text/plain` inline content. Artifact references and nonempty options
+fail explicitly; callers cannot set a model, cwd, environment, approval or sandbox
+policy through this input.
+
+The request digest is SHA-256 of the UTF-8 bytes:
+`codex-turn.v1 + NUL + configuration_digest + NUL + harness_handle + NUL`, followed
+by the canonical payload bytes, encoded as lowercase hex with `sha256:` prefix.
+Trusted materialization pins `ExecuteOperationID` and `ExecuteDigest` for this
+Execution before registration. The snapshot and command journal retain these
+identities/digests, never prompt text. Input is supplied transiently by the trusted
+plan; these pins do not grant authority.
+
+Dispatch requires a persisted HarnessBinding for the current Execution/Attempt,
+its acknowledged START, live authority and current transport epoch. The existing
+durable claim commits before Send; ambiguous claims cannot be resent. Agentd
+reserves the operation before sending `turn/start` on the current thread. It maps
+text to one Codex text item, preserves the configured cwd and explicitly retains
+`approvalPolicy: never` and a read-only, no-network sandbox policy. The driver
+accepts only the matching bounded response with an in-progress vendor turn ID.
+It keeps that ID private for subsequent adapter work. Same-operation replay
+returns the cached result; changed input or a second operation cannot start a
+second turn. Failures/cancellation close the protocol and stop the child.
+
+EXECUTE acknowledgement means turn-start acceptance, not Execution completion or
+model success. The first-turn lane allows one operation per process; streamed
+events, completion, protocol interrupt and continuation retain their separate
+implementation tasks. Until event consumption exists, protocol output remains
+private under bounded pipe backpressure. No new provider credentials or model
+route are introduced. The local-model fixture in the evidence is test-only.

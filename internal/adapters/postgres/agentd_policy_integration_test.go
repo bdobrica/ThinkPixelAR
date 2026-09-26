@@ -28,7 +28,7 @@ func policyFixture(t *testing.T, unissued ...bool) (*sql.DB, *postgres.AgentdPol
 	return policyFixtureConfigured(t, len(unissued) == 1 && unissued[0], nil)
 }
 
-func policyFixtureConfigured(t *testing.T, unissued bool, configure func(*agentd.Config)) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
+func policyFixtureConfigured(t *testing.T, unissued bool, configure func(*agentd.Config), materialize ...func(*postgres.AgentdMaterialization)) (*sql.DB, *postgres.AgentdPolicy, postgres.AgentdMaterialization, sandbox.ComputeIntent, transport.Connection) {
 	t.Helper()
 	db, r := sandboxDatabaseFixture(t, "thinkpixelar/local")
 	ctx := context.Background()
@@ -68,6 +68,9 @@ func policyFixtureConfigured(t *testing.T, unissued bool, configure func(*agentd
 	policy, err := postgres.NewAgentdLocalPolicy(db, "local", m.Revision, issuer)
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, configure := range materialize {
+		configure(&m)
 	}
 	if err = policy.Register(ctx, m); err != nil {
 		t.Fatal(err)

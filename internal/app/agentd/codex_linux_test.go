@@ -53,7 +53,7 @@ func TestCodexChild(t *testing.T) {
 	if !s.Scan() || string(s.Bytes()) != `{"method":"initialized","params":{}}` {
 		syscall.Exit(74)
 	}
-	if mode == "thread" {
+	if mode == "thread" || mode == "turn" {
 		if !s.Scan() {
 			syscall.Exit(75)
 		}
@@ -69,6 +69,19 @@ func TestCodexChild(t *testing.T) {
 		thread := map[string]any{"id": "01950000-0000-7000-8000-000000000099", "cwd": start.Params.CWD, "cliVersion": codex.Version, "ephemeral": false}
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"id": 2, "result": map[string]any{"thread": thread, "cwd": start.Params.CWD, "approvalPolicy": "never", "sandbox": map[string]any{"type": "readOnly", "networkAccess": false}}})
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"method": "thread/started", "params": map[string]any{"thread": thread}})
+	}
+	if mode == "turn" {
+		if !s.Scan() {
+			syscall.Exit(77)
+		}
+		var turn struct {
+			Method string
+			Params struct{ Input []struct{ Type, Text string } }
+		}
+		if json.Unmarshal(s.Bytes(), &turn) != nil || turn.Method != "turn/start" || len(turn.Params.Input) != 1 || turn.Params.Input[0].Text != "execution prompt" {
+			syscall.Exit(78)
+		}
+		_, _ = io.WriteString(os.Stdout, `{"id":3,"result":{"turn":{"id":"01950000-0000-7000-8000-000000000098","status":"inProgress","items":[]}}}`+"\n")
 	}
 	_, _ = io.WriteString(os.Stderr, "credential-canary\n")
 	for s.Scan() {
@@ -167,6 +180,15 @@ func TestCodexBootstrapCommand(t *testing.T) {
 	p, err = NewProcesses(c)
 	if err != nil || !p.createThread {
 		t.Fatal("thread mode not selected", err)
+	}
+	c.Capabilities = append(c.Capabilities, control.TurnCapability)
+	if _, err := NewProcesses(c); err == nil {
+		t.Fatal("optional turn capability accepted")
+	}
+	c.RequiredCapabilities = append(c.RequiredCapabilities, control.TurnCapability)
+	p, err = NewProcesses(c)
+	if err != nil || !p.executeTurn {
+		t.Fatal("turn mode not selected", err)
 	}
 	c.Harness.Argv = append(c.Harness.Argv, "--listen", "ws://0.0.0.0:9999")
 	if _, err := NewProcesses(c); err == nil {
