@@ -42,7 +42,7 @@ For **architectural correctness**, use:
 
 For **development priority**, use:
 
-**platform `docs/development/ALIGNMENT.md` → current demo/RC objective → repository `PLAN.md` → repository `TODO.md`**
+**platform `https://github.com/bdobrica/ThinkPixel/blob/main/docs/development/ALIGNMENT.md` → current demo/RC objective → repository `PLAN.md` → repository `TODO.md`**
 
 The platform alignment may override local PLAN/TODO sequencing.
 
