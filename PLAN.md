@@ -1612,9 +1612,14 @@ CDX-008 adds terminal observations, usage snapshots and policy-provided result r
 see [completion evidence](docs/evidence/cdx-008-completion.md).
 CDX-009 adds cooperative turn interruption with bounded supervisor stop/reap;
 see [interrupt evidence](docs/evidence/cdx-009-interrupt.md).
-Next: run one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
-slice for a general adapter ecosystem or optional fork/resume features. Retain
-fail-closed authority, transport and live infrastructure admission requirements.
+CDX-016 runs the real pinned ARM64 driver and supervisor probes in a native Kata
+Agent Sandbox; see [sandbox evidence and limits](docs/evidence/cdx-016-kata-codex.md).
+The model response is a loopback fixture; this does not establish live gateway
+integration or complete application hosting.
+Next: compose the Phase 6 Session/Execution/event and durable continuation path,
+then the governed model/tool route. Do not delay that slice for a general adapter
+ecosystem or optional fork features. Retain fail-closed authority, transport and
+live infrastructure admission requirements.
 
 Implement:
 

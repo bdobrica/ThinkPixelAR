@@ -24,9 +24,7 @@ func TestPinnedAppServer(t *testing.T) {
 	if binary == "" {
 		t.Skip("set THINKPIXELAR_TEST_CODEX_BINARY for the pinned local protocol probe")
 	}
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
-		t.Fatal("this evidence pin covers Linux amd64 only")
-	}
+
 	if !filepath.IsAbs(binary) {
 		t.Fatal("an absolute pinned binary path is required")
 	}
@@ -37,7 +35,7 @@ func TestPinnedAppServer(t *testing.T) {
 	hash := sha256.New()
 	_, err = io.Copy(hash, f)
 	_ = f.Close()
-	if err != nil || hex.EncodeToString(hash.Sum(nil)) != LinuxAMD64SHA256 {
+	if err != nil || hex.EncodeToString(hash.Sum(nil)) != pinnedExecutableHash(t) {
 		t.Fatal("executable digest mismatch")
 	}
 	home := t.TempDir()
@@ -172,4 +170,20 @@ func TestPinnedAppServer(t *testing.T) {
 		t.Fatal("app-server did not exit cleanly after EOF")
 	}
 	t.Log("stdio initialize/initialized, pre-init and duplicate rejection, empty local thread list, clean EOF: PASS")
+}
+
+func pinnedExecutableHash(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Fatal("Linux required")
+	}
+	switch runtime.GOARCH {
+	case "amd64":
+		return LinuxAMD64SHA256
+	case "arm64":
+		return LinuxARM64SHA256
+	default:
+		t.Fatal("unsupported Codex architecture")
+		return ""
+	}
 }

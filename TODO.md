@@ -230,7 +230,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [ ] CDX-013 Implement native thread fork support behind the generic capability interface without making Codex semantics canonical.
 - [ ] CDX-014 Add version incompatibility detection/fail-fast behavior.
 - [ ] CDX-015 Run generic conformance suite against Codex adapter.
-- [ ] CDX-016 Run Codex adapter inside Kubernetes Agent Sandbox rather than only as local process tests.
+- [x] CDX-016 Run Codex adapter inside Kubernetes Agent Sandbox rather than only as local process tests. — completed 2026-09-26; [native Kata evidence](docs/evidence/cdx-016-kata-codex.md), [reproduction](test/e2e/codex-sandbox/README.md). Real pinned ARM64 supervisor/turn and candidate completion/interrupt probes passed in a controller-created Kata guest with independent KVM correlation. Loopback model fixture only; application composition, live gateways and continuation remain subsequent work.
 - [ ] CDX-017 Verify a malicious Codex/repository process cannot access Kubernetes service credentials or host interfaces under the secure profile.
 - [ ] CDX-018 Record exact adapter compatibility and known limitations.
 - [ ] CDX-019 Commit Phase 5 with Codex conformance evidence.

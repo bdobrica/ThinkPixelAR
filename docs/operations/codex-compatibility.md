@@ -9,6 +9,7 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | --- | --- |
 | CLI and bundled App Server | `0.155.0`; exact match only. |
 | Tested executable | `x86_64-unknown-linux-musl`, SHA-256 `660e159a49e823ac8e5986cb238f73158ce4b957d40d9292f8de90862644b501`. Observed local executable fingerprint, not an OCI or publisher-signature claim. |
+| Tested ARM64 executable | `aarch64-unknown-linux-musl`, SHA-256 `98a3ca0f4edf0e6afccf73cba2f129dc71c7992638f94a78a36f34fe01a019d7`; native Kata probes passed in CDX-016. |
 | Stable schema export | 312 JSON files; SHA-256 `5b0fbb54807f53f2286a0aab3428cd6893ef7cdfc0efa0f3151450d70a80ddd6`. Lexically ordered relative path + NUL + original bytes for each `.json` file; no experimental export flag. |
 | Transport | Child stdio, newline-delimited JSON requests/responses/notifications. No remote listener. |
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
@@ -17,9 +18,9 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Stream normalization | `Client.Events` maps pinned message/tool/process notifications to Confidential harness candidates. Real App Server message streaming checked with local Responses SSE; [scope and limits](../evidence/cdx-007-streamed-events.md). |
 | Completion / usage | Terminal candidates, latest thread usage and trusted result references; real pinned success/failure tested with local model fixtures. [Evidence](../evidence/cdx-008-completion.md). |
 | Interrupt | Pinned `turn/interrupt`, bounded acknowledgement and retained interleaved notifications; real interrupted turn checked. Supervisor keeps bounded stop/reap. [Evidence](../evidence/cdx-009-interrupt.md). |
-| Next implementation surface | Kata turn execution (CDX-016); `thread/resume` remains unimplemented. |
+| Next implementation surface | Application Session/Execution/event composition and durable continuation; `thread/resume` remains unimplemented. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
-| ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts: amd64 packaged protocol/tools/supervisor smoke, ARM64 emulated startup only. Native ARM64/Kata/model-turn evidence remains CDX-016 and the intervening adapter work. |
+| ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts. [CDX-016](../evidence/cdx-016-kata-codex.md) passed native ARM64 supervisor and driver turn probes in a controller-created Kata guest, with loopback model responses and independent KVM correlation. This is not live gateway or application-hosting qualification. |
 
 ## Reproduce the scoped check
 

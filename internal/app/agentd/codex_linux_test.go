@@ -232,8 +232,8 @@ func pinnedCodexStartup(t *testing.T, thread bool) {
 	if binary == "" {
 		t.Skip("set THINKPIXELAR_TEST_CODEX_BINARY for pinned supervised startup")
 	}
-	if runtime.GOARCH != "amd64" || !filepath.IsAbs(binary) {
-		t.Fatal("absolute pinned Linux amd64 binary required")
+	if (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") || !filepath.IsAbs(binary) {
+		t.Fatal("absolute pinned Linux amd64/arm64 binary required")
 	}
 	f, err := os.Open(binary)
 	if err != nil {
@@ -242,11 +242,15 @@ func pinnedCodexStartup(t *testing.T, thread bool) {
 	h := sha256.New()
 	_, err = io.Copy(h, f)
 	_ = f.Close()
-	if err != nil || hex.EncodeToString(h.Sum(nil)) != codex.LinuxAMD64SHA256 {
+	pin := codex.LinuxAMD64SHA256
+	if runtime.GOARCH == "arm64" {
+		pin = codex.LinuxARM64SHA256
+	}
+	if err != nil || hex.EncodeToString(h.Sum(nil)) != pin {
 		t.Fatal("executable pin mismatch")
 	}
 	p := codexFixture(t, "ready")
-	p.createThread = thread
+	p.createThread, p.executeTurn = thread, thread
 	p.config.Argv = codex.Command()
 	p.config.Argv[0] = binary // Test-only path; production bootstrap requires packaged location.
 	p.config.StartTimeoutMS = 10000
@@ -264,6 +268,11 @@ func pinnedCodexStartup(t *testing.T, thread bool) {
 		}
 		if _, err := p.Restart(ctx, r.status.ProcessID); err == nil {
 			t.Fatal("restart silently replaced thread")
+		}
+	}
+	if thread {
+		if result := c.execute(ctx, turnCommand(t, fstart.HarnessHandle)); result.failed {
+			t.Fatal("real supervised turn rejected")
 		}
 	}
 	if replay := c.execute(ctx, fstart); replay != r {

@@ -33,7 +33,7 @@ func pinnedTurnClient(t *testing.T, handler http.HandlerFunc) (*Client, context.
 	hash := sha256.New()
 	_, e = io.Copy(hash, f)
 	_ = f.Close()
-	if e != nil || hex.EncodeToString(hash.Sum(nil)) != LinuxAMD64SHA256 {
+	if e != nil || hex.EncodeToString(hash.Sum(nil)) != pinnedExecutableHash(t) {
 		t.Fatal("binary pin mismatch")
 	}
 	server := httptest.NewServer(handler)

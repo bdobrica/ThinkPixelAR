@@ -9,13 +9,13 @@ The Go compiler and downloaded archives are confined to build stages.
 make codex-image-smoke
 ```
 
-Run this smoke target on an amd64 Docker engine; the protocol probe does not yet
-qualify a native ARM64 image.
+Run this smoke target on an amd64 Docker engine. For the native ARM64 Kata
+probe, see the [CDX-016 guide](../../test/e2e/codex-sandbox/README.md).
 
 The local tag defaults to `thinkpixel-codex:development`; override `CODEX_IMAGE`
 to select another local tag. Smoke tests use Docker and the existing Go toolchain;
-they make no model calls and require no API key. The protocol probe currently
-covers Linux amd64. It checks the exact binary, stable schema fingerprint,
+they make no model calls and require no API key. This Docker smoke target covers
+Linux amd64. It checks the exact binary, stable schema fingerprint,
 initialization and EOF shutdown inside the hardened image, then verifies coding
 tools and reuses the supervisor bootstrap/privilege/SIGTERM smoke test.
 
@@ -86,7 +86,9 @@ protected bootstrap and authenticated dispatch; Codex does not start automatical
 The agentd Codex driver executes the fixed command documented in the
 [compatibility policy](../../docs/operations/codex-compatibility.md) and verifies
 its startup handshake (CDX-003). Rebuild the image to include that supervisor
-change. Thread/turn/events/interrupt remain subsequent adapter work.
+change. Thread/turn/events/interrupt are implemented at the candidate boundary;
+[CDX-016](../../docs/evidence/cdx-016-kata-codex.md) records native Kata probes.
+Application hosting and authenticated candidate delivery remain separate work.
 
 Mount the Workspace at `/workspace` and supply writable ephemeral `/tmp`.
 Agentd creates and cleans up a fresh process-local home there. `/state/codex` is
