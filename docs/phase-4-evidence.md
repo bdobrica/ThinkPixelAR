@@ -30,8 +30,10 @@ Failure fencing and bounded final reporting are recorded under ADR-0043.
 These satisfy the initial application closure selected for AGD-020 without
 promoting sandbox reports or provider fixtures into live security evidence.
 There is no new architecture decision or change to accepted security requirements.
-Phase 5 harness/Codex work is next; deployment qualification and Phase 6 recovery
-remain bounded follow-ups listed below.
+At this review date, Phase 5 harness/Codex work was next; deployment
+qualification and Phase 6 recovery remain bounded follow-ups listed below. The
+current demo/RC work order is maintained in [PLAN.md §14](../PLAN.md#14-delivery-phases-and-exit-gates)
+and [TODO.md](../TODO.md#current-demorc-track).
 
 ## Existing evidence
 
@@ -99,8 +101,10 @@ No paid infrastructure is required. Use the existing homelab/local PC lane under
 relevant qualification for the actual deployed artifact. Future larger amd64,
 encrypted snapshot-capable storage and production-scale testing remain described
 in [RC infrastructure](operations/rc-infrastructure.md), not newly added Phase 4
-prerequisites. Codex, durable workspace resume and platform gateway integrations
-remain later phases.
+prerequisites. At the time of this review, Codex, durable Workspace resume and
+platform gateway integrations were planned in later phases. They are now part
+of the active demo/RC track; see [PLAN.md §14](../PLAN.md#14-delivery-phases-and-exit-gates)
+and [TODO.md](../TODO.md#current-demorc-track) for current sequencing.
 
 ## This review's validation
 

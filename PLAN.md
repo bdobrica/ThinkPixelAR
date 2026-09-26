@@ -2,11 +2,13 @@
 
 ## 1. Purpose
 
-This document is the implementation contract for taking ThinkPixelAR from an empty repository to a release candidate.
+This document describes the implementation path for ThinkPixelAR.
+
+The immediate objective is not independent repository completeness. It is to produce a useful, reproducible runtime vertical slice that can become a capability-scoped release candidate while preserving AR's security, authority, and component boundaries.
 
 ThinkPixelAR is the **Agent Runtime** component of the ThinkPixel stack. It provides durable agent sessions, execution materialization, sandbox lifecycle, harness adaptation, workspace persistence, recovery, and runtime observability while keeping governance, model access, tool authorization, and guardrails outside the untrusted agent execution environment.
 
-`TODO.md` is the chronological execution ledger. This plan explains why and how; the checklist records what remains, what was implemented, and what evidence verified each implementation step.
+`TODO.md` tracks implementation work. Pending work may be reordered or deferred according to the current platform development alignment without rewriting completed implementation history.
 
 The core design thesis is:
 
@@ -1427,6 +1429,14 @@ The **ThinkPixel-integrated MVP** additionally demonstrates:
 
 ## 14. Delivery phases and exit gates
 
+### Platform development priority
+
+Cross-repository priority is defined by:
+
+https://github.com/bdobrica/ThinkPixel/blob/main/docs/development/ALIGNMENT.md
+
+That document determines which pending work is currently important. It may override the sequencing of pending PLAN/TODO work, but not accepted ADRs, published contracts, authority boundaries, credential isolation, or other core security invariants.
+
 ### Current priority — one demonstrable vertical slice
 
 Concentrate implementation on AR through Phases 4 → 5 → 6 → 7. The near-term
@@ -1738,24 +1748,22 @@ These can be considered after the core runtime invariants are proven.
 
 These instructions apply to every implementation session.
 
-1. Read `README.md`, this file, and `TODO.md`; inspect repository status before editing and preserve unrelated user changes.
-2. Select the first unchecked TODO whose dependencies are complete. Work on one atomic item or tightly coupled contiguous group.
-3. Restate acceptance criteria internally before coding. Identify the tests that will prove the item complete.
-4. If implementation invalidates a design assumption, update this plan in the same change rather than silently diverging.
-5. Implement the smallest complete vertical change, including tests, migrations, API/schema changes, security behavior, telemetry, and documentation required by the item.
-6. Run narrow tests while developing, then item-specific acceptance commands.
-7. Run `make verify` before marking a milestone complete.
-8. A TODO checkbox means implemented **and verified**, not merely coded.
-9. Update `TODO.md` with completion date, commit reference, and material evidence.
-10. Add newly discovered work in chronological dependency order with a stable ID.
-11. Update README when user-visible setup, API, configuration, deployment, security, or compatibility behavior changes.
-12. Review generated artifacts and diffs before committing.
-13. Never commit secrets, local credentials, runtime Workspace contents, vendor login state, temporary checkpoints, or generated sandbox credentials.
-14. Do not weaken a security invariant merely to make an integration test convenient.
-15. Released database migrations are immutable; correct them with a new migration.
-16. At each phase exit, run the full applicable gate and create phase evidence under `docs/`.
-17. Commit only proven work using descriptive imperative commit messages and include relevant TODO IDs/evidence in the commit body where practical.
-18. Never rewrite completed planning history to conceal a design deviation. Record the superseding decision.
+1. Read the platform development alignment first: https://github.com/bdobrica/ThinkPixel/blob/main/docs/development/ALIGNMENT.md
+2. Read only the repository-local ADRs, contracts, PLAN/TODO sections, code, and tests relevant to the current task.
+3. Prefer the first actionable item on the current demo/RC critical path over unrelated earlier unchecked work.
+4. Restate the required observable behavior internally before coding and identify the smallest verification that proves it.
+5. If implementation invalidates an accepted architectural assumption, do not silently work around it; supersede the decision when necessary.
+6. Implement the smallest coherent vertical change required by the active path. Do not automatically expand it into exhaustive hardening, documentation, abstraction, or qualification work.
+7. Run focused checks while developing. Run broader repository gates when completing a milestone or when the affected area genuinely requires them.
+8. A TODO checkbox means the described behavior was implemented and materially verified, not merely coded.
+9. Keep TODO/PLAN updates concise. Record remaining work and meaningful sequencing changes rather than turning them into a changelog.
+10. Update README when user-visible setup, behavior, API, compatibility, or demonstrated capability changes.
+11. Review generated artifacts and diffs before committing.
+12. Never commit secrets, credentials, Workspace contents, vendor login state, temporary checkpoints, or generated sandbox credentials.
+13. Do not weaken authority, credential isolation, fencing, or another core security invariant merely to make a demo pass.
+14. Released database migrations are immutable; correct them with a new migration.
+15. At meaningful demo/RC milestones, record enough evidence to reproduce the demonstrated path.
+16. Commit only coherent, proven work with concise descriptive messages.
 
 ---
 
@@ -1800,9 +1808,33 @@ At RC closure:
 
 ---
 
-## 18. Release-candidate quality gate
+## 18. RC and release-promotion quality gates
 
-An RC requires all of the following:
+The first ThinkPixelAR release candidate is **capability-scoped**.
+
+It demonstrates a specific supported vertical slice and does not imply complete production qualification for every planned deployment environment, provider, failure mode, or operational scenario.
+
+### Initial demo/RC gate
+
+The first RC requires:
+
+- the advertised standalone and/or integrated golden path to run reproducibly;
+- clean builds for the participating artifacts;
+- focused tests covering the implemented path;
+- the relevant PostgreSQL, sandbox, harness and integration checks;
+- complete sandbox deletion followed by successful Session continuation where that capability is claimed;
+- fresh authority after continuation;
+- provider/downstream long-lived credentials absent from the sandbox and checkpoint state;
+- authority/fencing behavior required by the demonstrated path;
+- no known critical/high security defect in that path;
+- immutable runtime artifacts;
+- documented exact supported configuration and known limitations.
+
+A failing unrelated qualification gate should be recorded rather than silently expanding the scope of the RC unless it invalidates one of the claims above.
+
+### Release-promotion gate
+
+The broader qualification work below remains the target for promoting the RC toward a generally supported release:
 
 - every required TODO item completed with evidence;
 - no unresolved blocker hidden in documentation;

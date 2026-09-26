@@ -1,11 +1,18 @@
-# ThinkPixelAR Release-Candidate TODO
+# ThinkPixelAR TODO
 
-This is the chronological implementation checklist for ThinkPixelAR.
+This is the implementation work ledger for ThinkPixelAR.
 
-Prioritize the demo track in `PLAN.md` §14; within each slice execute the first
-unchecked item whose dependencies are complete. Phase/release gates still apply.
+Cross-repository development priority is defined by:
 
-An item is checked only after its acceptance evidence passes.
+https://github.com/bdobrica/ThinkPixel/blob/main/docs/development/ALIGNMENT.md
+
+Prioritize the current demo/RC track in `PLAN.md` §14. Within that track, work on the smallest actionable item or tightly coupled group that advances the next observable milestone.
+
+Do not block demo-path work on unrelated earlier TODO items merely because they appear first chronologically.
+
+Accepted architectural decisions, published contracts, authority boundaries, credential isolation, fencing, and other core security invariants still apply. Broad qualification, exhaustive negative testing, production operations, and release-promotion gates may remain pending unless they expose a problem in the current demonstrated path.
+
+An item is checked only after its claimed behavior has meaningful acceptance evidence.
 
 Follow the coding-agent and commit protocol in `PLAN.md` after every completed implementation item.
 
@@ -169,6 +176,39 @@ Completion metadata format:
 
 ---
 
+## Current demo/RC track
+
+The current execution order is capability-driven rather than strictly numerical.
+
+### Demo A — Codex actually runs
+
+Prioritize:
+
+`CDX-003 -> CDX-004 -> CDX-006 -> CDX-007 -> CDX-008 -> CDX-009 -> CDX-016`
+
+Do enough malformed/crash/version handling to make this path reliable, but do not delay the first real turn for optional fork support or broad adapter qualification.
+
+### Demo B — compute dies, Session survives
+
+Prioritize the minimum Phase 6 path required for:
+
+`Session -> Execution -> events -> durable Workspace/checkpoint -> sandbox deletion -> replacement sandbox -> continuation`
+
+This includes the relevant `AUT`, `SES`, `EXE`, `EVT`, `WSP`, `CHK`, `REC`,
+`SEC-001`, and `E2E-001..003` items.
+
+### Demo C — governed ThinkPixel path
+
+Prioritize the Phase 7 subset required for:
+
+`AG → AR → Codex/LLMGW → TG/GitHub → suspend → sandbox replacement → continuation`
+
+Then package `MVP-007` as the reproducible golden-path demo.
+
+Items outside these paths remain valid backlog but should not preempt the current milestone unless they become concrete blockers.
+
+---
+
 ## Phase 5 — Harness contract and Codex adapter
 
 - [x] HNS-001 Implement generic `HarnessAdapter` interface and capability model. — completed 2026-09-23; [ADR-0044](docs/adr/0044-harness-application-port.md), [evidence](docs/evidence/hns-001-harness-port.md). Fenced lifecycle requests, neutral handles, bounded-stream contract and fail-closed registered capability checks; runtime implementation and qualification follow in HNS-002–004/CDX.
@@ -285,6 +325,10 @@ Completion metadata format:
 
 ## Phase 8 — Recovery, fork, isolation, and performance hardening
 
+> **Release-promotion work:** the following broad recovery, isolation and
+> performance qualification should not delay the first capability-scoped RC
+> unless a concrete failure affects the demonstrated path.
+
 - [ ] RCV-001 Add explicit recovery decision table covering every Session/Execution/Attempt/Sandbox combination after controller restart.
 - [ ] RCV-002 Add repeated crash/restart tests during Sandbox acquisition.
 - [ ] RCV-003 Add crash tests during harness startup.
@@ -364,7 +408,7 @@ Completion metadata format:
 
 ---
 
-## Phase 10 — Release-candidate closure
+## Phase 10 — Broad release qualification and promotion
 
 - [ ] RC-001 Freeze OpenAPI, event vocabulary, Runtime Profile schema, AgentRuntimeSpec schema, HarnessAdapter compatibility contract, and checkpoint format for the RC.
 - [ ] RC-002 Run backward-compatibility and generated-artifact drift checks.
@@ -393,7 +437,7 @@ Completion metadata format:
 - [ ] RC-025 Run documentation/link validation and `make verify` against the resulting tree.
 - [ ] RC-026 Commit final documentation transition to `main`.
 - [ ] RC-027 Build all release artifacts from that exact commit and verify image/chart/checksum/SBOM/provenance consistency.
-- [ ] RC-028 Create/tag the release candidate only after all previous gates pass.
+- [ ] RC-028 Promote/tag the broadly qualified release only after the applicable release-promotion gates pass.
 
 ---
 
