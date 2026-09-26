@@ -1,0 +1,66 @@
+package codex
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"sync/atomic"
+	"testing"
+
+	"github.com/bdobrica/ThinkPixelAR/internal/ports/harness"
+)
+
+// Real App Server protocol, deterministic loopback Responses SSE. No provider
+// credentials, outbound provider call, or claim of governed model qualification.
+func TestPinnedTurnEvents(t *testing.T) {
+	var calls atomic.Int32
+	c, ctx := pinnedTurnClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		item := map[string]any{"id": "msg_fixture", "type": "message", "role": "assistant", "status": "completed", "content": []any{map[string]any{"type": "output_text", "text": "fixture response", "annotations": []any{}}}}
+		for _, event := range []map[string]any{
+			{"type": "response.created", "response": map[string]any{"id": "resp_fixture", "status": "in_progress", "output": []any{}}},
+			{"type": "response.output_item.added", "output_index": 0, "item": map[string]any{"id": "msg_fixture", "type": "message", "role": "assistant", "status": "in_progress", "content": []any{}}},
+			{"type": "response.content_part.added", "item_id": "msg_fixture", "output_index": 0, "content_index": 0, "part": map[string]any{"type": "output_text", "text": "", "annotations": []any{}}},
+			{"type": "response.output_text.delta", "item_id": "msg_fixture", "output_index": 0, "content_index": 0, "delta": "fixture response"},
+			{"type": "response.output_text.done", "item_id": "msg_fixture", "output_index": 0, "content_index": 0, "text": "fixture response"},
+			{"type": "response.output_item.done", "output_index": 0, "item": item},
+			{"type": "response.completed", "response": map[string]any{"id": "resp_fixture", "status": "completed", "output": []any{item}, "usage": map[string]any{"input_tokens": 5, "output_tokens": 2, "total_tokens": 7}}},
+		} {
+			raw, _ := json.Marshal(event)
+			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event["type"], raw)
+		}
+	})
+	if _, err := c.StartTurn(ctx, turnOperation, turnInput, "Return one word; do not run tools."); err != nil {
+		t.Fatal(err)
+	}
+	h, op, caps, limits := eventOptions()
+	h.VendorSessionReference = c.threadID
+	stream, err := c.Events(h, op, caps, limits, fixtureEventPolicy{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	var kinds []string
+	var text string
+	for {
+		e, err := stream.Next(ctx)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("real stream after %v: %v", kinds, err)
+		}
+		kinds = append(kinds, e.Type)
+		if e.Type == harness.MessageDelta {
+			var p harness.MessageDeltaPayload
+			_ = json.Unmarshal(e.Content.Inline, &p)
+			text += p.Text
+		}
+	}
+	if calls.Load() != 1 || text != "fixture response" || len(kinds) != 3 || kinds[0] != harness.ExecutionStarted || kinds[1] != harness.MessageDelta || kinds[2] != harness.MessageCompleted {
+		t.Fatalf("unexpected mapped stream: calls=%d types=%v", calls.Load(), kinds)
+	}
+	t.Log("real pinned App Server emitted ordered message candidates from local Responses SSE")
+}

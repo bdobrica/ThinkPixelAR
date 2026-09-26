@@ -36,6 +36,7 @@ type Client struct {
 	threadAttempted                   bool
 	threadID, threadCWD               string
 	turnOperation, turnDigest, turnID string
+	eventsOpened                      bool
 }
 
 // NewClient requires pipes whose Close interrupts pending reads/writes.

@@ -14,7 +14,8 @@ The selected baseline is **Codex CLI/App Server 0.155.0**, adapter kind
 | Initialization | `initialize`, `initialized`; `experimentalApi: false`. |
 | Thread creation | `thread/start` and matching `thread/started`; real pinned amd64 execution and PostgreSQL identity persistence checked by CDX-004. |
 | Turn start | `turn/start` maps bounded AR Execution text to the current thread; real pinned amd64 acceptance tested with a loopback model fixture. |
-| Next implementation surface | `thread/resume`, `turn/interrupt`, `turn/completed`, `item/agentMessage/delta`; schema presence checked, execution not yet qualified. |
+| Stream normalization | `Client.Events` maps pinned message/tool/process notifications to Confidential harness candidates. Real App Server message streaming checked with local Responses SSE; [scope and limits](../evidence/cdx-007-streamed-events.md). |
+| Next implementation surface | `thread/resume`, `turn/interrupt`, completion/usage mapping; execution not yet qualified. |
 | AR compatibility identifier | Exact `0.155.0` for this release/schema snapshot, not an upstream wire SemVer claim. AR adapter-contract/event versions remain separate. |
 | ARM64 / OCI / Kata | CDX-002 built amd64/ARM64 OCI artifacts: amd64 packaged protocol/tools/supervisor smoke, ARM64 emulated startup only. Native ARM64/Kata/model-turn evidence remains CDX-016 and the intervening adapter work. |
 

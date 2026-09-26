@@ -1606,7 +1606,9 @@ CDX-004 adds negotiated thread creation and durable HarnessBinding identity; see
 [thread persistence evidence](docs/evidence/cdx-004-thread.md).
 CDX-006 maps admitted Execution text to bounded turn-start dispatch; see
 [turn-start evidence](docs/evidence/cdx-006-turn-start.md).
-Next: implement Codex events/completion/interrupt (CDX-007–009)
+CDX-007 adds bounded Codex item/message/tool/process candidate streaming; see
+[stream evidence and composition limits](docs/evidence/cdx-007-streamed-events.md).
+Next: implement Codex completion/interrupt (CDX-008–009)
 and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.

@@ -17,7 +17,8 @@ import (
 
 // A real pinned App Server accepts the turn; a loopback-only model fixture
 // prevents provider calls and uses no API keys or inherited operator state.
-func TestPinnedTurnStart(t *testing.T) {
+func pinnedTurnClient(t *testing.T, handler http.HandlerFunc) (*Client, context.Context) {
+	t.Helper()
 	binary := os.Getenv("THINKPIXELAR_TEST_CODEX_BINARY")
 	if binary == "" {
 		t.Skip("set pinned Codex binary")
@@ -35,13 +36,11 @@ func TestPinnedTurnStart(t *testing.T) {
 	if e != nil || hex.EncodeToString(hash.Sum(nil)) != LinuxAMD64SHA256 {
 		t.Fatal("binary pin mismatch")
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "fixture unavailable", http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
 	home := t.TempDir()
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 	args := append(Command()[1:], "-c", `model="fixture"`, "-c", `model_provider="fixture"`, "-c", `model_providers.fixture.name="fixture"`, "-c", "model_providers.fixture.base_url="+strconv.Quote(server.URL+"/v1"), "-c", `model_providers.fixture.wire_api="responses"`, "-c", `model_providers.fixture.requires_openai_auth=false`)
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Env = []string{"HOME=" + home, "CODEX_HOME=" + home, "PATH=/usr/bin:/bin", "LANG=C.UTF-8"}
@@ -59,13 +58,20 @@ func TestPinnedTurnStart(t *testing.T) {
 		t.Fatal("start failed")
 	}
 	c := NewClient(in, out)
-	defer func() { c.Close(); _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+	t.Cleanup(func() { c.Close(); _ = cmd.Process.Kill(); _ = cmd.Wait() })
 	if e := c.Initialize(ctx); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := c.StartThread(ctx, home); e != nil {
 		t.Fatal(e)
 	}
+	return c, ctx
+}
+
+func TestPinnedTurnStart(t *testing.T) {
+	c, ctx := pinnedTurnClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "fixture unavailable", http.StatusServiceUnavailable)
+	})
 	id, e := c.StartTurn(ctx, turnOperation, turnInput, "Return one word; do not run tools.")
 	if e != nil || !ValidThreadID(id) {
 		t.Fatal("real turn acceptance", e)
