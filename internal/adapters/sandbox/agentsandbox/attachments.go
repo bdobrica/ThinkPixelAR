@@ -3,6 +3,7 @@ package agentsandbox
 import (
 	"context"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/workspace/kubernetes"
+	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeprofile"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/workspace"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
@@ -14,10 +15,16 @@ import (
 // Issuance, lifetime and one-time consumption belong to the transport adapter.
 type BootstrapLookup func(context.Context, sandbox.Scope, string) (string, error)
 
+// AttachmentVolumeResolver verifies reserved storage and returns adapter-local names.
+// Both local storage and the ThinkPixelWS bridge implement this read-only seam.
+type AttachmentVolumeResolver interface {
+	Resolve(context.Context, workspace.Attachment, runtimeprofile.Profile) (kubernetes.VolumeNames, error)
+}
+
 // AttachedBlueprintResolver composes read-only attachment/template resolution.
 // The Workspace owner must materialize and reserve attachments before Acquire;
 // this resolver never performs an external write before sandbox reservation.
-func AttachedBlueprintResolver(template *CodingTemplate, reader workspace.AttachmentReader, volumes *kubernetes.AttachmentResolver, bootstrap BootstrapLookup) (BlueprintResolver, error) {
+func AttachedBlueprintResolver(template *CodingTemplate, reader workspace.AttachmentReader, volumes AttachmentVolumeResolver, bootstrap BootstrapLookup) (BlueprintResolver, error) {
 	if template == nil || reader == nil || volumes == nil || bootstrap == nil {
 		return nil, sandbox.ErrInvalid
 	}

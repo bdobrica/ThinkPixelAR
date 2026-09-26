@@ -3,6 +3,7 @@ package agentsandbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,9 +53,27 @@ func TestAttachedBlueprintRejectsWrongOwnershipBeforeProviderReads(t *testing.T)
 	}
 }
 
-func TestAttachedBlueprintComposesReservedVolumes(t *testing.T) {
-	template, r, _ := codingFixture(t)
+func TestAttachedBlueprintComposesWSReservedVolumes(t *testing.T) {
+	_, r, _ := codingFixture(t)
+	raw, err := json.Marshal(r.Profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capability := "sha256:" + strings.Repeat("c", 64)
+	template, err := NewCodingTemplate(raw, CodingTemplateConfig{
+		CapabilityDigest: capability, References: r.Profile.Implementation,
+		RuntimeClass: "operator-kata", NodeSelector: map[string]string{"thinkpixel.io/pool": "qualified"},
+		UserID: 65532, GroupID: 65532, TempBytes: 1 << 30, QualificationDigest: "sha256:" + strings.Repeat("d", 64),
+	}, func(runtimeprofile.Profile, CodingTemplateConfig) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Profile, _, r.ProfileDigest, _, r.ImplementationDigest = template.Resolution()
 	r.Workspace.WorkspaceID = r.Scope.SessionID
+	r.Operation.Digest, err = RequestDigest(r)
+	if err != nil {
+		t.Fatal(err)
+	}
 	scope := workspace.AttachmentScope{TenantID: r.Scope.TenantID, SessionID: r.Scope.SessionID, ExecutionID: r.Scope.ExecutionID, AttemptID: r.Scope.AttemptID, SandboxID: r.Scope.SandboxID, WorkspaceID: r.Workspace.WorkspaceID, ExecutionGeneration: r.Scope.Generation, AttemptOrdinal: r.Scope.AttemptOrdinal, WorkspaceGeneration: r.Workspace.Generation}
 	a := workspace.Attachment{Scope: scope, Reference: r.Workspace.Reference, OperationID: r.Scope.AttemptID, RequestDigest: r.Operation.Digest, State: "PREPARED", ProviderKind: "kubernetes", WorkspaceVolumeReference: "agents/workspace/uid-workspace", StateVolumeReference: "agents/state/uid-state", MountPath: "/workspace", StorageProfileReference: r.Profile.Implementation.StorageProfileRef, ConfigurationDigest: r.ImplementationDigest, CapacityBytes: r.Profile.Storage.WorkspaceBytes, StateCapacityBytes: 1 << 30, AccessMode: r.Profile.Storage.AccessMode, Encrypted: true, SnapshotCapable: true}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -84,13 +103,26 @@ func TestAttachedBlueprintComposesReservedVolumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	denied := false
+	wsVolumes, err := workspacek8s.NewWSVolumeResolver(volumes, func(_ context.Context, got workspace.Attachment) ([]byte, error) {
+		if got != a {
+			t.Fatal("WS lookup lost reserved attachment scope")
+		}
+		if denied {
+			return nil, errors.New("revoked")
+		}
+		return []byte(`{"kind":"kubernetes-pvc-v1","handle":"k8s-pvc-v1:uid-workspace","reference":{"namespace":"agents","claimName":"workspace","claimUid":"uid-workspace","mountPath":"/workspace","readOnly":false}}`), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	reader := attachmentReaderFunc(func(_ context.Context, tenant primitives.ID, ref string) (workspace.Attachment, error) {
 		if tenant != a.Scope.TenantID || ref != a.Reference {
 			t.Fatal("wrong lookup")
 		}
 		return a, nil
 	})
-	resolve, err := AttachedBlueprintResolver(template, reader, volumes, func(_ context.Context, scope sandbox.Scope, ref string) (string, error) {
+	resolve, err := AttachedBlueprintResolver(template, reader, wsVolumes, func(_ context.Context, scope sandbox.Scope, ref string) (string, error) {
 		if scope != r.Scope || ref != r.BootstrapReference {
 			t.Fatal("wrong bootstrap lookup")
 		}
@@ -104,5 +136,33 @@ func TestAttachedBlueprintComposesReservedVolumes(t *testing.T) {
 		if err != nil || len(blueprint.VolumeClaimTemplates) != 0 || blueprint.PodTemplate.Spec.Volumes[0].PersistentVolumeClaim.ClaimName != "workspace" {
 			t.Fatal("composition failed", err)
 		}
+	}
+	api := &testAPI{}
+	kasServer := httptest.NewServer(api)
+	defer kasServer.Close()
+	kasClient, err := dynamic.NewForConfig(&rest.Config{Host: kasServer.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := New(kasClient, &testBindings{}, "agents", resolve,
+		WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }),
+		WithCapabilities(testCapabilities, capability))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := provider.Acquire(context.Background(), r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if api.creates != 1 {
+		t.Fatal("acquisition replay created another Sandbox")
+	}
+	denied = true
+	if _, err := provider.Acquire(context.Background(), r); err == nil {
+		t.Fatal("replay bypassed current WS verification")
+	}
+	if api.creates != 1 {
+		t.Fatal("denied resolution mutated compute")
 	}
 }
