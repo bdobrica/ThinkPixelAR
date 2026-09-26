@@ -167,3 +167,27 @@ it does not retain a transcript. Raw errors and terminal item copies are discard
 [Completion evidence](../evidence/cdx-008-completion.md) covers real pinned success
 and failure with local fixtures. Delivery and durable publication retain the
 application-composition limitations above.
+
+### Cooperative Codex interruption
+
+`Client.InterruptTurn` targets the sole accepted private thread/turn pair. Trusted
+composition must validate authority and process identity before calling it.
+It sends one pinned `turn/interrupt` request and accepts only its empty result;
+retries return the stored outcome without resending. A concurrent call fails
+with conflict. Context cancellation or the ten-second ceiling closes the pipes
+and returns an unknown outcome; the supervisor owns process termination.
+
+The event reader recognizes the interrupt response without publishing it. If no
+reader owns the protocol, interruption reads the response and retains intervening
+notifications for later normalization, bounded to 32 frames and 64 KiB in total.
+Overflow, malformed responses, EOF or vendor rejection fail closed. Raw vendor
+errors are never returned. This bounded handoff does not add background reading;
+`Next` can return conflict while the interrupt reader owns the protocol gate.
+A subscriber may retry that conflict within its deadline.
+
+Acknowledgement does not synthesize completion. A separate `turn/completed`
+notification may arrive before or after acknowledgement, or report normal
+completion if the turn won the race. Candidates remain observations and cannot
+cancel an AR Execution or settle AG accounting. The authenticated process-control
+INTERRUPT command additionally stops/reaps the child under its existing contract;
+it does not wait for candidate publication.

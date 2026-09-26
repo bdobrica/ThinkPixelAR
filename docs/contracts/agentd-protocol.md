@@ -103,6 +103,11 @@ request digest and finite unexpired deadline. Configuration/request digest encod
 local replay bounds and process correlation are specified in
 [ADR-0039](../adr/0039-agentd-process-control-dispatch.md). Unsupported commands fail
 before process invocation. INTERRUPT in this capability means bounded stop.
+For negotiated `codex-turn.v1`, agentd first attempts the pinned cooperative
+`turn/interrupt` within `StopGraceMS`, then stops/reaps the process even after an
+acknowledgement. Rejection, missing active turn or timeout uses the existing
+bounded stop escalation. STOP, disconnect and permanent shutdown retain their
+external termination paths. No new command payload or authority is introduced.
 
 Sanitized stdout and stderr use DIAGNOSTIC observations with schemas
 `process-control.v1/stdout` and `process-control.v1/stderr`. Sanitized adapter records
@@ -209,8 +214,10 @@ returns the cached result; changed input or a second operation cannot start a
 second turn. Failures/cancellation close the protocol and stop the child.
 
 EXECUTE acknowledgement means turn-start acceptance, not Execution completion or
-model success. The first-turn lane allows one operation per process; streamed
-events, completion, protocol interrupt and continuation retain their separate
-implementation tasks. Until event consumption exists, protocol output remains
-private under bounded pipe backpressure. No new provider credentials or model
+model success. The first-turn lane allows one operation per process. Candidate
+streaming/completion and cooperative interrupt are implemented in the driver;
+authenticated candidate delivery and continuation remain composition/later work.
+Without an event subscriber, protocol output remains private under bounded pipe
+backpressure; interrupt may retain up to 32 frames / 64 KiB while finding its
+response, failing closed to process stop if that bound is exceeded. No new provider credentials or model
 route are introduced. The local-model fixture in the evidence is test-only.

@@ -92,6 +92,7 @@ func (c *Client) StartTurn(ctx context.Context, operation, inputID primitives.ID
 				return "", harness.ErrProtocol
 			}
 			c.turnID = turnID
+			c.interruptTarget.Store(&turnTarget{c.threadID, turnID})
 			return turnID, nil
 		}
 		var method string

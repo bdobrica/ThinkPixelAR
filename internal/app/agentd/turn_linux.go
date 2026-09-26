@@ -30,3 +30,26 @@ func (p *Processes) startTurn(ctx context.Context, operation primitives.ID, inpu
 	})
 	return err
 }
+
+// interruptTurn preserves process-control.v1's bounded-stop contract. Give the
+// pinned turn driver a cooperative opportunity, then stop/reap even after ack.
+func (p *Processes) interruptTurn(ctx context.Context, id primitives.ID) error {
+	controls, err := NewControls(p, p.commandBytes, nil, func(ctx context.Context, target primitives.ID, _ InterruptReason) error {
+		c := p.current // Controls holds the process gate and verified target identity.
+		if !p.executeTurn || c == nil || c.id != target || c.codex == nil {
+			return ErrControl
+		}
+		return c.codex.InterruptTurn(ctx)
+	})
+	if err != nil {
+		return err
+	}
+	err = controls.Interrupt(ctx, id, InterruptCancel)
+	if err == ErrInterruptEscalated {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return p.Stop(ctx, id)
+}

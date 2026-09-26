@@ -121,6 +121,9 @@ func (s *eventStream) normalize(ctx context.Context, raw []byte) (harness.Harnes
 		return none, harness.ErrProtocol
 	}
 	f, err := object(raw)
+	if err == nil && f["id"] != nil {
+		return none, s.client.interruptResponse(f)
+	}
 	if err != nil || !keys(f, "method params emittedAtMs") {
 		return none, harness.ErrProtocol
 	} // Includes all server requests: never approve.

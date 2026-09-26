@@ -112,6 +112,7 @@ func authenticatedProcessControlExchange(t *testing.T, thread bool, turns ...boo
 	if turn {
 		p.config.Argv[len(p.config.Argv)-1] = "turn"
 		p.executeTurn = true
+		p.commandBytes = b.config.Limits.CommandBytes
 		b.config.Capabilities = append(b.config.Capabilities, control.TurnCapability)
 		b.config.RequiredCapabilities = append(b.config.RequiredCapabilities, control.TurnCapability)
 	}

@@ -189,7 +189,7 @@ func (s *eventStream) Next(ctx context.Context) (event harness.HarnessEvent, err
 			return event, harness.ErrOutcomeUnknown
 		default:
 		}
-		raw, readErr := s.client.reader.ReadSlice('\n')
+		raw, readErr := s.client.readEventFrame()
 		s.reading.Store(false)
 		if readErr != nil {
 			clear(raw)

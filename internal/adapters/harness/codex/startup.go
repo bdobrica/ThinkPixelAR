@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/harness"
@@ -37,6 +38,14 @@ type Client struct {
 	threadID, threadCWD               string
 	turnOperation, turnDigest, turnID string
 	eventsOpened                      bool
+	interruptGate                     sync.Mutex
+	interruptTarget                   atomic.Pointer[turnTarget]
+	interruptSent                     atomic.Bool
+	interruptAcknowledged             atomic.Bool
+	interruptAttempted                bool
+	interruptErr                      error
+	pending                           [][]byte
+	pendingBytes                      int
 }
 
 // NewClient requires pipes whose Close interrupts pending reads/writes.

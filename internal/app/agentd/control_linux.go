@@ -127,6 +127,8 @@ func (p *ProcessControl) execute(ctx context.Context, f *agentdv1.Envelope) comm
 		}
 		if c.Kind == agentdv1.Command_RESTART {
 			_, err = p.processes.Restart(ctx, id)
+		} else if c.Kind == agentdv1.Command_INTERRUPT && p.processes.executeTurn {
+			err = p.processes.interruptTurn(ctx, id)
 		} else {
 			err = p.processes.Stop(ctx, id)
 		}

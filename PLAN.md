@@ -1610,8 +1610,9 @@ CDX-007 adds bounded Codex item/message/tool/process candidate streaming; see
 [stream evidence and composition limits](docs/evidence/cdx-007-streamed-events.md).
 CDX-008 adds terminal observations, usage snapshots and policy-provided result references;
 see [completion evidence](docs/evidence/cdx-008-completion.md).
-Next: implement Codex interrupt (CDX-009)
-and one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
+CDX-009 adds cooperative turn interruption with bounded supervisor stop/reap;
+see [interrupt evidence](docs/evidence/cdx-009-interrupt.md).
+Next: run one real turn inside the existing Kata sandbox (CDX-016). Do not delay that
 slice for a general adapter ecosystem or optional fork/resume features. Retain
 fail-closed authority, transport and live infrastructure admission requirements.
 

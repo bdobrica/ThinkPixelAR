@@ -53,7 +53,7 @@ func TestCodexChild(t *testing.T) {
 	if !s.Scan() || string(s.Bytes()) != `{"method":"initialized","params":{}}` {
 		syscall.Exit(74)
 	}
-	if mode == "thread" || mode == "turn" {
+	if mode == "thread" || strings.HasPrefix(mode, "turn") {
 		if !s.Scan() {
 			syscall.Exit(75)
 		}
@@ -70,7 +70,7 @@ func TestCodexChild(t *testing.T) {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"id": 2, "result": map[string]any{"thread": thread, "cwd": start.Params.CWD, "approvalPolicy": "never", "sandbox": map[string]any{"type": "readOnly", "networkAccess": false}}})
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"method": "thread/started", "params": map[string]any{"thread": thread}})
 	}
-	if mode == "turn" {
+	if strings.HasPrefix(mode, "turn") {
 		if !s.Scan() {
 			syscall.Exit(77)
 		}
@@ -85,6 +85,21 @@ func TestCodexChild(t *testing.T) {
 	}
 	_, _ = io.WriteString(os.Stderr, "credential-canary\n")
 	for s.Scan() {
+		if strings.HasPrefix(mode, "turn") {
+			var interrupt struct {
+				ID     int
+				Method string
+				Params map[string]string
+			}
+			if json.Unmarshal(s.Bytes(), &interrupt) != nil || interrupt.ID != 4 || interrupt.Method != "turn/interrupt" || interrupt.Params["threadId"] != "01950000-0000-7000-8000-000000000099" || interrupt.Params["turnId"] != "01950000-0000-7000-8000-000000000098" {
+				syscall.Exit(79)
+			}
+			if mode == "turn-reject" {
+				_, _ = io.WriteString(os.Stdout, "{\"id\":4,\"error\":{\"message\":\"secret-canary\"}}\n")
+			} else if mode != "turn-stall" {
+				_, _ = io.WriteString(os.Stdout, "{\"id\":4,\"result\":{}}\n")
+			}
+		}
 	}
 	syscall.Exit(0)
 }
@@ -93,6 +108,7 @@ func codexFixture(t *testing.T, mode string) *Processes {
 	t.Helper()
 	p, _ := processFixture(t, "ignore")
 	p.codex = true
+	p.commandBytes = 1024
 	p.captureLimits = protocol.HardLimits()
 	p.config.Argv = []string{p.config.Argv[0], "-test.run=^TestCodexChild$", "codex-fixture", mode}
 	return p
@@ -260,4 +276,34 @@ func pinnedCodexStartup(t *testing.T, thread bool) {
 		t.Fatal("disconnect did not reap Codex")
 	}
 	t.Log("pinned supervised initialize/initialized, replay and disconnect cleanup: PASS")
+}
+
+func TestCodexControlledInterrupt(t *testing.T) {
+	for _, mode := range []string{"turn", "turn-reject", "turn-stall"} {
+		t.Run(mode, func(t *testing.T) {
+			p := codexFixture(t, mode)
+			p.createThread, p.executeTurn = true, true
+			ctl := &ProcessControl{processes: p, configuration: "test-config", operations: map[string]commandResult{}}
+			handle := "01950000-0000-7000-8000-000000000001"
+			if ctl.execute(t.Context(), controlCommand(t, agentdv1.Command_START, handle)).failed {
+				t.Fatal("start")
+			}
+			if ctl.execute(t.Context(), turnCommand(t, handle)).failed {
+				t.Fatal("turn")
+			}
+			c := p.current.codex
+			f := controlCommand(t, agentdv1.Command_INTERRUPT, handle)
+			result := ctl.execute(t.Context(), f)
+			if result.failed || !result.status.ExitObserved {
+				t.Fatal("interrupt did not reap", result.status)
+			}
+			if replay := ctl.execute(t.Context(), f); replay != result {
+				t.Fatal("interrupt replay changed")
+			}
+			// The successful fixture's ack stays replayable even after process reaping.
+			if mode == "turn" && c.InterruptTurn(t.Context()) != nil {
+				t.Fatal("cooperative path not used")
+			}
+		})
+	}
 }
