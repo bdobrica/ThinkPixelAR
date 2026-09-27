@@ -109,7 +109,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	request := acquireFixture(t)
 	request.Scope.SandboxID = id
 	request.Scope.AttemptID = id
-	request.Runtime = sandbox.Runtime{Image: "docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0", Architecture: architecture, Entrypoint: []string{"sh", "-ec", "sleep 900"}}
+	request.Runtime = sandbox.Runtime{Image: "docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0", Architecture: architecture, Entrypoint: []string{"sh", "-ec", "test -f /workspace/tar005 || printf tar005-preserved > /workspace/tar005; sync; cat /workspace/tar005; echo; exec sleep 900"}}
 	request.Profile, _, request.ProfileDigest, _, request.ImplementationDigest = mapper.Resolution()
 	request.Workspace.MountPath = "/workspace"
 	request.Deadline = time.Now().UTC().Add(10 * time.Minute).Truncate(time.Second)
@@ -266,6 +266,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			checkScratch(name)
 			t.Log("native suspension removed Pod; resume kept Sandbox UID and deadline and created new Pod:", before.GetUID(), after.GetUID())
 		}
+		checkStorage := liveStorageSurvival(t, ctx, client, endpoint, namespace, name, request.Runtime.Image)
 		operation := lifecycleOperation(request, "release", "release-"+string(id))
 		for range 2 {
 			if err = restarted.Release(ctx, request.Scope.TenantID, id, operation); err != nil {
@@ -285,6 +286,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 				return apierrors.IsNotFound(e)
 			})
 		}
+		checkStorage()
 		t.Log("release confirmed:", handle.ProviderReference)
 	}
 	for _, name := range []string{"workspace", "state"} {

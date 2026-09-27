@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -138,13 +139,22 @@ func TestAttachedBlueprintComposesWSReservedVolumes(t *testing.T) {
 		}
 	}
 	api := &testAPI{}
-	kasServer := httptest.NewServer(api)
+	kasServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		prefix := "/apis/agents.x-k8s.io/v1beta1/namespaces/agents/sandboxes"
+		if req.URL.Path != prefix && req.URL.Path != prefix+"/ar-"+string(r.Scope.SandboxID) {
+			t.Errorf("unexpected compute API request: %s %s", req.Method, req.URL.Path)
+			http.NotFound(w, req)
+			return
+		}
+		api.ServeHTTP(w, req)
+	}))
 	defer kasServer.Close()
 	kasClient, err := dynamic.NewForConfig(&rest.Config{Host: kasServer.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	provider, err := New(kasClient, &testBindings{}, "agents", resolve,
+	bindings := &testBindings{}
+	provider, err := New(kasClient, bindings, "agents", resolve,
 		WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }),
 		WithCapabilities(testCapabilities, capability))
 	if err != nil {
@@ -164,5 +174,22 @@ func TestAttachedBlueprintComposesWSReservedVolumes(t *testing.T) {
 	}
 	if api.creates != 1 {
 		t.Fatal("denied resolution mutated compute")
+	}
+	// Release must remain possible after authority loss without resolving or
+	// mutating WS storage. The storage HTTP fixture rejects every write.
+	before := *bindings.b
+	op := lifecycleOperation(r, "release", "release-ws")
+	for range 2 {
+		if err := provider.Release(context.Background(), r.Scope.TenantID, r.Scope.SandboxID, op); err != nil {
+			t.Fatal("release WS-backed Sandbox", err)
+		}
+	}
+	if api.deletes != 1 || api.object != nil || api.deleteOptions.Preconditions == nil ||
+		*api.deleteOptions.Preconditions.UID != "provider-uid-1" ||
+		*api.deleteOptions.PropagationPolicy != metav1.DeletePropagationForeground {
+		t.Fatalf("release did not delete only the exact Sandbox: %+v", api.deleteOptions)
+	}
+	if !reflect.DeepEqual(before, *bindings.b) {
+		t.Fatal("release changed durable Workspace attachment binding")
 	}
 }
