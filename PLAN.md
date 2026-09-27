@@ -454,7 +454,10 @@ required. WSP-003 adds durable checkpoint preparation and fenced, atomic generat
 event/outbox publication with exact retries and conservative abort. Provider
 snapshot creation remains WSP-004; trusted quiescence/durability verification and
 worker wiring are required before executable checkpointing. Live CSI qualification
-remains pending.
+remains pending. CHK-001 adds schema-validated signed Checkpoint manifests and
+atomic Checkpoint/Session-head/event/outbox publication from committed WSP-003
+boundaries. Concrete object verification/retention pins, signer configuration and
+worker composition remain required; restore validation remains CHK-002.
 
 Exact storage class and snapshot implementation remain operator configuration.
 

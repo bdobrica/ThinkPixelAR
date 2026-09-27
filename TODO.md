@@ -258,7 +258,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [x] WSP-002 Implement empty Workspace creation and durable mount at the canonical Workspace path. — PostgreSQL reservation and generation-0 publication, UID-pinned initialization Pod mounting `/workspace` and `/state`, delayed binding and restart-safe cleanup implemented. Trusted worker/admission composition and live CSI qualification remain pending; [scope and verification](docs/evidence/wsp-002-empty-workspace.md).
 - [x] WSP-003 Implement Workspace generation advancement on successful durable checkpoint boundaries. — Durable preparation, fenced atomic generation/event/outbox publication, exact retries, and conservative abort implemented. Mandatory trusted quiescence/durability verification; provider snapshots and executable worker composition remain pending. See [evidence](docs/evidence/wsp-003-generation-publication.md).
 - [ ] WSP-004 Implement snapshot/checkpoint operation for the selected storage environment.
-- [ ] CHK-001 Implement Checkpoint publication only after required Workspace/vendor state is durably committed.
+- [x] CHK-001 Implement Checkpoint publication only after required Workspace/vendor state is durably committed. — Signed schema-validated manifests, mandatory independent durability verification, fenced atomic publication and exact retries implemented. Concrete provider verification/retention and worker/signer composition remain pending. See [evidence](docs/evidence/chk-001-publication.md).
 - [ ] CHK-002 Validate checkpoint integrity and compatibility before resume.
 - [ ] SES-004 Implement Session suspend with active-Execution exclusion and durable checkpoint requirement.
 - [ ] SES-005 Implement Session resume onto replacement Sandbox.

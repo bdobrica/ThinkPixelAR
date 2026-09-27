@@ -1,6 +1,6 @@
 # Checkpoint format and integrity
 
-Status: Normative Phase 0 contract. The machine-readable envelope is [checkpoint-manifest.schema.json](checkpoint-manifest.schema.json).
+Status: Normative contract; CHK-001 implements the standalone publication profile below. The machine-readable envelope is [checkpoint-manifest.schema.json](checkpoint-manifest.schema.json).
 
 ## Meaning
 
@@ -55,7 +55,7 @@ Objects uploaded before the transaction are uncommitted candidates and cannot be
 
 ## Integrity construction
 
-JSON is canonicalized with RFC 8785 JSON Canonicalization Scheme (JCS). The payload digest covers the manifest with the signature value omitted but all identity, compatibility, object, exclusion, and algorithm fields included. The composite root is a domain-separated digest over ordered typed leaves for the Workspace manifest/snapshot and every vendor-state object. Implementations reject duplicate keys, non-I-JSON values, unsupported algorithms, wrong ordering, or alternate encodings.
+JSON is canonicalized with RFC 8785 JSON Canonicalization Scheme (JCS). The payload digest covers the manifest with `integrity.signature` and `integrity.payload_digest` omitted (avoiding a self-referential hash), but all other identity, compatibility, object, exclusion, and algorithm fields included. The composite root is a domain-separated digest over ordered typed leaves for the Workspace manifest/snapshot and every vendor-state object. Implementations reject duplicate keys, non-I-JSON values, unsupported algorithms, wrong ordering, or alternate encodings.
 
 The trusted signer signs the domain, schema version, checkpoint/tenant/session identity, payload digest, and signed time. Verification resolves keys by issuer/key ID under policy, checks algorithm/key lifecycle and signature, recomputes all obtainable object digests/roots, and checks immutable-store metadata. A valid signature authenticates the manifest; it does not make restored content trusted code.
 
@@ -103,3 +103,50 @@ Checkpoints are classified `Confidential` at minimum and tenant-bound. Retention
 - Tenant/Session/reference substitution, forged lineage, replayed operation, retained-object and deletion-race tests.
 - Credential canaries across Workspace, vendor objects, manifests, errors, events, logs, traces, and evidence.
 - Full suspend/replacement/resume tests using only committed durable state plus freshly issued authority.
+
+## Implemented publication profile (CHK-001)
+
+The trusted PostgreSQL publisher accepts a stable Checkpoint/operation UUID plus
+an exact, already committed WSP-003 boundary. It rechecks the tenant/Session,
+current Workspace head/configuration, Session epoch, attachment and current
+RUNNING Execution/Attempt, or a detached READY/IDLE Session. Runtime spec/profile
+digests must match the immutable Session binding. Parent lineage must match the
+Session's current committed Checkpoint. This profile supports `checkpoint`
+purpose on standalone Kubernetes storage; suspend, fork and migration remain
+separate operations.
+
+Construction requires current authorization, an independent durability verifier,
+and a trusted Ed25519 signer. The verifier receives locked AR runtime/profile
+metadata and the exact stored Workspace proof. It must verify all required
+vendor objects, Workspace durability and consistency, runtime/protocol/state
+compatibility, credential exclusions and canaries, and pin exact objects under
+the requested retention policy. No permissive implementation is supplied.
+Provider-ready flags and agentd candidate manifests cannot substitute for this
+verification. Provider snapshots (WSP-004), the concrete verifier, signing-key
+configuration and worker composition remain integration dependencies.
+
+The SHA-256/Ed25519 profile uses lowercase unprefixed hex digests in the envelope
+(database `sha256:` prefixes are removed), base64url without padding for the
+signature, and RFC 8785 canonical JSON. Composite input is the UTF-8 domain
+`thinkpixel.checkpoint.composite/v1` followed by a NUL byte and the canonical JSON
+array of typed leaves: `{"type":"workspace","value":<workspace>}` first, then
+`{"type":"vendor_state","value":<object>}` in strictly increasing object-ID order.
+The Workspace leaf includes its manifest digest and storage-evidence digest;
+the latter also binds the full WSP-003 proof and integrity root. Vendor object
+sizes and generation numbers must be exact I-JSON integers (at most 2^53−1).
+The signature input is the canonical JSON array
+`["thinkpixel.checkpoint.signature/v1", schema_version, checkpoint_id, tenant_id, session_id, payload_digest, signed_at]`.
+The signer output is checked against its configured public key and the final
+envelope is validated against the published schema before insertion.
+
+One transaction inserts immutable signed metadata and retained object references,
+advances `sessions.current_checkpoint_id` and its version, and appends
+`checkpoint.committed` event/outbox evidence. A failed transaction leaves all
+four unchanged; independently retained candidates require later exact cleanup.
+Same-operation retries require identical request digests and current disclosure
+authorization, and return the stored manifest bytes without re-signing, even
+after a newer Checkpoint. A deleted/deleting Checkpoint cannot replay success.
+Committed manifest references and retention disposition remain deletion inputs;
+provider garbage collection must honor them and cannot run independently of
+retention pins. This publisher neither suspends Sessions nor releases compute,
+and does not implement restore validation (CHK-002).

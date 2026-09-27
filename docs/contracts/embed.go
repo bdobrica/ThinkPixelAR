@@ -12,3 +12,8 @@ func RuntimeProfileSchema() string { return runtimeProfileSchema }
 var agentRuntimeSpecSchema string
 
 func AgentRuntimeSpecSchema() string { return agentRuntimeSpecSchema }
+
+//go:embed checkpoint-manifest.schema.json
+var checkpointManifestSchema string
+
+func CheckpointManifestSchema() string { return checkpointManifestSchema }
