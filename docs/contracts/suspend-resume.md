@@ -106,3 +106,39 @@ Provider timeouts are ambiguous. AR reconciles exact persisted references and ow
 - Missing/corrupt/substituted Workspace/vendor objects, invalid signatures, revoked runtime/profile/key, and compatibility failures.
 - Duplicate operations and candidate allocations proving one Checkpoint, one writer, one committed binding, and exact cleanup.
 - Credential canaries proving old authority is absent and unusable after both suspend and resume.
+
+## Implemented standalone suspend boundary (SES-004)
+
+`SessionSuspends.Suspend` implements the authoritative commit boundary for a
+READY/IDLE Session with a detached Kubernetes Workspace. Its typed application
+request binds trusted caller identity, tenant, Session, operation, exact current
+Checkpoint and expected state version. Every call, including historical replay,
+requires current authorization. The immutable operation journal returns the same
+original result after response loss or later lifecycle changes; it never repeats
+cleanup against replacement compute.
+
+The bounded transaction locks the Session against admission and other lifecycle
+mutations. It rejects every mutable Execution state, current attachments,
+uncommitted/deleting checkpoints, non-current Workspace generations, and
+checkpoints from an earlier execution generation or active Execution. CHK-002
+signature, compatibility and object validation runs inside this same transaction.
+A mandatory trusted verifier proves continued quiescence, absence of changes
+since the checkpoint, external credential revocation and durable resolution of
+pending side effects. Storage adapters must retain the exact objects for future
+resume. No harness report or default permissive verifier satisfies this boundary.
+
+The commit preserves the execution generation and runtime binding, records the
+checkpoint-linked suspend result, changes the Session to SUSPENDED, invalidates
+agentd connection projections, and atomically records `session.state_changed`,
+outbox, exact sandbox release journals/cleanup intents and bootstrap Secret cleanup
+requests. Existing compute reconciliation consumes those intents. Cleanup failures
+do not undo suspension. Unresolved sandbox ownership or native suspend/resume
+operations block this lane until reconciled. No Workspace deletion is requested.
+
+Snapshot/export and detached checkpoint publication are prerequisites in this
+initial lane; it does not orchestrate live attachment detachment or expose a
+long-running SUSPENDING operation. The database lock serializes only final
+validation/commit. Until that commit succeeds, this service never authorizes
+compute release. HTTP/authentication composition, the preparation worker,
+concrete storage/quiescence/revocation adapters, and replacement-compute resume
+remain separate work. This is not evidence of a live CSI or full cold-resume demo.

@@ -1662,7 +1662,7 @@ Implement:
 - LocalAuthority (AUT-001 bounded admission, AUT-002 immutable grants with cancellation/expiry validation, and AUT-003 mode telemetry/deployment diagnostics implemented; terminal reporting and API/Execution composition remain);
 - durable Workspace;
 - checkpoint;
-- suspend;
+- suspend (SES-004 atomic READY/IDLE boundary, checkpoint validation, replay and fenced cleanup intents implemented; detached standalone Workspace required; HTTP/worker and concrete verification composition remain);
 - cold resume;
 - replacement Sandbox recovery;
 - single-writer Session fencing.
