@@ -1667,6 +1667,8 @@ Implement:
 - replacement Sandbox recovery (REC-004 pre-execution replacement and acquisition implemented; running-work checkpoint/outcome recovery and executable policy/materialization composition remain);
 - single-writer Session fencing (SEC-001 database uniqueness, serialized admission and Attempt parent-lock fencing implemented; PostgreSQL/HTTP race coverage).
 
+E2E-001 now joins these services in an operator-run live Kubernetes integration test: two Kata Sandboxes, fresh PVCs, signed checkpoint restoration and two locally admitted Executions. [Reproduction and fixture boundaries](test/e2e/standalone/README.md). Authentication, lifecycle worker dispatch, bounded file export and command transport remain test composition, so this evidence does not satisfy the executable MVP exit gate.
+
 Exit when the standalone MVP flow survives complete sandbox deletion between two user interactions.
 
 This is the first externally usable ThinkPixelAR milestone.
