@@ -192,4 +192,41 @@ func TestAttachedBlueprintComposesWSReservedVolumes(t *testing.T) {
 	if !reflect.DeepEqual(before, *bindings.b) {
 		t.Fatal("release changed durable Workspace attachment binding")
 	}
+	// A replacement Attempt needs a new reservation and current WS verification;
+	// it cannot reuse the released Attempt's attachment scope.
+	r.Scope.AttemptID = primitives.ID("01991e0b-7f42-7d68-8c2a-b684d1be7e39")
+	r.Scope.SandboxID = r.Scope.AttemptID
+	r.Scope.AttemptOrdinal++
+	r.Operation.ID = string(r.Scope.AttemptID)
+	r.Operation.Digest, err = RequestDigest(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied = false
+	if _, err := resolve(context.Background(), r); err == nil {
+		t.Fatal("replacement accepted old attachment reservation")
+	}
+	a.Scope.AttemptID, a.Scope.SandboxID = r.Scope.AttemptID, r.Scope.SandboxID
+	a.Scope.AttemptOrdinal = r.Scope.AttemptOrdinal
+	a.OperationID, a.RequestDigest = r.Scope.AttemptID, r.Operation.Digest
+	replacement, err := New(kasClient, &testBindings{}, "agents", resolve,
+		WithNetworkEnforcer(func(context.Context, sandbox.AcquireRequest, string) error { return nil }),
+		WithCapabilities(testCapabilities, capability))
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied = true
+	if _, err := replacement.Acquire(context.Background(), r); err == nil || api.creates != 1 {
+		t.Fatal("replacement bypassed fresh WS verification")
+	}
+	denied = false
+	for range 2 {
+		if _, err := replacement.Acquire(context.Background(), r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	blueprint, err := resolve(context.Background(), r)
+	if err != nil || api.creates != 2 || api.object == nil || blueprint.PodTemplate.Spec.Volumes[0].PersistentVolumeClaim.ClaimName != "workspace" {
+		t.Fatal("replacement did not reattach original Workspace exactly once")
+	}
 }

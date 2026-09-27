@@ -18,7 +18,7 @@ import (
 // Capture storage before AR Release, then verify physical compute absence,
 // unchanged independent PVC/PV identities and bytes through a fresh read-only Pod.
 // This is provider evidence, not live WS metadata or AG authorization coverage.
-func liveStorageSurvival(t *testing.T, ctx context.Context, client dynamic.Interface, endpoint, namespace, sandboxName, image string) func() {
+func liveStorageSurvival(t *testing.T, ctx context.Context, client dynamic.Interface, endpoint, namespace, sandboxName, image, expected string) func() {
 	t.Helper()
 	api, err := rest.UnversionedRESTClientFor(dynamic.ConfigFor(&rest.Config{Host: endpoint}))
 	if err != nil {
@@ -66,7 +66,7 @@ func liveStorageSurvival(t *testing.T, ctx context.Context, client dynamic.Inter
 	// Native readiness alone does not prove the marker write has finished.
 	liveWait(t, ctx, func() bool {
 		output, err := logs(sandboxName, "agent")
-		return err == nil && strings.TrimSpace(string(output)) == "tar005-preserved"
+		return err == nil && strings.TrimSpace(string(output)) == expected
 	})
 	return func() {
 		t.Helper()
@@ -120,7 +120,7 @@ func liveStorageSurvival(t *testing.T, ctx context.Context, client dynamic.Inter
 			return phase == string(v1.PodSucceeded)
 		})
 		output, err := logs(reader.GetName(), "reader")
-		if err != nil || string(output) != "tar005-preserved" {
+		if err != nil || string(output) != expected {
 			t.Fatal("bytes lost after AR release", err)
 		}
 		uid := reader.GetUID()

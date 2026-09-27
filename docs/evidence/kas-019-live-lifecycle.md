@@ -63,3 +63,37 @@ the retained attachment binding is unchanged. Both affected adapter packages'
 tests and vet passed. This proves the AR provider boundary and real Kubernetes
 storage lifetime; it does not exercise live WS HTTP/metadata, AG, or Session-close
 orchestration. No production readiness qualification is inferred.
+
+## TAR-006 replacement Workspace reattachment (2026-09-27)
+
+The cold lifecycle fixture now requires the replacement to read exactly
+`tar005-preserved` before appending `-continued`. It cannot recreate missing
+content. After the second release, the independent read-only verifier must read
+exactly `tar005-preserved-continued`. Both Sandbox and all Pods are absent before
+replacement acquisition; the replacement has distinct Sandbox and Pod UIDs and
+retains the original Workspace/state PVC UIDs and PV names. The fixture keeps
+Session, Execution and Workspace identities stable while advancing Attempt.
+
+The final live run passed in 33.82 seconds using the TAR-005 command above,
+`k3spi-02`, `local-path` and `kata-qemu-runtime-rs-ar331-bounded`:
+
+- Namespace: `ar-live-01a0e226-3f72-7b43-9aad-1f7c5113a3fa`.
+- Sandbox UIDs: `425d486a-fa03-4cd9-8eab-97d4d56a1736` → `55a79941-0852-458e-adaf-3577aafbdb8a`.
+- Pod UIDs: `722332ab-5ce3-45be-abc8-8039050a2093` → `c695e556-061d-4e1a-9b70-2a5d622f9330`.
+- Workspace PVC UID: `9928a027-b20e-4659-9382-2359e6aa49ce`; PV UID: `0a9b0859-ed95-4772-a2d7-7da4bb0fd12a`.
+
+The earlier run also passed (33.15 seconds); the final run adds an explicit
+Workspace ID to the fixture correlation. Both isolated namespaces are removed
+after verification. Focused tests and vet passed for the Sandbox and Kubernetes
+Workspace adapter packages.
+
+`TestAttachedBlueprintComposesWSReservedVolumes` also verifies that replacement
+rejects a stale attachment reservation and a denied current WS lookup, then
+reattaches the same claim exactly once across acquisition replay using the new
+Attempt reservation. Storage mutations remain forbidden by the fixture.
+
+This verifies provider reattachment and continued writes, not canonical-generation
+restore, node failover, persisted Session recovery, or a running WS/AG integration.
+The live fixture uses independently provisioned claims, memory bindings, and
+explicit test startup commands. Production authority/fence checks are not replaced
+by these fixture callbacks; native Ready still does not become AR secure READY.

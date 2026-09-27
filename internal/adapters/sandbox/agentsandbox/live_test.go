@@ -112,6 +112,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 	request.Runtime = sandbox.Runtime{Image: "docker.io/library/busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0", Architecture: architecture, Entrypoint: []string{"sh", "-ec", "test -f /workspace/tar005 || printf tar005-preserved > /workspace/tar005; sync; cat /workspace/tar005; echo; exec sleep 900"}}
 	request.Profile, _, request.ProfileDigest, _, request.ImplementationDigest = mapper.Resolution()
 	request.Workspace.MountPath = "/workspace"
+	request.Workspace.WorkspaceID = request.Scope.SessionID
 	request.Deadline = time.Now().UTC().Add(10 * time.Minute).Truncate(time.Second)
 	resolve := func(_ context.Context, r sandbox.AcquireRequest) (core.SandboxBlueprint, error) {
 		mapped, e := mapper.Render(r, CodingVolumes{AttachmentReference: r.Workspace.Reference, BootstrapReference: r.BootstrapReference, WorkspaceClaim: "workspace", StateClaim: "state", BootstrapSecret: "bootstrap"})
@@ -160,7 +161,9 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			t.Fatal("scratch ownership", e)
 		}
 	}
-	var original string
+	var original, originalPod string
+	storageIdentities := map[string]string{}
+	expected := "tar005-preserved"
 	for generation := range 2 {
 		if generation > 0 {
 			id, err = primitives.NewID(time.Now())
@@ -170,6 +173,9 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			request.Scope.SandboxID = id
 			request.Scope.AttemptID = id
 			request.Scope.AttemptOrdinal++
+			// Replacement must recover prior work, never initialize missing bytes.
+			expected = "tar005-preserved-continued"
+			request.Runtime.Entrypoint = []string{"sh", "-ec", "test \"$(cat /workspace/tar005)\" = tar005-preserved; printf -- -continued >> /workspace/tar005; sync; cat /workspace/tar005; echo; exec sleep 900"}
 		}
 		request.Operation.ID = string(id)
 		request.Operation.Digest, _ = RequestDigest(request)
@@ -216,6 +222,24 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			t.Fatalf("unqualified native readiness promoted: %+v %v", status, err)
 		}
 		checkScratch(name)
+		pod, err := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "pods"}).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil || string(pod.GetUID()) == originalPod {
+			t.Fatal("replacement did not create a fresh Pod", err)
+		}
+		originalPod = string(pod.GetUID())
+		for _, claimName := range []string{"workspace", "state"} {
+			claim, err := client.Resource(schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}).Namespace(namespace).Get(ctx, claimName, metav1.GetOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			volumeName, _, _ := unstructured.NestedString(claim.Object, "spec", "volumeName")
+			identity := string(claim.GetUID()) + "/" + volumeName
+			if generation > 0 && storageIdentities[claimName] != identity {
+				t.Fatal("replacement changed durable storage", claimName)
+			}
+			storageIdentities[claimName] = identity
+		}
+		t.Logf("Session=%s Workspace=%s Attempt=%s Pod=%s expected bytes=%s", request.Scope.SessionID, request.Workspace.WorkspaceID, request.Scope.AttemptID, originalPod, expected)
 		t.Log("native readiness observed; secure readiness withheld:", handle.ProviderReference)
 
 		if nativeSuspend && generation == 0 {
@@ -266,7 +290,7 @@ func runLiveLifecycle(t *testing.T, nativeSuspend bool) {
 			checkScratch(name)
 			t.Log("native suspension removed Pod; resume kept Sandbox UID and deadline and created new Pod:", before.GetUID(), after.GetUID())
 		}
-		checkStorage := liveStorageSurvival(t, ctx, client, endpoint, namespace, name, request.Runtime.Image)
+		checkStorage := liveStorageSurvival(t, ctx, client, endpoint, namespace, name, request.Runtime.Image, expected)
 		operation := lifecycleOperation(request, "release", "release-"+string(id))
 		for range 2 {
 			if err = restarted.Release(ctx, request.Scope.TenantID, id, operation); err != nil {
