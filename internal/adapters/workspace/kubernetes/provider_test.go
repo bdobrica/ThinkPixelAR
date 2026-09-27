@@ -50,6 +50,17 @@ func (s *storageMemory) Do(ctx context.Context, c workspace.Command, fn func(con
 	return fn(ctx, s.saved, func(role, ref string) error {
 		if role == "workspace" {
 			s.saved.WorkspaceReference = ref
+		} else if role == "initializer" {
+			s.saved.InitializerReference = ref
+		} else if role == "initializer-spec" {
+			s.saved.InitializerSpec = ref
+		} else if role == "empty-proof" {
+			s.saved.EmptyProof = &workspace.EmptyProof{}
+			if err := json.Unmarshal([]byte(ref), s.saved.EmptyProof); err != nil {
+				return err
+			}
+		} else if role == "empty-ready" {
+			s.saved.Ready = true
 		} else {
 			s.saved.StateReference = ref
 		}

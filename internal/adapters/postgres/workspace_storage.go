@@ -65,7 +65,7 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 			return workspace.ErrInvalid
 		}
 	}
-	if work == nil || (cmd.Kind != "create" && cmd.Kind != "get" && cmd.Kind != "delete") {
+	if work == nil || (cmd.Kind != "create" && cmd.Kind != "get" && cmd.Kind != "delete" && cmd.Kind != "initialize") {
 		return workspace.ErrInvalid
 	}
 	if cmd.Kind != "get" {
@@ -73,7 +73,7 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 			return workspace.ErrInvalid
 		}
 	}
-	if cmd.Kind == "create" && (cmd.Create.TenantID != cmd.TenantID || cmd.Create.WorkspaceID != cmd.WorkspaceID || cmd.Create.Operation != cmd.Operation || workspace.CreateDigest(cmd.Create) != cmd.Operation.Digest) {
+	if (cmd.Kind == "create" || cmd.Kind == "initialize") && (cmd.Create.TenantID != cmd.TenantID || cmd.Create.WorkspaceID != cmd.WorkspaceID || cmd.Create.Operation != cmd.Operation || workspace.CreateDigest(cmd.Create) != cmd.Operation.Digest) {
 		return workspace.ErrInvalid
 	}
 	if cmd.Kind == "delete" && workspace.DeleteDigest(cmd.TenantID, cmd.WorkspaceID, cmd.Operation) != cmd.Operation.Digest {
@@ -92,10 +92,10 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 		return storageDBError(err)
 	}
 	var sid, createID primitives.ID
-	var state, provider, profile, config, access, volume, encryption string
+	var state, provider, profile, config, access, volume, encryption, source string
 	var capacity int64
 	var attachment sql.NullString
-	err = tx.QueryRowContext(ctx, `SELECT session_id,state,provider_kind,storage_profile,config_digest,capacity_bytes,access_mode,volume_mode,encryption_class,create_operation_id,current_attachment_id FROM workspaces WHERE tenant_id=$1 AND workspace_id=$2 FOR NO KEY UPDATE`, cmd.TenantID, cmd.WorkspaceID).Scan(&sid, &state, &provider, &profile, &config, &capacity, &access, &volume, &encryption, &createID, &attachment)
+	err = tx.QueryRowContext(ctx, `SELECT session_id,state,provider_kind,storage_profile,config_digest,capacity_bytes,access_mode,volume_mode,encryption_class,create_operation_id,current_attachment_id,source_type FROM workspaces WHERE tenant_id=$1 AND workspace_id=$2 FOR NO KEY UPDATE`, cmd.TenantID, cmd.WorkspaceID).Scan(&sid, &state, &provider, &profile, &config, &capacity, &access, &volume, &encryption, &createID, &attachment, &source)
 	if err != nil {
 		return storageDBError(err)
 	}
@@ -105,12 +105,15 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 	if cmd.Kind == "create" && state != "PROVISIONING" || cmd.Kind == "delete" && (state != "DELETING" || attachment.Valid) {
 		return workspace.ErrConflict
 	}
+	if cmd.Kind == "initialize" && (source != "empty" || attachment.Valid || (state != "PROVISIONING" && state != "READY")) {
+		return workspace.ErrConflict
+	}
 	if err = s.access(ctx, cmd); err != nil {
 		return workspace.ErrUnavailable
 	}
 	var saved workspace.Reservation
 	err = s.journal(ctx, cmd.TenantID, func(j *sql.Tx) error {
-		if cmd.Kind != "get" {
+		if cmd.Kind != "get" && cmd.Kind != "initialize" {
 			// Serialize operation-ID reuse even across different Workspaces.
 			if _, e := j.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, string(cmd.TenantID)+"/workspace-storage/"+string(cmd.Operation.ID)); e != nil {
 				return e
@@ -136,19 +139,29 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 				return e
 			}
 		}
-		var raw []byte
+		var raw, proof []byte
 		var deleteID, deleteDigest sql.NullString
-		e := j.QueryRowContext(ctx, `SELECT request,COALESCE(workspace_reference,''),COALESCE(state_reference,''),delete_operation_id,delete_digest FROM workspace_storage_operations WHERE tenant_id=$1 AND workspace_id=$2 FOR UPDATE`, cmd.TenantID, cmd.WorkspaceID).Scan(&raw, &saved.WorkspaceReference, &saved.StateReference, &deleteID, &deleteDigest)
+		e := j.QueryRowContext(ctx, `SELECT request,COALESCE(workspace_reference,''),COALESCE(state_reference,''),delete_operation_id,delete_digest,COALESCE(initializer_reference,''),COALESCE(initializer_spec,''),empty_proof FROM workspace_storage_operations WHERE tenant_id=$1 AND workspace_id=$2 FOR UPDATE`, cmd.TenantID, cmd.WorkspaceID).Scan(&raw, &saved.WorkspaceReference, &saved.StateReference, &deleteID, &deleteDigest, &saved.InitializerReference, &saved.InitializerSpec, &proof)
 		if e != nil {
 			return e
 		}
 		if json.Unmarshal(raw, &saved.Request) != nil || saved.Request.TenantID != cmd.TenantID || saved.Request.WorkspaceID != cmd.WorkspaceID || workspace.CreateDigest(saved.Request) != saved.Request.Operation.Digest {
 			return workspace.ErrIntegrity
 		}
-		if cmd.Kind == "create" && (saved.Request != cmd.Create || deleteID.Valid) {
+		if len(proof) > 0 {
+			saved.EmptyProof = &workspace.EmptyProof{}
+			if json.Unmarshal(proof, saved.EmptyProof) != nil {
+				return workspace.ErrIntegrity
+			}
+		}
+		saved.Ready = state == "READY"
+		if (cmd.Kind == "create" || cmd.Kind == "initialize") && (saved.Request != cmd.Create || deleteID.Valid) {
 			return workspace.ErrConflict
 		}
 		if cmd.Kind == "delete" {
+			if saved.InitializerSpec != "" && saved.EmptyProof == nil {
+				return workspace.ErrConflict
+			}
 			if deleteID.Valid && (deleteID.String != string(cmd.Operation.ID) || deleteDigest.String != cmd.Operation.Digest) {
 				return workspace.ErrConflict
 			}
@@ -161,17 +174,43 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 	}
 	// Each UID survives even if a later call fails or this outer read-only lock
 	// transaction rolls back. References are immutable at the database boundary.
-	return work(ctx, saved, func(role, ref string) error {
+	publish := false
+	err = work(ctx, saved, func(role, ref string) error {
+		if cmd.Kind == "initialize" && role == "empty-ready" {
+			if ref != "ready" || saved.EmptyProof == nil {
+				return workspace.ErrIntegrity
+			}
+			publish = true
+			return nil
+		}
+		if cmd.Kind == "initialize" && role == "empty-proof" {
+			var proof workspace.EmptyProof
+			if len(ref) > 16384 || json.Unmarshal([]byte(ref), &proof) != nil || proof.WorkspaceReference != saved.WorkspaceReference || proof.StateReference != saved.StateReference || proof.InitializerReference != saved.InitializerReference || proof.SpecDigest != saved.InitializerSpec || proof.InitializerReference == "" || proof.SpecDigest == "" {
+				return workspace.ErrIntegrity
+			}
+			err := s.journal(ctx, cmd.TenantID, func(j *sql.Tx) error {
+				_, e := j.ExecContext(ctx, `UPDATE workspace_storage_operations SET empty_proof=$3 WHERE tenant_id=$1 AND workspace_id=$2`, cmd.TenantID, cmd.WorkspaceID, ref)
+				return e
+			})
+			if err == nil {
+				saved.EmptyProof = &proof
+			}
+			return err
+		}
 		if ref == "" || len(ref) > 2048 {
 			return workspace.ErrInvalid
 		}
 		column := "workspace_reference"
 		if role == "state" {
 			column = "state_reference"
+		} else if cmd.Kind == "initialize" && role == "initializer" {
+			column = "initializer_reference"
+		} else if cmd.Kind == "initialize" && role == "initializer-spec" {
+			column = "initializer_spec"
 		} else if role != "workspace" {
 			return workspace.ErrInvalid
 		}
-		return s.journal(ctx, cmd.TenantID, func(j *sql.Tx) error {
+		err := s.journal(ctx, cmd.TenantID, func(j *sql.Tx) error {
 			result, e := j.ExecContext(ctx, `UPDATE workspace_storage_operations SET `+column+`=$3 WHERE tenant_id=$1 AND workspace_id=$2 AND (`+column+` IS NULL OR `+column+`=$3)`, cmd.TenantID, cmd.WorkspaceID, ref)
 			if e != nil {
 				return e
@@ -185,5 +224,24 @@ func (s *WorkspaceStorage) Do(ctx context.Context, cmd workspace.Command, work f
 			}
 			return nil
 		})
+		if err == nil {
+			if role == "initializer" {
+				saved.InitializerReference = ref
+			}
+			if role == "initializer-spec" {
+				saved.InitializerSpec = ref
+			}
+		}
+		return err
 	})
+	if err != nil {
+		return err
+	}
+	if !publish || saved.Ready {
+		return nil
+	}
+	if err = s.publishEmpty(ctx, tx, saved); err != nil {
+		return storageDBError(err)
+	}
+	return storageDBError(tx.Commit())
 }

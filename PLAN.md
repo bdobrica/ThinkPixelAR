@@ -445,11 +445,13 @@ Conceptually:
     }
 
 The first backend now implements Kubernetes CSI/PVC create/get/delete semantics
-with a durable PostgreSQL operation journal (WSP-001). It does not publish
-Workspace generations or claim that PVC binding establishes a mounted writer.
-Application initialization/mount composition remains WSP-002; checkpoint support
-remains WSP-003–004. The current homelab lacks a CSI driver, so live CSI
-qualification remains pending.
+with a durable PostgreSQL operation journal (WSP-001). Empty Workspace
+reconciliation (WSP-002) mounts both claims in a bounded initialization Pod,
+handles delayed binding, and publishes generation 0 after verified completion
+and compute cleanup. This does not grant an Execution writer or make the empty
+generation a restorable snapshot. Trusted worker/admission composition remains
+required; subsequent generations/checkpoints remain WSP-003–004. The current
+homelab lacks a CSI driver, so live CSI qualification remains pending.
 
 Exact storage class and snapshot implementation remain operator configuration.
 

@@ -32,16 +32,19 @@ type CreateRequest struct {
 	EncryptionRequired                  bool
 }
 type Command struct {
-	Kind                  string // create, get, delete
+	Kind                  string // create, get, delete, initialize
 	TenantID, WorkspaceID primitives.ID
 	Operation             Operation
-	Create                CreateRequest // set only for create
+	Create                CreateRequest // set for create and initialize
 }
 
 // Reservation is durable owner metadata, never supplied by the workload.
 type Reservation struct {
-	Request                            CreateRequest
-	WorkspaceReference, StateReference string
+	Request                               CreateRequest
+	WorkspaceReference, StateReference    string
+	InitializerReference, InitializerSpec string
+	EmptyProof                            *EmptyProof
+	Ready                                 bool
 }
 
 // Operations is the Workspace owner's admission and durable reconciliation seam.
@@ -53,6 +56,11 @@ type Reservation struct {
 // storage. The callback's bind function durably pins each immutable reference
 // before returning. Failures retain reservations/references for retry; absence
 // after a bound create never permits reallocation. Get enforces disclosure.
+// Initialize additionally requires empty source, PROVISIONING/no attachment and
+// the same create request. It pins initializer-spec and initializer references,
+// commits empty-proof before compute cleanup, and atomically publishes generation
+// zero when empty-ready is bound after exact initializer absence. READY replay
+// performs no external mutation. Initializer/proof binding is trusted adapter work.
 // Production composition must supply a durable implementation, not a memory map.
 type Operations interface {
 	Do(context.Context, Command, func(context.Context, Reservation, func(string, string) error) error) error

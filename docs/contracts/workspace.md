@@ -274,6 +274,43 @@ not aggregate transitions. A successful delete request is still `DELETING` until
 a later exact read confirms both claims absent. Deletion uses UID and resource
 version preconditions; it never deletes PVs, snapshots, namespaces or by label.
 Physical backend disposal follows the qualified StorageClass/PV reclaim policy;
-PVC absence is not a physical-erasure guarantee. WSP-002 initialization and
-mount orchestration must handle delayed binding without treating pending claims
-as ready; WSP-003–004 publish durable generations/checkpoints separately.
+PVC absence is not a physical-erasure guarantee. Subsequent generation
+advancement and snapshots remain WSP-003–004.
+
+
+## Implemented empty initialization
+
+`app/workspace.EmptyCreator.Reconcile` reserves standalone empty storage, invokes
+create, and reconciles initialization. Pending work returns `false`; callers retry
+the same saved request. PostgreSQL admission must validate the current Session
+provisioning intent and immutable profile, including capacities and source. The
+service is an internal worker seam; stock executable outbox dispatch and trusted
+policy/qualification wiring remain separate composition work.
+
+Initialization uses one deterministic, UID-pinned Pod with separate whole-volume
+mounts at `/workspace` and `/state`, without subPaths or compute ownership of the
+PVCs. Pending claims may be consumed by this trusted initializer to trigger
+WaitForFirstConsumer scheduling; the existing Execution attachment resolver still
+requires Bound claims. The image is digest-pinned, the RuntimeClass explicit,
+execution non-root and bounded to five minutes, and service-account token mounting
+disabled. Current operator qualification must independently cover image/runtime,
+namespace network isolation, storage behavior and UID/GID compatibility.
+
+The command verifies both writable roots are empty and synchronizes the filesystem;
+it never clears existing content. Nonempty roots, including `lost+found`, fail
+closed. Completion requires the exact Pod specification and UID, successful
+container termination, and both exact PVC UIDs with qualified bound capacities.
+Success evidence is committed before UID/resourceVersion-preconditioned Pod deletion.
+Only a later exact absence observation permits one atomic generation-0 insertion
+and Workspace `PROVISIONING` → `READY` update. The empty manifest is exactly `[]`
+under `empty-manifest-v1`, with zero logical files/bytes and no snapshot reference.
+It records the initialization boundary, not a restorable checkpoint.
+
+Retries preserve the initializer specification, UID and proof across processes.
+Missing/replaced initializers without saved completion proof never trigger a new
+Pod; failures retain attributable resources. Storage deletion is blocked when an
+initializer is reserved without completion proof. Aborted/failed initialization
+requires trusted reconciliation/cleanup; it cannot be retried by wiping data.
+No Session readiness, Execution authority or attachment is published by this path.
+Both durable claims survive successful initializer cleanup for later fenced
+Sandbox mounting through the existing attachment seam.
