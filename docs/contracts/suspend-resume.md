@@ -61,13 +61,13 @@ Resume is an authorized, idempotent Session mutation from `SUSPENDED` using the 
 
 1. Validate caller/tenant/Session, state/version, operation replay, retention, Checkpoint signature/object integrity, Workspace snapshot, and exact compatibility matrix.
 2. Re-resolve the immutable AgentRuntimeSpec/RuntimeProfile without widening capabilities, network, resources, tools, or mounts. Revoked/disabled specs, profiles, adapters, keys, or policies fail closed or require a separate governed migration.
-3. Reserve `RESUMING`, a new SandboxBinding and Attempt/generation; create fresh compute/bootstrap identity.
+3. Reserve a `RESUMING` operation and fresh candidate Sandbox/bootstrap identities against the Session version and Workspace head. The canonical Session remains `SUSPENDED`; infrastructure preparation does not fabricate an Execution or advance its generation. Execution Attempts are admitted with fresh Execution authority.
 4. Restore/attach the Checkpoint's WorkspaceGeneration as the Session's single writable Workspace head and verify effective storage facts/integrity.
 5. Bootstrap `agentd`, negotiate the recorded-compatible adapter, restore vendor state, and perform health/semantic readiness checks. No prior Execution credential is restored or issued during this infrastructure step.
 6. Transactionally publish Session `IDLE`/`READY`, current Workspace/attachment and fresh Sandbox binding; append event/outbox/evidence and cleanup intents for abandoned candidates.
 7. A later accepted Execution receives a fresh ExecutionGrant/credential bound to its own identity, Attempt, generation, audience, scope, and deadline.
 
-Until step 6, external APIs observe `RESUMING`; the candidate Sandbox cannot accept user work. Resume never mutates the immutable Checkpoint. If the provider restores via clone, AR records a new WorkspaceGeneration lineage while preserving the logical resume boundary.
+Until step 6, operation progress is `RESUMING` while the canonical Session remains `SUSPENDED`; the candidate Sandbox cannot accept user work. Resume never mutates the immutable Checkpoint. If the provider restores via clone, AR records a new WorkspaceGeneration lineage while preserving the logical resume boundary.
 
 ## Concurrency and idempotency
 
@@ -139,6 +139,54 @@ Snapshot/export and detached checkpoint publication are prerequisites in this
 initial lane; it does not orchestrate live attachment detachment or expose a
 long-running SUSPENDING operation. The database lock serializes only final
 validation/commit. Until that commit succeeds, this service never authorizes
-compute release. HTTP/authentication composition, the preparation worker,
-concrete storage/quiescence/revocation adapters, and replacement-compute resume
-remain separate work. This is not evidence of a live CSI or full cold-resume demo.
+compute release. HTTP/authentication composition, the preparation worker, and concrete
+storage/quiescence/revocation adapters remain separate work. Replacement resume
+coordination is described below. This is not evidence of a live CSI or full cold-resume demo.
+
+## Replacement resume coordinator (SES-005, infrastructure composition pending)
+
+`SessionResumes` and the application `Resumer` implement the durable standalone
+coordination boundary. Preparation requires the exact SES-004 suspend result,
+current checkpoint/head, detached Kubernetes Workspace, no mutable Execution and
+confirmed release of all previous Execution sandbox bindings. Current caller
+access, exact runtime/profile eligibility, retention and CHK-002 validation are
+mandatory. No prior Execution or grant is reused.
+
+One transaction reserves fresh Sandbox, bootstrap and attachment IDs, advances
+the Session version and reserves the Workspace's single attachment. The bounded
+resume operation is journaled with a 15-minute deadline and event/outbox work.
+`RESUMING` is operation progress, consistent with the canonical Session enum;
+Execution admission remains blocked by `SUSPENDED`. Infrastructure candidates live
+in the resume operation journal, separate from authority-bearing Execution
+Attempt/binding tables. Their IDs do not authorize agentd execution admission.
+
+The application calls the mandatory `ResumeMaterializer` outside transactions.
+That adapter must reconcile the exact saved candidate across concurrency,
+timeouts and restart; check current fences before mutations; retain storage pins;
+and reconstruct fresh compute, storage attachment and vendor state without
+Execution credentials or forward work. Native provider process `Resume` is not
+this operation. A separate trusted readiness verifier must prove effective
+runtime/storage, physical ownership, fresh identity and semantic continuity.
+There is no permissive default or agent-report-only readiness path.
+
+Completion rechecks policy, checkpoint integrity, immutable runtime inputs,
+Session version/generation and exact Workspace attachment/head before publishing
+READY/IDLE with its candidate references and event/outbox. It rejects known old
+provider references. Historical replay returns the original result under current
+disclosure authorization without invoking the materializer again.
+
+Ambiguous provider outcomes retain the same candidate. Definite integrity or
+fence failures abandon it and record cleanup; the still-owned Session becomes
+DEGRADED with recovery state SUSPENDED. A concurrent close is never reversed.
+Trusted cleanup uses the journal even when allocation lost its response, must
+fence further creation and prove candidate absence, and never deletes durable
+Workspace/checkpoint data. Only confirmed cleanup clears this exact attachment;
+recovery of a degraded Session/Workspace remains a separate operation.
+
+This coordinator does not yet have concrete infrastructure materializer/readiness
+adapters or executable HTTP/worker wiring. SES-006/007 must compose real harness
+restoration and credential isolation; subsequent Execution materialization must
+explicitly transfer or replace the infrastructure attachment under fresh
+Execution/Attempt authority. The existing Execution-only Agent Sandbox provider
+cannot be passed directly as a resume materializer. Therefore SES-005 remains
+open and this is not evidence of a live replacement Sandbox or full cold resume.
