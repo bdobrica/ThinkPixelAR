@@ -274,8 +274,8 @@ not aggregate transitions. A successful delete request is still `DELETING` until
 a later exact read confirms both claims absent. Deletion uses UID and resource
 version preconditions; it never deletes PVs, snapshots, namespaces or by label.
 Physical backend disposal follows the qualified StorageClass/PV reclaim policy;
-PVC absence is not a physical-erasure guarantee. Subsequent generation
-advancement and snapshots remain WSP-003–004.
+PVC absence is not a physical-erasure guarantee. Generation publication is
+implemented below; provider snapshot creation remains separate.
 
 
 ## Implemented empty initialization
@@ -314,3 +314,49 @@ requires trusted reconciliation/cleanup; it cannot be retried by wiping data.
 No Session readiness, Execution authority or attachment is published by this path.
 Both durable claims survive successful initializer cleanup for later fenced
 Sandbox mounting through the existing attachment seam.
+
+
+## Implemented generation publication
+
+The internal `workspace.CheckpointPublisher` port and PostgreSQL adapter implement
+standalone Kubernetes Workspace generation advancement. They do not publish
+ThinkPixelWS generations. A stable operation ID also identifies the intended
+child generation and its event. The immutable request binds the exact parent,
+Session execution epoch, optional current Execution/Attempt/attachment, and
+storage configuration. IDs and persisted content grant no authority.
+
+`Prepare` requires current authorization and independent verification that writes
+are quiesced and will remain blocked. It durably reserves one operation and moves
+a `READY` or `ATTACHED` Workspace to `SNAPSHOTTING`. Active publication requires
+both Execution and current Attempt to be `RUNNING`; detached publication requires
+a `READY`/`IDLE` Session with no current Execution or attachment. Retry returns the
+saved reservation; the worker must maintain/reconcile quiescence across restarts.
+
+`Publish` rechecks those fences under database locks and invokes the mandatory
+trusted verifier. That verifier must bind immutable provider snapshots, integrity,
+source identity, configuration, runtime compatibility and **both** Workspace and
+vendor-state durability to this operation. An opaque snapshot reference may name
+a composite boundary; evidence must identify its exact component snapshots.
+A harness completion or provider ready flag is insufficient. The adapter has no
+default allow/verification implementation.
+
+One transaction inserts generation `n+1`, restores the previous Workspace state,
+records completion, and appends `workspace.generation_committed` plus an outbox
+message linking the operation and generation for later checkpoint assembly.
+Any write failure rolls back all publication, including event sequence allocation.
+Exact request/proof replay returns the original generation even after later
+advancement; changed input conflicts. Proof JSON uses Go JSON serialization for
+the proof digest; exact encoded proof bytes are retained in the operation journal
+for digest verification and retries despite JSONB normalization.
+
+Failed verification leaves the reservation pending and never advances generation.
+Authorized `Abort` makes it terminal and leaves a snapshotting Workspace `DEGRADED`;
+it cannot resume writes, delete snapshots, or authorize replacement execution.
+Provider orphan cleanup and safe recovery are separate operations. Requests use a
+bounded one-minute transaction; callbacks must respect cancellation and must not
+mutate locked records or unblock writes. Workers may unblock only after committed
+publication and current authority checks.
+
+Provider snapshot implementation, concrete trusted verification/worker wiring,
+and signed restorable Checkpoint assembly remain separate work. This path emits
+no `checkpoint.committed` event and makes no live storage qualification claim.

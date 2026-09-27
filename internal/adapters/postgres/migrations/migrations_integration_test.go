@@ -48,10 +48,10 @@ func TestUpFromEmptyPostgreSQL(t *testing.T) {
 		t.Fatalf("migrate from empty: %v", err)
 	}
 	wantTables := []string{
-		"agentd_admission", "agentd_bootstrap_delivery", "agentd_commands", "agentd_credential_state", "agentd_credentials", "agentd_frame_sequences", "attempts", "checkpoints", "cleanup_intents", "executions", "harness_bindings",
+		"agentd_admission", "agentd_bootstrap_delivery", "agentd_commands", "agentd_credential_state", "agentd_credentials", "agentd_frame_sequences", "attempts", "checkpoints", "cleanup_intents", "execution_inputs", "execution_signals", "executions", "harness_bindings",
 		"idempotency_records", "local_authority_grants", "outbox_messages", "reconciliation_work", "runtime_event_streams",
 		"runtime_events", "runtime_profile_resolution_snapshots", "sandbox_binding_requests", "sandbox_bindings", "sandbox_operations", "schema_migrations",
-		"sessions", "tenants", "workspace_generations", "workspaces",
+		"sessions", "tenants", "workspace_checkpoint_operations", "workspace_generations", "workspace_storage_operations", "workspaces",
 	}
 	assertTableNames(t, ctx, db, wantTables)
 	firstLedger := readLedger(t, ctx, db)

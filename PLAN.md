@@ -450,8 +450,11 @@ reconciliation (WSP-002) mounts both claims in a bounded initialization Pod,
 handles delayed binding, and publishes generation 0 after verified completion
 and compute cleanup. This does not grant an Execution writer or make the empty
 generation a restorable snapshot. Trusted worker/admission composition remains
-required; subsequent generations/checkpoints remain WSP-003–004. The current
-homelab lacks a CSI driver, so live CSI qualification remains pending.
+required. WSP-003 adds durable checkpoint preparation and fenced, atomic generation/
+event/outbox publication with exact retries and conservative abort. Provider
+snapshot creation remains WSP-004; trusted quiescence/durability verification and
+worker wiring are required before executable checkpointing. Live CSI qualification
+remains pending.
 
 Exact storage class and snapshot implementation remain operator configuration.
 
