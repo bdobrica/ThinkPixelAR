@@ -115,6 +115,7 @@ paths:
     post:
       operationId: signalExecution
       summary: Signal an active Execution
+      description: Durably accepts a signal for a RUNNING Execution under an active local grant and current Session generation. The JSON envelope is limited to 64 KiB. Trusted negotiated capability and payload policy are required; unsupported signals or authority modes return 422. A permission response cannot expand existing authority. The 202 PENDING operation acknowledges acceptance, not harness delivery or terminalization. Same-key replay returns the original acceptance after current access checks without injecting again. Responses use Cache-Control no-store.
       tags: [Executions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Signal'}}}}

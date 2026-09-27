@@ -416,6 +416,8 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	verifySignalReplay := exerciseSignals(t, store, db, caller, other, view.ID)
+
 	// Reconstruct using a new store as after process replacement. No catalog or
 	// admission participates; cancellation changes status, never bound history.
 	reopened, _ := postgres.NewStore(db)
@@ -447,6 +449,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 	if err := a.Cancel(context.Background(), ac, originalGrant); err != nil {
 		t.Fatal(err)
 	}
+	verifySignalReplay()
 	unchanged, _ = json.Marshal(load())
 	if !bytes.Equal(originalSnapshot, unchanged) {
 		t.Fatal("cancellation rewrote binding")
@@ -509,6 +512,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 	}
 	get(view.ID, "caller", 200, "FAILED", 1)
 	get(later.View.ID, "caller", 200, "QUEUED", 2)
+	verifySignalReplay()
 	unchanged, _ = json.Marshal(load())
 	if !bytes.Equal(originalSnapshot, unchanged) {
 		t.Fatal("later generation rewrote history")

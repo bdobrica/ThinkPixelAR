@@ -67,6 +67,8 @@ Required tests cover concurrent identical/conflicting requests, JSON normalizati
 
 Session and Execution creation retain `sessions.create.v1` and
 `executions.create.v1` records
-when generic expiry cleanup runs. Resource/tombstone-aware erasure is required
-before these records may be removed; a timestamp alone cannot permit a second
-Session, Workspace or Execution. See [SES-001 evidence](../evidence/ses-001-session-creation.md).
+when generic expiry cleanup runs. Signal acceptance also retains
+`executions.signal.v1` records so generic expiry cannot cause duplicate injection.
+Signal-body/operation-aware erasure is required before removing signal keys.
+Resource/tombstone-aware erasure is required before removing creation keys; a
+timestamp alone cannot permit a second Session, Workspace or Execution. See [SES-001 evidence](../evidence/ses-001-session-creation.md).

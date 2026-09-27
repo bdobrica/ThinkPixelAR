@@ -54,6 +54,7 @@ type Options struct {
 	Sessions            *sessions.Creator
 	Executions          *executions.Creator
 	ExecutionReader     *executions.Reader
+	ExecutionSignals    *executions.Signaler
 	AuthenticateSession SessionAuthentication
 }
 
@@ -87,6 +88,7 @@ func NewServer(o Options) (*Server, error) {
 		_ = o.Metrics.SetAuthorityMode(identity.Mode)
 	}
 	mux := stdhttp.NewServeMux()
+	mux.HandleFunc("POST /v1/executions/{execution_id}/signals", signalExecution(o.ExecutionSignals, o.AuthenticateSession))
 	mux.HandleFunc("GET /v1/executions/{execution_id}", getExecution(o.ExecutionReader, o.AuthenticateSession))
 	mux.HandleFunc("POST /v1/sessions/{session_id}/executions", createExecution(o.Executions, o.AuthenticateSession))
 	mux.HandleFunc("POST /v1/sessions", createSession(o.Sessions, o.AuthenticateSession))

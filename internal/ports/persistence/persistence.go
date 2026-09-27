@@ -68,12 +68,23 @@ type SessionRepository interface {
 }
 
 type ExecutionRepository interface {
+	GetForUpdate(context.Context, primitives.ID) (*execution.Execution, error)
+	// Signal bodies are Confidential; operation IDs are stable delivery identities.
+	AddSignal(context.Context, SignalRecord) error
+	GetSignal(context.Context, primitives.ID) (SignalRecord, error)
 	// Input is Confidential tenant content, excluded from events and outbox payloads.
 	AddInput(context.Context, primitives.ID, string, string) error
 	GetInput(context.Context, primitives.ID) (string, string, error)
 	Add(context.Context, *execution.Execution) error
 	Get(context.Context, primitives.ID) (*execution.Execution, error)
 	Update(context.Context, *execution.Execution, uint64) error
+}
+
+type SignalRecord struct {
+	ID          primitives.ID
+	ExecutionID primitives.ID
+	Payload     []byte
+	Digest      string
 }
 
 type AttemptRepository interface {
