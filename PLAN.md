@@ -1642,7 +1642,7 @@ Implement:
 
 - public Session API (SES-001 durable creation and local runtime resolution implemented; authentication composition, retrieval, close and Workspace materialization remain);
 - Execution API (EXE-001 local creation and durable admission plus EXE-002 immutable grant/runtime binding and reconstruction plus EXE-003 status retrieval and EXE-004 durable signal acceptance implemented; authentication/policy composition, materialization, signal delivery, cancellation and AG admission remain);
-- SSE events;
+- SSE events (EVT-001 Session replay/live stream implemented; Execution streams, harness publication and executable authentication/disclosure wiring remain);
 - LocalAuthority (AUT-001 bounded admission, AUT-002 immutable grants with cancellation/expiry validation, and AUT-003 mode telemetry/deployment diagnostics implemented; terminal reporting and API/Execution composition remain);
 - durable Workspace;
 - checkpoint;

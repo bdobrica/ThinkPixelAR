@@ -94,9 +94,17 @@ type AttemptRepository interface {
 }
 
 type RuntimeEventRepository interface {
+	// ReadNext returns at most one retained event strictly after the cursor,
+	// with bounds from the same database snapshot. Latest includes expired history.
+	ReadNext(context.Context, primitives.ID, uint64, time.Time) (EventRead, error)
 	// NextSequence locks the Session stream until this transaction ends.
 	NextSequence(context.Context, primitives.ID) (uint64, error)
 	Append(context.Context, *runtimeevent.Event) error
+}
+
+type EventRead struct {
+	Event            *runtimeevent.Event
+	Earliest, Latest uint64
 }
 
 // IdempotencyRepository atomically elects one record for a scoped mutation.

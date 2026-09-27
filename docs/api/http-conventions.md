@@ -60,6 +60,39 @@ Resume uses validated `Last-Event-ID` (or an authenticated cursor for the initia
 
 Each connection has bounded pending events/bytes (initial target 1,000 events or 4 MiB, whichever first), write deadline, lifetime and heartbeat. Durable events remain in PostgreSQL; a slow consumer is disconnected with an observable reason/retry hint rather than consuming unbounded memory or silently dropping frames. Clients resume from their last fully received ID. Connection counts are limited by tenant/principal/IP and global capacity. Cancellation/disconnect stops stream work but does not mutate the Session.
 
+### Implemented Session stream (EVT-001)
+
+`GET /v1/sessions/{session_id}/events/stream` accepts a canonical nonnegative
+signed-64-bit decimal `Last-Event-ID`; omission means 0. Duplicate headers,
+noncanonical values, future positions and query parameters return 400. This
+endpoint currently uses the decimal resume form, not an initial query cursor.
+The position grants no access: tenant, Session and event disclosure are checked
+independently, including Confidential payload policy at the external sink.
+
+The reader fetches one event per short tenant transaction, with replay bounds
+and payload from the same PostgreSQL statement snapshot. Expired rows are
+excluded from disclosure even when physical erasure has not run. Prefix,
+interior and tail gaps fail explicitly; earliest/latest facts accompany a
+pre-stream 410. A mid-stream gap emits only a `stream-ended replay-gap` comment
+and closes, leaving the last durable cursor intact. State/history is never
+mutated by a reader, and Session terminal state does not erase retained events.
+
+Idle polling rechecks credentials and access each second. Heartbeats occur about
+every 15 seconds; each write/flush has a 5-second deadline, each read a 5-second
+budget, and connections last at most 15 minutes. One event (at most 512 KiB of
+encoded envelope) is pending per connection. A stalled write disconnects and
+records a content-free failure reason. `retry: 1000` advises reconnect from the
+last fully received event ID. SSE sends `Cache-Control: no-cache, no-store` and
+`X-Accel-Buffering: no`.
+
+Per-replica limits are 128 connections globally, 32 per tenant, 4 per tenant/
+principal, and 16 per socket-peer IP. Exceeded limits return 429 and
+`Retry-After: 5`; forwarded-address headers are not trusted. Shared quotas across
+replicas belong at authenticated ingress. Trusted authentication must revalidate
+credential expiry/revocation on repeated calls; the mandatory event access hook
+must enforce current disclosure and registered payload policy. Stock executable
+composition remains fail-closed until these dependencies are wired.
+
 ## Security headers and caching
 
 Authenticated/resource/problem responses use `Cache-Control: no-store` unless a public immutable capability document explicitly says otherwise, `X-Content-Type-Options: nosniff`, and no reflective CORS by default. Browser CORS origins/methods/headers/credentials are an explicit deployment allowlist. Redirects are not used for mutation/auth flows; resource locations are same-origin relative references.

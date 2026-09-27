@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/bdobrica/ThinkPixelAR/internal/app/eventstream"
 	executions "github.com/bdobrica/ThinkPixelAR/internal/app/execution"
 	sessions "github.com/bdobrica/ThinkPixelAR/internal/app/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
@@ -53,6 +54,7 @@ type Options struct {
 	Authority           authority.IdentityProvider
 	Sessions            *sessions.Creator
 	Executions          *executions.Creator
+	SessionEvents       *eventstream.Reader
 	ExecutionReader     *executions.Reader
 	ExecutionSignals    *executions.Signaler
 	AuthenticateSession SessionAuthentication
@@ -88,6 +90,7 @@ func NewServer(o Options) (*Server, error) {
 		_ = o.Metrics.SetAuthorityMode(identity.Mode)
 	}
 	mux := stdhttp.NewServeMux()
+	mux.HandleFunc("GET /v1/sessions/{session_id}/events/stream", streamSessionEvents(o.SessionEvents, o.AuthenticateSession))
 	mux.HandleFunc("POST /v1/executions/{execution_id}/signals", signalExecution(o.ExecutionSignals, o.AuthenticateSession))
 	mux.HandleFunc("GET /v1/executions/{execution_id}", getExecution(o.ExecutionReader, o.AuthenticateSession))
 	mux.HandleFunc("POST /v1/sessions/{session_id}/executions", createExecution(o.Executions, o.AuthenticateSession))

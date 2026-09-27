@@ -99,6 +99,7 @@ paths:
     get:
       operationId: streamSessionEvents
       summary: Stream durable Session events
+      description: Replays durable events strictly after decimal Last-Event-ID (default 0), then polls for new events. Current Session and event disclosure authorization is required throughout. Returns 410 with earliest_sequence/latest_sequence for expired or missing history before streaming; later gaps end the connection with a comment. Heartbeats and retry hints never advance the cursor. Connections have bounded writes, lifetime and per-replica quotas.
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/LastEventId'}]
       responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '410': {$ref: '#/components/responses/Gone'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}

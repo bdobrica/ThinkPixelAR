@@ -591,6 +591,7 @@
       "get": {
         "operationId": "streamSessionEvents",
         "summary": "Stream durable Session events",
+        "description": "Replays durable events strictly after decimal Last-Event-ID (default 0), then polls for new events. Current Session and event disclosure authorization is required throughout. Returns 410 with earliest_sequence/latest_sequence for expired or missing history before streaming; later gaps end the connection with a comment. Heartbeats and retry hints never advance the cursor. Connections have bounded writes, lifetime and per-replica quotas.",
         "tags": [
           "Events"
         ],
