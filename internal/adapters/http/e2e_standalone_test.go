@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,6 +23,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/authority/local"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
+	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdidentity"
 	checkpoints "github.com/bdobrica/ThinkPixelAR/internal/app/checkpoint"
 	executions "github.com/bdobrica/ThinkPixelAR/internal/app/execution"
 	sessions "github.com/bdobrica/ThinkPixelAR/internal/app/session"
@@ -34,6 +36,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
+	transport "github.com/bdobrica/ThinkPixelAR/internal/ports/sandboxtransport"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/workspace"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	canonical "github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer"
@@ -208,7 +211,29 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		return &agentdv1.Binding{TenantId: string(caller.TenantID), SessionId: string(sid), ExecutionId: string(v.ID), AttemptId: string(aid), SandboxBindingId: string(sandboxID), SessionGeneration: v.Generation}, grant
 	}
 	firstBinding, firstGrant := start(first, firstCompute, e2eID(t))
+	credentialRegistry, err := postgres.NewAgentdCredentials(db)
+	e2eCheck(t, err)
+	authorityCaller := authority.Caller{TenantID: caller.TenantID, PrincipalDigest: caller.PrincipalDigest}
+	credentialAuthority := e2eCredentialAuthority{store, bindings, credentialRegistry, a, authorityCaller}
+	issuer := e2eCredentialIssuer(t)
+	credentialIssuer, err := agentdidentity.New(issuer, credentialAuthority)
+	e2eCheck(t, err)
+	credentialID := func(b *agentdv1.Binding) transport.Identity {
+		return transport.Identity{TenantID: primitives.ID(b.TenantId), SandboxID: primitives.ID(b.SandboxBindingId), AttemptID: primitives.ID(b.AttemptId)}
+	}
+	firstCredential, err := credentialIssuer.Bootstrap(ctx, credentialID(firstBinding))
+	e2eCheck(t, err)
+	defer firstCredential.Destroy()
+	firstPeer := e2eCredentialPeer(t, firstCredential, firstGrant)
+	firstConnection, err := credentialRegistry.ConsumeBootstrap(ctx, firstPeer, firstCredential.Proof, firstPeer.ExpiresAt)
+	e2eCheck(t, err)
+	e2eCheck(t, credentialRegistry.CheckConnection(ctx, firstPeer, firstConnection))
+	// Positive reconnect control proves this exact certificate worked before retirement.
+	firstConnection, err = credentialRegistry.Reconnect(ctx, firstPeer, firstPeer.ExpiresAt)
+	e2eCheck(t, err)
+	e2eCheck(t, credentialRegistry.CheckConnection(ctx, firstPeer, firstConnection))
 	firstResult := k.guest(firstCompute, "first", firstBinding)
+	e2eCheck(t, credentialRegistry.CloseConnection(ctx, firstPeer.Identity, firstConnection))
 	if firstResult.Calls != 1 {
 		t.Fatal("first turn not observed")
 	}
@@ -239,6 +264,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		if len(raw) == 0 || len(raw) > 1<<20 || bytes.Contains(raw, []byte("E2E-001-old-credential-canary")) {
 			t.Fatal("unsafe export")
 		}
+		e2eExcludeCredential(t, raw, firstCredential)
 		objects[name] = raw
 		f, e := os.OpenFile(filepath.Join(archive, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0400)
 		e2eCheck(t, e)
@@ -309,6 +335,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	e2eCheck(t, err)
 	published, err := publication.Publish(ctx, cp)
 	e2eCheck(t, err)
+	e2eExcludeCredential(t, published.Manifest, firstCredential)
 	validator, err := checkpoints.NewRestoreValidator(checkpoints.RestoreChecks{
 		Keys: func(_ context.Context, tenant primitives.ID, issuer, key string, _ time.Time) (ed25519.PublicKey, error) {
 			if tenant != caller.TenantID || issuer != "e2e001" || key != "ephemeral-test-key" {
@@ -417,17 +444,87 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	if replayed != resumed {
 		t.Fatal("resume replay changed")
 	}
+	// Readiness and resume replay must not mint Execution authority or secrets.
+	for _, table := range []string{"executions", "local_authority_grants", "agentd_credentials"} {
+		var count int
+		e2eCheck(t, db.QueryRowContext(ctx, "SELECT count(*) FROM "+table+" WHERE tenant_id=$1", caller.TenantID).Scan(&count))
+		if count != 1 {
+			t.Fatal("resume minted authority", table, count)
+		}
+	}
 	var second executions.View
-	request("POST", "/v1/sessions/"+string(sid)+"/executions", "e2e001-execution-second", version(), `{"input":"Continue the conversation. Do not run tools."}`, 201, &second)
+	secondVersion := version()
+	request("POST", "/v1/sessions/"+string(sid)+"/executions", "e2e001-execution-second", secondVersion, `{"input":"Continue the conversation. Do not run tools."}`, 201, &second)
+	var secondReplay executions.View
+	request("POST", "/v1/sessions/"+string(sid)+"/executions", "e2e001-execution-second", secondVersion, `{"input":"Continue the conversation. Do not run tools."}`, 201, &secondReplay)
+	if secondReplay.ID != second.ID || secondReplay.Generation != second.Generation {
+		t.Fatal("admission replay changed Execution")
+	}
 	secondBinding, secondGrant := start(second, secondCompute, resumed.SandboxID)
 	if second.ID == first.ID || second.Generation != 2 || secondGrant.ID == firstGrant.ID || secondGrant.Generation != 2 {
 		t.Fatal("fresh admission missing")
 	}
+	// Historical integrity is not renewed authority, even before old expiry.
+	if !time.Now().Before(firstGrant.ExpiresAt) || !time.Now().Before(firstPeer.ExpiresAt) {
+		t.Fatal("old authority expired before fencing test")
+	}
+	oldStatus, err := a.Validate(ctx, authorityCaller, firstGrant)
+	e2eCheck(t, err)
+	if oldStatus.State != authority.Cancelled {
+		t.Fatal("old grant reactivated")
+	}
+	forged := firstGrant
+	forged.Generation = secondGrant.Generation
+	forged.SessionVersion = secondGrant.SessionVersion
+	if _, err := a.Validate(ctx, authorityCaller, forged); !errors.Is(err, authority.ErrInvalidGrant) {
+		t.Fatal("old grant rebound", err)
+	}
+	// Reconstruct from PostgreSQL as on another controller; no cached authority.
+	credentialRegistry, err = postgres.NewAgentdCredentials(db)
+	e2eCheck(t, err)
+	credentialAuthority.registry = credentialRegistry
+	credentialIssuer, err = agentdidentity.New(issuer, credentialAuthority)
+	e2eCheck(t, err)
+	if d, err := credentialIssuer.Bootstrap(ctx, firstPeer.Identity); err != agentdidentity.ErrCredential {
+		d.Destroy()
+		t.Fatal("retired identity received a credential", err)
+	}
+	if _, err := credentialRegistry.ConsumeBootstrap(ctx, firstPeer, firstCredential.Proof, firstPeer.ExpiresAt); err != transport.ErrCredentialState {
+		t.Fatal("old bootstrap accepted", err)
+	}
+	if _, err := credentialRegistry.Reconnect(ctx, firstPeer, firstPeer.ExpiresAt); err != transport.ErrCredentialState {
+		t.Fatal("old reconnect accepted", err)
+	}
+	if err := credentialRegistry.CheckConnection(ctx, firstPeer, firstConnection); err != transport.ErrCredentialState {
+		t.Fatal("old connection accepted", err)
+	}
+	secondCredential, err := credentialIssuer.Bootstrap(ctx, credentialID(secondBinding))
+	e2eCheck(t, err)
+	defer secondCredential.Destroy()
+	secondPeer := e2eCredentialPeer(t, secondCredential, secondGrant)
+	if secondCredential.Record.CredentialID == firstCredential.Record.CredentialID || bytes.Equal(secondCredential.Certificate.PrivateKeyPEM, firstCredential.Certificate.PrivateKeyPEM) || bytes.Equal(secondCredential.Proof, firstCredential.Proof) {
+		t.Fatal("Execution secret reused")
+	}
+	if _, err := credentialRegistry.ConsumeBootstrap(ctx, secondPeer, firstCredential.Proof, secondPeer.ExpiresAt); err != transport.ErrCredentialState {
+		t.Fatal("old proof accepted for new identity", err)
+	}
+	secondConnection, err := credentialRegistry.ConsumeBootstrap(ctx, secondPeer, secondCredential.Proof, secondPeer.ExpiresAt)
+	e2eCheck(t, err)
+	if _, err := credentialRegistry.ConsumeBootstrap(ctx, secondPeer, secondCredential.Proof, secondPeer.ExpiresAt); err != transport.ErrCredentialState {
+		t.Fatal("bootstrap replay accepted", err)
+	}
+	e2eCheck(t, credentialRegistry.CheckConnection(ctx, secondPeer, secondConnection))
+	for _, raw := range objects {
+		e2eExcludeCredential(t, raw, secondCredential)
+	}
+	e2eExcludeCredential(t, published.Manifest, secondCredential)
 	secondResult := k.guest(secondCompute, "second", secondBinding)
+	e2eCheck(t, credentialRegistry.CloseConnection(ctx, secondPeer.Identity, secondConnection))
 	if secondResult.Thread != firstResult.Thread || secondResult.Calls != 1 || !secondResult.History || secondResult.HistoryMarker != "e2e-002-conversation-"+string(first.ID) || secondResult.WorkspaceSHA256 != firstResult.WorkspaceSHA256 {
 		t.Fatal("second execution lost conversation")
 	}
 	finish(second, secondBinding)
+	e2eCheck(t, a.Cancel(ctx, authorityCaller, secondGrant))
 	var status struct {
 		State string `json:"state"`
 	}
@@ -435,7 +532,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	if status.State != "SUCCEEDED" {
 		t.Fatal("terminal status missing")
 	}
-	for _, q := range []string{`SELECT count(*) FROM executions WHERE tenant_id=$1 AND state='SUCCEEDED'`, `SELECT count(*) FROM local_authority_grants WHERE tenant_id=$1`} {
+	for _, q := range []string{`SELECT count(*) FROM executions WHERE tenant_id=$1 AND state='SUCCEEDED'`, `SELECT count(*) FROM local_authority_grants WHERE tenant_id=$1 AND state='CANCELLED'`, `SELECT count(*) FROM agentd_credentials WHERE tenant_id=$1`} {
 		var count int
 		e2eCheck(t, db.QueryRowContext(ctx, q, caller.TenantID).Scan(&count))
 		if count != 2 {
@@ -453,6 +550,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	if secondBinding.AttemptId == firstBinding.AttemptId || secondBinding.SandboxBindingId == firstBinding.SandboxBindingId {
 		t.Fatal("execution reused disposable identity")
 	}
+	t.Logf("E2E-003 LIVE PASS grants=%s,%s credentials=%s,%s; fresh keys/proofs, retired authority denied before expiry, no issuance during resume; controller-side credential composition", firstGrant.ID, secondGrant.ID, firstCredential.Record.CredentialID, secondCredential.Record.CredentialID)
 	t.Logf("E2E-002 LIVE PASS Session=%s Workspace=%s WorkspaceGeneration=%s workspaceSHA256=%s thread=%s; first-execution edit and unique assistant history survived deletion of old Sandbox, Pod and PVCs", sid, wid, w.Operation.ID, root, firstResult.Thread)
 	t.Logf("E2E-001 LIVE PASS Session=%s Checkpoint=%s Executions=%s,%s generations=1,2 thread=%s; real Kata compute replacement, fresh PVCs, loopback model, test-only worker/auth/transport", sid, id, first.ID, second.ID, firstResult.Thread)
 }

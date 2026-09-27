@@ -1,6 +1,6 @@
 # Standalone continuation on live Kata Sandboxes
 
-This operator-run E2E-001/E2E-002 integration scenario joins real HTTP Session/Execution
+This operator-run E2E-001/E2E-002/E2E-003 integration scenario joins real HTTP Session/Execution
 admission, PostgreSQL LocalAuthority, signed checkpoint publication, suspend and
 resume coordination to two real Codex processes on separate Kubernetes Agent
 Sandboxes. It uses the existing ARM64 `k3spi-02` homelab worker and
@@ -72,7 +72,8 @@ Python script through the worker's `python3`. No operator credential enters the
 guest. Ordinary Go test runs skip the live scenario; the runner requires all
 configuration and cannot silently skip it.
 
-Require Go PASS, `E2E-001 LIVE PASS` and `E2E-002 LIVE PASS`. The scenario checks:
+Require Go PASS and all three markers: `E2E-001 LIVE PASS`, `E2E-002 LIVE PASS`,
+and `E2E-003 LIVE PASS`. The scenario checks:
 
 1. HTTP creates one Session and the first locally authorized Execution.
 2. A pinned Codex child supervised by agentd completes a loopback-model turn;
@@ -97,6 +98,23 @@ Require Go PASS, `E2E-001 LIVE PASS` and `E2E-002 LIVE PASS`. The scenario check
    Persisted Session,
    Workspace, checkpoint and Workspace-generation identities must remain stable;
    Execution generation advances from 1 to 2 with fresh Attempt/Sandbox identities.
+8. Production agentd credential issuance creates separate short-lived client keys
+   and bootstrap proofs for the two admitted Executions, registered in PostgreSQL.
+   The first certificate works before retirement; its grant remains cancelled and
+   its bootstrap, reconnect, connection and new issuance fail after replacement,
+   while still unexpired. Relabelling the old grant also fails. The new identity
+   rejects the old proof, accepts its fresh proof once, and rejects replay.
+   Resume/readiness mints no Execution, grant or credential; HTTP admission replay
+   retains the same Execution. Both grants are retired at completion.
+
+E2E-003 exercises credential issuance/registration/consumption **in the controller**
+using a test-only authority composition that reloads the persisted local grant and
+current binding. The ephemeral CA, leaf keys and proofs remain in controller memory;
+they are not delivered to the guest or used for a TLS connection. Exported Workspace,
+vendor objects and signed manifest are checked for the actual key/proof values.
+The existing guest canary and clean process environment checks still apply.
+This does not qualify gateway credential issuance/injection, live mTLS admission,
+provider admission policy or concurrent revocation during credential issuance.
 
 The guest's resume-readiness check uses synthetic bootstrap correlation IDs; it
 does not create a database Execution or receive a grant. Actual turns are
@@ -122,5 +140,6 @@ not a retained production checkpoint store. Fresh controller objects reload the
 durable operation metadata, but this does not prove full server restart recovery.
 General export/retention, automatic candidate cleanup/reconciliation, executable
 workers, production authentication and gateway credential revocation remain
-their existing tasks. See [E2E-001 evidence](../../../docs/evidence/e2e-001-live-continuation.md) and
-[E2E-002 continuity evidence](../../../docs/evidence/e2e-002-continuity.md).
+their existing tasks. See [E2E-001 evidence](../../../docs/evidence/e2e-001-live-continuation.md),
+[E2E-002 continuity evidence](../../../docs/evidence/e2e-002-continuity.md) and
+[E2E-003 authority evidence](../../../docs/evidence/e2e-003-fresh-authority.md).
