@@ -2,6 +2,16 @@
 
 Status: Normative Phase 0 contract.
 
+## Ownership scope
+
+The Session-owned model below applies to AR-managed standalone storage. In
+ThinkPixelWS integration, the Session holds a non-authorizing WorkspaceBinding;
+WS owns the independent Workspace, canonical generations and Materialization
+storage. Session close/delete may clean up AR compute and attachment records,
+but MUST NOT delete the WS Workspace, its generations or WS-owned storage, nor
+queue such deletion under AR retention policy. Releasing a WS Materialization
+is a separate authorized WS operation and does not delete the Workspace.
+
 ## Model
 
 A Workspace is the durable writable filesystem owned by exactly one Session. It survives harness, `agentd`, Sandbox, Pod, node, and AR process replacement. It is mounted at `/workspace`; the agent image/root/scratch filesystem remains disposable.
@@ -188,7 +198,7 @@ Deletion is explicit, authorized, idempotent, retention-aware, and asynchronous:
 
 The provider deletes only exact persisted references with ownership proof. It never recursively deletes by tenant/session labels, prefix, namespace, path, or user input. `Delete` on already absent exact storage succeeds. Snapshot deletion is separate because checkpoints/forks may retain a snapshot after Workspace deletion.
 
-Session close initiates Workspace deletion subject to retention; API “delete” does not promise immediate physical erasure. Tombstone/evidence records contain no content/credential and document disposition.
+For AR-managed standalone storage only, Session close initiates Workspace deletion subject to retention; API “delete” does not promise immediate physical erasure. Tombstone/evidence records contain no content/credential and document disposition.
 
 ## Integrity and provenance
 

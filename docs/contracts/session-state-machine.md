@@ -106,6 +106,11 @@ Recovery is idempotent and crash-safe. Success returns to the recorded safe stat
 
 ### Close
 
+In ThinkPixelWS integration, closing/deleting a Session does not delete its
+external Workspace, canonical generations or WS-owned storage. Cleanup is
+limited to AR-owned resources; a WorkspaceBinding never conveys deletion
+authority. See [Workspace ownership scope](workspace.md#ownership-scope).
+
 Close is idempotent. `CLOSING` blocks create-Execution, input, resume, suspend, and fork operations. Active work must be cancelled/finalized according to its state machine before `CLOSED`. `CLOSED` is irreversible; delete semantics remove eligible data under retention policy but do not resurrect or mutate the state.
 
 ## Illegal transitions and operations
