@@ -25,10 +25,10 @@ type e2eKube struct {
 }
 type e2eCompute struct{ name, sandboxUID, podUID, workspaceUID, stateUID string }
 type e2eGuestResult struct {
-	Phase, Thread, SHA256 string
-	Calls                 int
-	History               bool
-	Binding               *agentdv1.Binding
+	Phase, Thread, SHA256, WorkspaceSHA256, HistoryMarker string
+	Calls                                                 int
+	History                                               bool
+	Binding                                               *agentdv1.Binding
 }
 
 func e2eQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
@@ -181,7 +181,7 @@ func (k *e2eKube) guest(c e2eCompute, phase string, b *agentdv1.Binding) e2eGues
 			if e := json.Unmarshal([]byte(strings.TrimPrefix(line, "E2E_GUEST_RESULT ")), &r); e != nil {
 				k.t.Fatal(e)
 			}
-			if r.Phase != phase || r.Binding == nil || r.Binding.SessionId != b.SessionId || r.Binding.ExecutionId != b.ExecutionId {
+			if r.Phase != phase || r.Binding == nil || r.Binding.TenantId != b.TenantId || r.Binding.SessionId != b.SessionId || r.Binding.ExecutionId != b.ExecutionId || r.Binding.AttemptId != b.AttemptId || r.Binding.SandboxBindingId != b.SandboxBindingId || r.Binding.SessionGeneration != b.SessionGeneration {
 				k.t.Fatal("guest identity mismatch")
 			}
 			return r
@@ -203,4 +203,21 @@ func (k *e2eKube) release(c e2eCompute) {
 		}
 	}
 	k.t.Logf("confirmed absent Sandbox uid=%s and Pod uid=%s", c.sandboxUID, c.podUID)
+}
+
+// Only the disposable fixture PVCs are removed, after checkpoint publication
+// and compute absence. This is not a production Workspace deletion operation.
+func (k *e2eKube) discardOldVolumes(c e2eCompute) {
+	k.t.Helper()
+	for suffix, uid := range map[string]string{"workspace": c.workspaceUID, "state": c.stateUID} {
+		name := c.name + "-" + suffix
+		if e2eUID(k.object("pvc", name)) != uid {
+			k.t.Fatal("refusing different fixture PVC")
+		}
+		k.must(nil, "-n", k.namespace, "delete", "pvc", name, "--wait=true", "--timeout=120s")
+		if out := k.must(nil, "-n", k.namespace, "get", "pvc", name, "--ignore-not-found", "-o", "name"); len(bytes.TrimSpace(out)) != 0 {
+			k.t.Fatal("old fixture PVC still exists")
+		}
+	}
+	k.t.Logf("old fixture PVCs absent workspace=%s state=%s; restore requires external export", c.workspaceUID, c.stateUID)
 }

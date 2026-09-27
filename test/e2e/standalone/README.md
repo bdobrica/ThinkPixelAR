@@ -1,6 +1,6 @@
 # Standalone continuation on live Kata Sandboxes
 
-This operator-run E2E-001 integration scenario joins real HTTP Session/Execution
+This operator-run E2E-001/E2E-002 integration scenario joins real HTTP Session/Execution
 admission, PostgreSQL LocalAuthority, signed checkpoint publication, suspend and
 resume coordination to two real Codex processes on separate Kubernetes Agent
 Sandboxes. It uses the existing ARM64 `k3spi-02` homelab worker and
@@ -72,7 +72,7 @@ Python script through the worker's `python3`. No operator credential enters the
 guest. Ordinary Go test runs skip the live scenario; the runner requires all
 configuration and cannot silently skip it.
 
-Require Go PASS and `E2E-001 LIVE PASS`. The scenario checks:
+Require Go PASS, `E2E-001 LIVE PASS` and `E2E-002 LIVE PASS`. The scenario checks:
 
 1. HTTP creates one Session and the first locally authorized Execution.
 2. A pinned Codex child supervised by agentd completes a loopback-model turn;
@@ -83,14 +83,20 @@ Require Go PASS and `E2E-001 LIVE PASS`. The scenario checks:
 4. Production services publish Workspace generation 1 and the signed checkpoint,
    suspend the Session, and reject a new Execution while suspended.
 5. After durable release authorization, the exact first Sandbox is deleted and
-   both Sandbox and Pod absence are confirmed.
+   both Sandbox and Pod absence are confirmed. The exact old fixture PVCs are
+   then deleted and their absence confirmed before replacement starts.
 6. The resume coordinator reserves fresh identities. New Sandbox/Pod/PVC UIDs
    are required; only the checkpoint export is copied into the new volumes.
    Exact Codex thread restoration must produce no model request before admission.
 7. A second HTTP Execution receives a distinct local grant and generation 2.
    Its Codex turn must include the first turn's conversation, preserve the
-   Workspace file, and finish with HTTP-visible `SUCCEEDED` status. Resume replay
-   must return the same result without creating another candidate.
+   first Execution’s Workspace edit byte-for-byte, and finish with HTTP-visible
+   `SUCCEEDED` status. A unique marker must appear in structured assistant history
+   in the second model request; a marker in user or tool input does not count.
+   Resume replay must return the same result without creating another candidate.
+   Persisted Session,
+   Workspace, checkpoint and Workspace-generation identities must remain stable;
+   Execution generation advances from 1 to 2 with fresh Attempt/Sandbox identities.
 
 The guest's resume-readiness check uses synthetic bootstrap correlation IDs; it
 does not create a database Execution or receive a grant. Actual turns are
@@ -106,9 +112,15 @@ delete **only the printed test namespace** and drop the disposable database.
 Do not use a wildcard or delete pre-existing namespaces. A failed run needs a
 new namespace; it does not adopt an ambiguous old candidate.
 
+The first Workspace edit is made by the guest test fixture after the real Codex
+turn, not by a Codex tool call. Old PVC deletion removes the original storage
+from the restore path; it does not attest physical-media erasure. This deletion
+is confined to disposable test resources and is not production Workspace cleanup.
+
 The external export directory and ephemeral signing key are test-lifetime data,
 not a retained production checkpoint store. Fresh controller objects reload the
 durable operation metadata, but this does not prove full server restart recovery.
 General export/retention, automatic candidate cleanup/reconciliation, executable
 workers, production authentication and gateway credential revocation remain
-their existing tasks. See [live evidence](../../../docs/evidence/e2e-001-live-continuation.md).
+their existing tasks. See [E2E-001 evidence](../../../docs/evidence/e2e-001-live-continuation.md) and
+[E2E-002 continuity evidence](../../../docs/evidence/e2e-002-continuity.md).

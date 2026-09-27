@@ -258,6 +258,10 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		}
 		return raw, nil
 	}
+	expectedWorkspace := []byte("E2E-001 durable workspace\ncompleted execution: " + string(first.ID) + "\n")
+	if !bytes.Equal(objects["workspace"], expectedWorkspace) || "sha256:"+firstResult.WorkspaceSHA256 != sandbox.Digest(expectedWorkspace) || firstResult.History {
+		t.Fatal("first-execution workspace edit or fresh conversation mismatch")
+	}
 	root := sandbox.Digest(objects["workspace"])
 	vendorDigest := checkpoints.Digest(sandbox.Digest(objects["rollout"]))
 	if vendorDigest != firstResult.SHA256 {
@@ -354,6 +358,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		t.Fatal("release not authorized")
 	}
 	k.release(firstCompute)
+	k.discardOldVolumes(firstCompute)
 	e2eCheck(t, bindings.RecordCompute(ctx, intent, sandbox.ComputeObservation{State: sandbox.Released, Code: "COMPUTE_ABSENT", Converged: true}))
 	// Fresh store/coordinator objects load only committed metadata after deletion.
 	rr := sessions.ResumeRequest(suspendRequest)
@@ -380,6 +385,9 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	}, validator)
 	e2eCheck(t, err)
 	worker, err := sessions.NewResumer(resumeStore, e2eMaterializer{func(i sessions.ResumeIntent) (sessions.ResumeObservation, error) {
+		if i.Request.SessionID != sid || i.WorkspaceID != wid || i.WorkspaceGenerationID != w.Operation.ID || i.WorkspaceGeneration != 1 || i.ExecutionGeneration != 1 {
+			return sessions.ResumeObservation{}, workspace.ErrIntegrity
+		}
 		candidate = i
 		secondCompute = k.acquire("resume-" + string(i.SandboxID))
 		if secondCompute.sandboxUID == firstCompute.sandboxUID || secondCompute.podUID == firstCompute.podUID || secondCompute.workspaceUID == firstCompute.workspaceUID || secondCompute.stateUID == firstCompute.stateUID {
@@ -401,7 +409,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	e2eCheck(t, err)
 	resumed, err := worker.Resume(ctx, rr)
 	e2eCheck(t, err)
-	if resumed.State != "IDLE" || resumed.Generation != 1 {
+	if resumed.State != "IDLE" || resumed.Generation != 1 || resumed.SessionID != sid || resumed.CheckpointID != id || readyResult.WorkspaceSHA256 != firstResult.WorkspaceSHA256 || readyResult.SHA256 != firstResult.SHA256 {
 		t.Fatal("resume publication", resumed.State)
 	}
 	replayed, err := worker.Resume(ctx, rr)
@@ -416,7 +424,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		t.Fatal("fresh admission missing")
 	}
 	secondResult := k.guest(secondCompute, "second", secondBinding)
-	if secondResult.Thread != firstResult.Thread || secondResult.Calls != 1 || !secondResult.History {
+	if secondResult.Thread != firstResult.Thread || secondResult.Calls != 1 || !secondResult.History || secondResult.HistoryMarker != "e2e-002-conversation-"+string(first.ID) || secondResult.WorkspaceSHA256 != firstResult.WorkspaceSHA256 {
 		t.Fatal("second execution lost conversation")
 	}
 	finish(second, secondBinding)
@@ -435,6 +443,17 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		}
 	}
 	e2eCheck(t, verifyObjects())
+	var persistedWorkspace, persistedCheckpoint, persistedGenerationID primitives.ID
+	var sessionState string
+	var executionGeneration, workspaceGeneration int64
+	e2eCheck(t, db.QueryRowContext(ctx, `SELECT s.state,s.execution_generation,s.current_checkpoint_id,w.workspace_id,w.current_generation,w.current_workspace_generation_id FROM sessions s JOIN workspaces w ON w.tenant_id=s.tenant_id AND w.session_id=s.session_id WHERE s.tenant_id=$1 AND s.session_id=$2`, caller.TenantID, sid).Scan(&sessionState, &executionGeneration, &persistedCheckpoint, &persistedWorkspace, &workspaceGeneration, &persistedGenerationID))
+	if sessionState != "IDLE" || executionGeneration != 2 || persistedCheckpoint != id || persistedWorkspace != wid || workspaceGeneration != 1 || persistedGenerationID != w.Operation.ID {
+		t.Fatal("persisted Session/Workspace continuity lost")
+	}
+	if secondBinding.AttemptId == firstBinding.AttemptId || secondBinding.SandboxBindingId == firstBinding.SandboxBindingId {
+		t.Fatal("execution reused disposable identity")
+	}
+	t.Logf("E2E-002 LIVE PASS Session=%s Workspace=%s WorkspaceGeneration=%s workspaceSHA256=%s thread=%s; first-execution edit and unique assistant history survived deletion of old Sandbox, Pod and PVCs", sid, wid, w.Operation.ID, root, firstResult.Thread)
 	t.Logf("E2E-001 LIVE PASS Session=%s Checkpoint=%s Executions=%s,%s generations=1,2 thread=%s; real Kata compute replacement, fresh PVCs, loopback model, test-only worker/auth/transport", sid, id, first.ID, second.ID, firstResult.Thread)
 }
 

@@ -35,7 +35,7 @@ func TestStandaloneKubernetesGuest(t *testing.T) {
 	if phase != "first" && phase != "ready" && phase != "second" {
 		t.Fatal("unknown phase")
 	}
-	const marker = "e2e-001-durable-conversation-74239"
+	const markerPrefix = "e2e-002-conversation-"
 	const workspaceText = "E2E-001 durable workspace\n"
 	raw, err := os.ReadFile(codex.Command()[0])
 	if err != nil || fmt.Sprintf("%x", sha256.Sum256(raw)) != codex.LinuxARM64SHA256 {
@@ -45,19 +45,21 @@ func TestStandaloneKubernetesGuest(t *testing.T) {
 		t.Fatal("service-account token present")
 	}
 	work, err := os.ReadFile("/workspace/context.txt")
-	if err != nil || string(work) != workspaceText {
+	if err != nil || (phase == "first" && string(work) != workspaceText) || (phase != "first" && !strings.HasPrefix(string(work), workspaceText+"completed execution: ")) {
 		t.Fatal("workspace continuity failed")
 	}
 	c := restoreConfig(t)
 	if err := json.Unmarshal([]byte(os.Getenv("THINKPIXELAR_E2E_BINDING")), &c.Binding); err != nil || c.Validate() != nil {
 		t.Fatal("binding required")
 	}
+	marker := markerPrefix + c.Binding.ExecutionId
 	var calls atomic.Int32
-	var history atomic.Bool
+	var history atomic.Value
+	history.Store("")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		calls.Add(1)
-		history.Store(strings.Contains(string(body), marker))
+		history.Store(continuationAssistantMarker(body))
 		w.Header().Set("Content-Type", "text/event-stream")
 		item := map[string]any{"id": "msg_fixture", "type": "message", "role": "assistant", "status": "completed", "content": []any{map[string]any{"type": "output_text", "text": marker, "annotations": []any{}}}}
 		for _, e := range []map[string]any{
@@ -143,11 +145,25 @@ func TestStandaloneKubernetesGuest(t *testing.T) {
 				completed = true
 			}
 		}
-		if !completed || calls.Load() != 1 || (phase == "second" && !history.Load()) {
+		if !completed || calls.Load() != 1 || (phase == "second" && history.Load().(string) == "") {
 			t.Fatal("completion or conversation continuity failed")
 		}
 	}
 	if phase == "first" {
+		// A first-execution edit, not merely the controller's initial fixture.
+		work = append(work, []byte("completed execution: "+c.Binding.ExecutionId+"\n")...)
+		f, e := os.OpenFile("/workspace/context.txt", os.O_WRONLY|os.O_TRUNC, 0600)
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = f.Write(work)
+		if e == nil {
+			e = f.Sync()
+		}
+		closeErr := f.Close()
+		if e != nil || closeErr != nil {
+			t.Fatal("workspace edit", e, closeErr)
+		}
 		files, e := filepath.Glob(filepath.Join(home, "codex/sessions/*/*/*/*.jsonl"))
 		if e != nil || len(files) != 1 {
 			t.Fatal("one rollout required")
@@ -175,11 +191,11 @@ func TestStandaloneKubernetesGuest(t *testing.T) {
 		t.Fatal("old process home retained")
 	}
 	result, _ := json.Marshal(struct {
-		Phase, Thread, SHA256 string
-		Calls                 int32
-		History               bool
-		Binding               *agentdv1.Binding
-	}{phase, thread, selected.SHA256, calls.Load(), history.Load(), c.Binding})
+		Phase, Thread, SHA256, WorkspaceSHA256, HistoryMarker string
+		Calls                                                 int32
+		History                                               bool
+		Binding                                               *agentdv1.Binding
+	}{phase, thread, selected.SHA256, fmt.Sprintf("%x", sha256.Sum256(work)), history.Load().(string), calls.Load(), history.Load().(string) != "", c.Binding})
 	fmt.Printf("E2E_GUEST_RESULT %s\n", result)
 }
 
@@ -195,5 +211,44 @@ func writeGuestFile(t *testing.T, name string, b []byte) {
 	ce := f.Close()
 	if e != nil || ce != nil {
 		t.Fatal("durable guest write", e, ce)
+	}
+}
+
+// Match structured assistant history only. A marker in the current user prompt,
+// tool output, or configuration is not conversation continuity evidence.
+func continuationAssistantMarker(raw []byte) string {
+	var request struct {
+		Input []struct {
+			Role    string `json:"role"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"input"`
+	}
+	if json.Unmarshal(raw, &request) != nil {
+		return ""
+	}
+	for _, item := range request.Input {
+		if item.Role != "assistant" {
+			continue
+		}
+		for _, part := range item.Content {
+			if part.Type == "output_text" && strings.HasPrefix(part.Text, "e2e-002-conversation-") {
+				return part.Text
+			}
+		}
+	}
+	return ""
+}
+
+func TestContinuationAssistantMarker(t *testing.T) {
+	const marker = "e2e-002-conversation-unique"
+	for _, role := range []string{"assistant", "user", "tool"} {
+		raw := []byte(fmt.Sprintf(`{"input":[{"role":%q,"content":[{"type":"output_text","text":%q}]}]}`, role, marker))
+		got := continuationAssistantMarker(raw)
+		if (role == "assistant" && got != marker) || (role != "assistant" && got != "") {
+			t.Fatalf("role %s accepted incorrectly", role)
+		}
 	}
 }
