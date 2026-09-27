@@ -71,6 +71,7 @@ Structured logs and traces MAY use the following after validation and cardinalit
 - request and W3C trace identifiers;
 - opaque tenant, Session, Execution, Attempt, and Sandbox identifiers in logs/traces, but not metrics labels;
 - registered event type, adapter kind, Runtime Profile name, state enum, status code, result class, and bounded duration/size;
+- trusted adapter authority mode and safe issuer reference; metrics use bounded mode only, never issuer or grant/object identifiers;
 - external Run identifier only where the integration contract classifies it as no higher than `Internal`; otherwise use an AR-generated correlation reference.
 
 Free-form names, repository paths, branch names, user names, prompt fragments, model output, tool arguments/results, and raw vendor errors are not approved correlation fields.
@@ -109,4 +110,3 @@ Publication is explicit and atomic only after integrity metadata is durable. A c
 ## Change control
 
 A new event type, telemetry field, persistent path, checkpoint member, artifact type, credential, integration, debug endpoint, or support export MUST receive a classification and sink review before release. Changing a category to a lower classification requires a security decision record and migration/retention analysis.
-

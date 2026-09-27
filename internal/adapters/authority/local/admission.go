@@ -23,7 +23,9 @@ func validID(v string) bool { _, e := primitives.ParseID(v); return e == nil }
 // Admit records the grant and replay result in the same transaction. It does
 // not advance Session state or start compute. Execution admission must still
 // atomically compare Session version/generation and persist the returned grant.
-func (a *Authority) Admit(ctx context.Context, c authority.Caller, r authority.Request) (authority.Grant, error) {
+func (a *Authority) Admit(ctx context.Context, c authority.Caller, r authority.Request) (grant authority.Grant, resultErr error) {
+	ctx, finish := a.observe(ctx, "admit")
+	defer func() { finish(resultErr, "") }()
 	var g authority.Grant
 	if !validID(string(c.TenantID)) || !digestPattern.MatchString(c.PrincipalDigest) || !validID(string(r.SessionID)) || !digestPattern.MatchString(r.KeyDigest) || !digestPattern.MatchString(r.RequestDigest) || r.Generation == 0 || r.Generation > math.MaxInt64 || r.SessionVersion > math.MaxInt64 || !subset(r.Capabilities, []string{"shell", "process", "fork"}) || len(r.Profile) > 128 || len(r.Network) > 128 || len(r.Architecture) > 16 || (len(a.config.Tenants) > 0 && !slices.Contains(a.config.Tenants, string(c.TenantID))) || (len(a.config.Principals) > 0 && !slices.Contains(a.config.Principals, c.PrincipalDigest)) {
 		return g, authority.ErrDenied

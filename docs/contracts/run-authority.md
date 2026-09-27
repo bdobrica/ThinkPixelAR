@@ -188,6 +188,13 @@ Standalone LocalAuthority does not provide:
 
 Every admitted Execution exposes a safe immutable `authority_mode` (`local` or `thinkpixelag`) and issuer reference in API status, Runtime Events, structured logs/traces, and evidence. Metrics use bounded `authority_mode` only. Local mode emits an operator-visible startup log/condition and MUST be visibly labeled in deployment diagnostics; it is not described as “governed” in user-facing output.
 
+Deployment diagnostics use `GET /authorityz` with `authority_mode`,
+`authority_issuer`, and a safe description. An absent adapter is explicitly
+`unconfigured` with an empty issuer; this diagnostic value is not a grant mode.
+Diagnostics identify the attached adapter, not its availability or an Execution's
+admission. Historical Execution labels always come from the immutable grant.
+See [AUT-003 implementation scope](../evidence/aut-003-authority-visibility.md).
+
 Authority records include grant ID, mode/issuer, policy revision, safe decision code, issued/expiry times, bound AR identities, and terminal status/evidence references under tenant authorization. They exclude prompts, output, credentials, and arbitrary upstream payloads according to the data-classification contract.
 
 ## Concurrency and recovery
@@ -219,4 +226,3 @@ Tests MUST cover:
 - configuration revision invalidation without permission widening;
 - API/event/log/trace visibility of `authority_mode=local` and absence from high-cardinality metric labels;
 - absence of provider/downstream credentials and content from grants, errors, telemetry, and persisted authority evidence.
-

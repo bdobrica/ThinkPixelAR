@@ -3,6 +3,7 @@ package local
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"regexp"
 	"slices"
 	"time"
@@ -52,18 +53,22 @@ type resolved struct {
 }
 
 type Authority struct {
-	config   Config
-	profiles map[string]resolved
-	revision string
-	store    persistence.TransactionManager
-	clock    clock.Clock
+	config        Config
+	profiles      map[string]resolved
+	revision      string
+	store         persistence.TransactionManager
+	clock         clock.Clock
+	observability Observability
 }
 
 var _ authority.Admission = (*Authority)(nil)
 
 // New snapshots trusted operator policy. Registry reloads and caller mutations
 // cannot alter this instance. No default or fallback authority mode exists.
-func New(c Config, registry *runtimeprofiles.Registry, store persistence.TransactionManager, clk clock.Clock) (*Authority, error) {
+func New(c Config, registry *runtimeprofiles.Registry, store persistence.TransactionManager, clk clock.Clock, observability ...Observability) (*Authority, error) {
+	if len(observability) > 1 {
+		return nil, ErrConfiguration
+	}
 	if c.Mode != "local" || !digestPattern.MatchString(c.Revision) || registry == nil || store == nil || clk == nil || c.DefaultDuration <= 0 || c.MaximumDuration < c.DefaultDuration || c.MaximumDuration > 365*24*time.Hour || len(c.Profiles) == 0 || len(c.Profiles) > 128 || !slices.Contains(c.Profiles, c.DefaultProfile) || len(c.Runtimes) == 0 || len(c.Runtimes) > 128 {
 		return nil, ErrConfiguration
 	}
@@ -123,6 +128,17 @@ func New(c Config, registry *runtimeprofiles.Registry, store persistence.Transac
 		Profiles map[string]resolved
 	}{c, a.profiles})
 	a.revision = sandbox.Digest(raw)
+	if len(observability) == 1 {
+		a.observability = observability[0]
+	}
+	if a.observability.Logger == nil {
+		a.observability.Logger = slog.Default()
+	}
+	a.observability.Logger = a.observability.Logger.With("authority_mode", authority.LocalMode, "authority_issuer", authority.LocalIssuer)
+	if a.observability.Metrics != nil {
+		_ = a.observability.Metrics.SetAuthorityMode(authority.LocalMode)
+	}
+	a.observability.Logger.Warn("standalone local authority enabled; no ThinkPixelAG governance")
 	return a, nil
 }
 func canonicalDigest(raw []byte, digest string) bool {

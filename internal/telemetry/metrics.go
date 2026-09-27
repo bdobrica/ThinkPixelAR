@@ -31,6 +31,7 @@ type Metrics struct {
 	eventStreamBackpressure   prometheus.Counter
 	authorityLatency          *prometheus.HistogramVec
 	authorityFailures         prometheus.Counter
+	authorityMode             *prometheus.GaugeVec
 	reconcilerQueueDepth      prometheus.Gauge
 	reconcilerQueueLag        prometheus.Gauge
 	postgresConnections       *prometheus.GaugeVec
@@ -59,6 +60,8 @@ func NewMetrics() *Metrics {
 	m.eventStreamBackpressure = prometheus.NewCounter(prometheus.CounterOpts{Namespace: metricNamespace, Name: "event_stream_backpressure_total", Help: "Runtime Event stream backpressure occurrences."})
 	m.authorityLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{Namespace: metricNamespace, Name: "authority_operation_seconds", Help: "Authority-provider latency by bounded mode and result.", Buckets: buckets}, []string{"mode", "result"})
 	m.authorityFailures = prometheus.NewCounter(prometheus.CounterOpts{Namespace: metricNamespace, Name: "authority_failures_total", Help: "Authority-provider failures."})
+	m.authorityMode = prometheus.NewGaugeVec(prometheus.GaugeOpts{Namespace: metricNamespace, Name: "authority_info", Help: "Attached execution authority mode; not an admission or availability check."}, []string{"authority_mode"})
+	m.registry.MustRegister(m.authorityMode)
 	m.reconcilerQueueDepth = prometheus.NewGauge(prometheus.GaugeOpts{Namespace: metricNamespace, Name: "reconciler_queue_depth", Help: "Current reconciler queue depth."})
 	m.reconcilerQueueLag = prometheus.NewGauge(prometheus.GaugeOpts{Namespace: metricNamespace, Name: "reconciler_queue_lag_seconds", Help: "Age of the oldest pending reconciliation item."})
 	m.postgresConnections = prometheus.NewGaugeVec(prometheus.GaugeOpts{Namespace: metricNamespace, Name: "postgres_connections", Help: "PostgreSQL pool connections by state."}, []string{"state"})
@@ -148,6 +151,22 @@ func (m *Metrics) ObserveAuthority(mode, result string, d time.Duration) error {
 	return nil
 }
 func (m *Metrics) AuthorityFailure() { m.authorityFailures.Inc() }
+
+// SetAuthorityMode publishes deployment identity, including an explicit absent
+// adapter. It must be called by trusted startup composition, never per request.
+func (m *Metrics) SetAuthorityMode(mode string) error {
+	if !allowed(mode, "local", "thinkpixelag", "unconfigured") {
+		return errors.New("unsupported authority mode metric label")
+	}
+	for _, value := range []string{"local", "thinkpixelag", "unconfigured"} {
+		valueIsSelected := 0.0
+		if value == mode {
+			valueIsSelected = 1
+		}
+		m.authorityMode.WithLabelValues(value).Set(valueIsSelected)
+	}
+	return nil
+}
 func (m *Metrics) SetReconcilerQueue(depth int, oldestAge time.Duration) {
 	m.reconcilerQueueDepth.Set(float64(depth))
 	m.reconcilerQueueLag.Set(oldestAge.Seconds())

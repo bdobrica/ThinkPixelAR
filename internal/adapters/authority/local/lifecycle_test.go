@@ -1,6 +1,7 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/persistence"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/sandbox"
+	"github.com/bdobrica/ThinkPixelAR/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -62,7 +64,8 @@ func TestPostgresImmutableGrantLifecycle(t *testing.T) {
 	if err = store.WithinTransaction(ctx, caller.TenantID, func(ctx context.Context, repos persistence.Repositories) error { return repos.Sessions().Add(ctx, s) }); err != nil {
 		t.Fatal(err)
 	}
-	a, err := New(c, registry, store, clock.Fixed{Time: now})
+	var logs bytes.Buffer
+	a, err := New(c, registry, store, clock.Fixed{Time: now}, Observability{Logger: telemetry.NewJSONLogger(&logs, telemetry.LogOptions{})})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +81,9 @@ func TestPostgresImmutableGrantLifecycle(t *testing.T) {
 		}
 	}
 	check(a, g, authority.Active)
+	if !strings.Contains(logs.String(), `"authority_state":"ACTIVE"`) || !strings.Contains(logs.String(), `"operation":"admit","result":"success"`) {
+		t.Fatalf("missing success telemetry: %s", &logs)
+	}
 	otherCaller := caller
 	otherCaller.TenantID = g.ID
 	otherGrant := g

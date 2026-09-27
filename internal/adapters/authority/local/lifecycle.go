@@ -13,15 +13,20 @@ import (
 
 var _ authority.LocalLifecycle = (*Authority)(nil)
 
-func (a *Authority) Validate(ctx context.Context, c authority.Caller, g authority.Grant) (authority.Status, error) {
+func (a *Authority) Validate(ctx context.Context, c authority.Caller, g authority.Grant) (result authority.Status, resultErr error) {
+	ctx, finish := a.observe(ctx, "validate")
+	defer func() { finish(resultErr, result.State) }()
 	return a.status(ctx, c, g, false)
 }
 
 // Cancel requires the issuing principal plus trusted Session authorization.
 // Administrative delegation is intentionally not inferred from request fields.
-func (a *Authority) Cancel(ctx context.Context, c authority.Caller, g authority.Grant) error {
-	_, err := a.status(ctx, c, g, true)
-	return err
+func (a *Authority) Cancel(ctx context.Context, c authority.Caller, g authority.Grant) (resultErr error) {
+	ctx, finish := a.observe(ctx, "cancel")
+	var result authority.Status
+	defer func() { finish(resultErr, result.State) }()
+	result, resultErr = a.status(ctx, c, g, true)
+	return resultErr
 }
 
 func (a *Authority) status(ctx context.Context, c authority.Caller, g authority.Grant, cancel bool) (authority.Status, error) {

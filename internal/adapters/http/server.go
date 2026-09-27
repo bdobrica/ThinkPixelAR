@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
+	"github.com/bdobrica/ThinkPixelAR/internal/ports/authority"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 	"github.com/bdobrica/ThinkPixelAR/internal/telemetry"
@@ -46,6 +47,8 @@ type Options struct {
 	Metrics *telemetry.Metrics
 	Ready   Readiness
 	Handler stdhttp.Handler
+	// Authority is the actual attached adapter, not a caller-selected mode.
+	Authority authority.IdentityProvider
 }
 
 // Server owns the hardened HTTP server and graceful shutdown lifecycle.
@@ -68,7 +71,19 @@ func NewServer(o Options) (*Server, error) {
 	if o.Handler == nil {
 		o.Handler = stdhttp.NotFoundHandler()
 	}
+	identity, diagnostic, err := authorityDiagnostic(o.Authority)
+	if err != nil {
+		return nil, err
+	}
+	o.Logger = o.Logger.With("authority_mode", identity.Mode, "authority_issuer", identity.Issuer)
+	o.Logger.Info("http authority diagnostics initialized")
+	if o.Metrics != nil {
+		_ = o.Metrics.SetAuthorityMode(identity.Mode)
+	}
 	mux := stdhttp.NewServeMux()
+	mux.HandleFunc("GET /authorityz", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+		writeJSON(w, stdhttp.StatusOK, diagnostic)
+	})
 	mux.HandleFunc("GET /livez", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) { writeJSON(w, stdhttp.StatusOK, `{"status":"ok"}`) })
 	mux.HandleFunc("GET /readyz", func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		if err := o.Ready(r.Context()); err != nil {
@@ -205,7 +220,7 @@ func RequestIDFromContext(ctx context.Context) string {
 
 func routeName(path string) string {
 	switch path {
-	case "/livez", "/readyz", "/metrics":
+	case "/livez", "/readyz", "/metrics", "/authorityz":
 		return path
 	default:
 		return "unmatched"

@@ -1059,6 +1059,32 @@
         }
       }
     },
+    "/authorityz": {
+      "get": {
+        "operationId": "authorityDiagnostics",
+        "summary": "Identify the attached execution authority adapter",
+        "description": "Safe deployment metadata only. Local means standalone without ThinkPixelAG governance. Unconfigured means no execution authority adapter is attached. This is not a readiness check or an Execution admission decision.",
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Authority deployment identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorityDiagnostic"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/metrics": {
       "get": {
         "operationId": "metrics",
@@ -1776,6 +1802,33 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "AuthorityDiagnostic": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "authority_mode",
+          "authority_issuer",
+          "description"
+        ],
+        "properties": {
+          "authority_mode": {
+            "enum": [
+              "local",
+              "thinkpixelag",
+              "unconfigured"
+            ]
+          },
+          "authority_issuer": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "Safe issuer reference from the attached adapter; empty when unconfigured."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 256
           }
         }
       },

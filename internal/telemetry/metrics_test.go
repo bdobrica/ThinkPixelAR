@@ -80,6 +80,7 @@ func TestMetricsRejectUnboundedLabelValuesWithoutExposingThem(t *testing.T) {
 		metrics.ObserveLifecycle(canary, "success", 0),
 		metrics.ObserveWorkspace("attach", canary, 0),
 		metrics.ObserveAuthority(canary, "success", 0),
+		metrics.SetAuthorityMode(canary),
 		metrics.SetPostgresConnections(canary, 1),
 	}
 	for index, err := range checks {
