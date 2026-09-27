@@ -111,6 +111,14 @@ func TestSessionResumeReplacementReplay(t *testing.T) {
 				if err = bindings.RecordCompute(ctx, intent, sandbox.ComputeObservation{State: sandbox.Released, Code: "COMPUTE_ABSENT", Converged: true}); err != nil {
 					t.Fatal(err)
 				}
+				// Provider fixture confirms exact Secret absence independently of
+				// compute absence. A queued cleanup alone must not admit resume.
+				if _, _, err = s.Prepare(ctx, r); !errors.Is(err, workspace.ErrConflict) {
+					t.Fatal("unexpired bootstrap cleanup pending", err)
+				}
+				if _, err = db.Exec(`UPDATE agentd_bootstrap_delivery SET cleaned=true WHERE tenant_id=$1`, r.Caller.TenantID); err != nil {
+					t.Fatal(err)
+				}
 			}
 			p := &resumeProvider{lose: true}
 			worker, _ := app.NewResumer(s, p)

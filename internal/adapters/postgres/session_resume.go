@@ -186,6 +186,31 @@ func resumeNoWriters(ctx context.Context, tx *sql.Tx, r app.ResumeRequest) error
 	if busy {
 		return workspace.ErrConflict
 	}
+	return resumeCredentialsRetired(ctx, tx, r)
+}
+
+// The caller holds the Session lock, also required by credential registration
+// and connection admission. Released bindings fence retained certificate history;
+// cleanup_requested alone is not proof that a bootstrap Secret is gone.
+// External gateway/AG revocation and restored-content exclusions remain mandatory
+// ResumePolicy/ResumeReady checks, not facts inferred from this local registry.
+func resumeCredentialsRetired(ctx context.Context, tx *sql.Tx, r app.ResumeRequest) error {
+	var unsafe bool
+	err := tx.QueryRowContext(ctx, `SELECT
+ EXISTS(SELECT 1 FROM agentd_credential_state c
+ JOIN sandbox_bindings b USING(tenant_id,sandbox_binding_id)
+ WHERE b.tenant_id=$1 AND b.session_id=$2 AND c.connection_id IS NOT NULL)
+ OR EXISTS(SELECT 1 FROM agentd_bootstrap_delivery d
+ JOIN agentd_credentials c USING(tenant_id,credential_id)
+ JOIN sandbox_bindings b USING(tenant_id,sandbox_binding_id)
+ WHERE b.tenant_id=$1 AND b.session_id=$2 AND NOT d.cleaned
+ AND GREATEST(d.expires_at,c.expires_at)>clock_timestamp())`, r.Caller.TenantID, r.SessionID).Scan(&unsafe)
+	if err != nil {
+		return err
+	}
+	if unsafe {
+		return workspace.ErrConflict
+	}
 	return nil
 }
 func (s *SessionResumes) fence(ctx context.Context, tx *sql.Tx, i app.ResumeIntent, v resumeSession) error {

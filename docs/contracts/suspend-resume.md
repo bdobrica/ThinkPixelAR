@@ -185,8 +185,8 @@ recovery of a degraded Session/Workspace remains a separate operation.
 
 This coordinator does not yet have concrete infrastructure materializer/readiness
 adapters or executable HTTP/worker wiring. SES-006 implements supervised harness
-restoration as described below; its delivery/composition and SES-007 credential
-revocation remain necessary. Subsequent Execution materialization must
+restoration as described below; its delivery/composition and external credential
+revocation remain necessary. SES-007 adds the local retirement gate below. Subsequent Execution materialization must
 explicitly transfer or replace the infrastructure attachment under fresh
 Execution/Attempt authority. The existing Execution-only Agent Sandbox provider
 cannot be passed directly as a resume materializer. Therefore SES-005 remains
@@ -224,3 +224,28 @@ checkpoint bytes, Session worker/infrastructure readiness composition, external
 credential revocation and live Sandbox reconstruction remain separate integration
 work. No new wire capability, authority, database transition or readiness claim
 is introduced by this local restoration component.
+
+
+## AR credential retirement gate (SES-007)
+
+Before replacement allocation, on pending-operation retry, and before readiness
+publication, the PostgreSQL coordinator checks every prior SandboxBinding for
+this tenant/Session under the Session lock. All old bindings must be released,
+all connection projections must be cleared, and every bootstrap delivery must
+be confirmed cleaned or past both its delivery and certificate expiry. A queued
+cleanup intent is insufficient. Expired deliveries retain their cleanup work;
+credential history is not deleted or rewritten. Failure returns a fixed conflict
+without allocating or publishing readiness.
+
+Credential registration and stream admission use the same Session fence and
+reject old Attempts/released bindings, including after the Session becomes IDLE
+again. Historical completed-operation replay does not allocate compute or grant
+authority. Resume itself issues no Execution credential.
+
+These checks cover AR's transport registry. Trusted policy/readiness composition
+must still prove AG/gateway revocation and credential exclusion from restored
+content. There is no implemented gateway credential issuer/revocation integration
+or complete Session resume worker yet; SES-007 remains open for that integrated
+proof. The real Codex restoration test verifies a fresh environment and absence
+of old credential files, not arbitrary secret detection inside rollout content.
+See [verification](../evidence/ses-007-credential-retirement.md).
