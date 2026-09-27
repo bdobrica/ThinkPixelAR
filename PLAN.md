@@ -457,7 +457,10 @@ worker wiring are required before executable checkpointing. Live CSI qualificati
 remains pending. CHK-001 adds schema-validated signed Checkpoint manifests and
 atomic Checkpoint/Session-head/event/outbox publication from committed WSP-003
 boundaries. Concrete object verification/retention pins, signer configuration and
-worker composition remain required; restore validation remains CHK-002.
+worker composition remain required. CHK-002 adds strict restore integrity and
+compatibility validation with authorized, locked PostgreSQL selection and streamed
+vendor digest/size checks. Concrete storage/key-policy/compatibility adapters and
+Session resume composition (including degradation on failure) remain required.
 
 Exact storage class and snapshot implementation remain operator configuration.
 

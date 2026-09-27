@@ -259,7 +259,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [x] WSP-003 Implement Workspace generation advancement on successful durable checkpoint boundaries. — Durable preparation, fenced atomic generation/event/outbox publication, exact retries, and conservative abort implemented. Mandatory trusted quiescence/durability verification; provider snapshots and executable worker composition remain pending. See [evidence](docs/evidence/wsp-003-generation-publication.md).
 - [ ] WSP-004 Implement snapshot/checkpoint operation for the selected storage environment.
 - [x] CHK-001 Implement Checkpoint publication only after required Workspace/vendor state is durably committed. — Signed schema-validated manifests, mandatory independent durability verification, fenced atomic publication and exact retries implemented. Concrete provider verification/retention and worker/signer composition remain pending. See [evidence](docs/evidence/chk-001-publication.md).
-- [ ] CHK-002 Validate checkpoint integrity and compatibility before resume.
+- [x] CHK-002 Validate checkpoint integrity and compatibility before resume. — Strict signed-manifest validation, exact runtime bindings, streamed vendor digest/size checks and authorized PostgreSQL selection implemented. Concrete storage/key/compatibility adapters and resume worker composition remain pending. See [evidence](docs/evidence/chk-002-restore-validation.md).
 - [ ] SES-004 Implement Session suspend with active-Execution exclusion and durable checkpoint requirement.
 - [ ] SES-005 Implement Session resume onto replacement Sandbox.
 - [ ] SES-006 Restart harness with fresh execution-local environment while restoring Codex thread/vendor state.

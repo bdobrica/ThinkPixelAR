@@ -1,6 +1,6 @@
 # Checkpoint format and integrity
 
-Status: Normative contract; CHK-001 implements the standalone publication profile below. The machine-readable envelope is [checkpoint-manifest.schema.json](checkpoint-manifest.schema.json).
+Status: Normative contract; CHK-001 and CHK-002 implement the standalone publication and restore-validation profiles below. The machine-readable envelope is [checkpoint-manifest.schema.json](checkpoint-manifest.schema.json).
 
 ## Meaning
 
@@ -149,4 +149,47 @@ after a newer Checkpoint. A deleted/deleting Checkpoint cannot replay success.
 Committed manifest references and retention disposition remain deletion inputs;
 provider garbage collection must honor them and cannot run independently of
 retention pins. This publisher neither suspends Sessions nor releases compute,
-and does not implement restore validation (CHK-002).
+and delegates restore validation to the CHK-002 component below.
+
+## Implemented restore validation (CHK-002)
+
+The trusted restore validator accepts canonical CHK-001 manifests up to 256 KiB.
+It rejects duplicate keys, invalid Unicode, excessive nesting, alternate encodings,
+unknown schema fields, unregistered extensions, unsupported algorithms, unsafe
+integers and noncanonical SHA-256 hex. It recomputes the payload digest and ordered
+Workspace/vendor composite root, then verifies Ed25519 using a mandatory current
+issuer/key lifecycle resolver. Creation, signing and commit times must be ordered.
+The resolver must enforce its validity/revocation/time policy, including future
+signing times; signed timestamps alone do not prove key eligibility.
+
+Identity, operation, lineage and Workspace references must match independently
+selected committed metadata. Runtime spec, profile, adapter version/build,
+protocol and state format match exactly. A mandatory registered compatibility
+check additionally verifies platform/capabilities and every vendor format using
+qualified adapter evidence. This initial conservative profile does not infer
+compatibility from version proximity or perform upgrades/migrations.
+
+A mandatory trusted Workspace adapter verifies immutable snapshot/root/evidence,
+credential exclusions and retention. The tenant-scoped vendor reader verifies
+immutable-store metadata and exclusions; the validator streams and independently
+checks SHA-256 and exact byte counts for every listed object, including optional
+objects. A configured total vendor-byte limit bounds the read budget. Adapters
+must honor cancellation and pin these exact immutable objects through restore;
+validation is not permission to reopen a mutable alias later. No permissive
+production implementation of these adapters is supplied.
+
+The PostgreSQL entry point checks current access, selects tenant/Session-scoped
+metadata, and holds shared Session/Workspace/Checkpoint/generation locks while
+validating. Only COMMITTED checkpoints on non-deleting Workspaces qualify. It
+compares Session runtime/profile digests and the exact WSP-003 proof to generation
+metadata. Successful calls return the original committed manifest; failures
+return fixed sanitized errors and no manifest. Unsupported compatibility returns
+`INCOMPATIBLE_CHECKPOINT`. The database path has a one-minute context budget.
+
+Validation is read-only and confers no execution authority. Session resume worker
+composition must retain the verified objects, recheck current admission and
+lifecycle/Attempt fences, record sanitized degradation/evidence on integrity
+failure, and start the harness only after validation succeeds. This integration,
+concrete snapshot verification, key-policy configuration and registered adapter
+compatibility evidence remain pending; these tests do not claim live CSI restore
+or a completed suspend/replacement/resume scenario.
