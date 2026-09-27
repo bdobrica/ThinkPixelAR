@@ -8,6 +8,7 @@ import (
 	"math"
 	"regexp"
 
+	"github.com/bdobrica/ThinkPixelAR/internal/app/execution"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/domain/runtimeevent"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
@@ -37,9 +38,10 @@ type Reader struct {
 }
 type Result struct {
 	Earliest, Latest uint64
-	Sequence         uint64
-	Type             runtimeevent.Type
-	Data             []byte
+	// Sequence advances the internal scan even when Data is empty (filtered event).
+	Sequence uint64
+	Type     runtimeevent.Type
+	Data     []byte
 }
 
 func NewReader(store persistence.TransactionManager, c clock.Clock, access Access) (*Reader, error) {
@@ -49,7 +51,30 @@ func NewReader(store persistence.TransactionManager, c clock.Clock, access Acces
 	return &Reader{store, c, access}, nil
 }
 
+// ExecutionReader filters the parent Session log without renumbering events.
+// Both Session/event disclosure and Execution disclosure dependencies are required.
+type ExecutionReader struct {
+	reader *Reader
+	access execution.ReadAccess
+}
+
+func NewExecutionReader(store persistence.TransactionManager, c clock.Clock, access Access, executionAccess execution.ReadAccess) (*ExecutionReader, error) {
+	r, err := NewReader(store, c, access)
+	if err != nil || executionAccess == nil {
+		return nil, ErrUnavailable
+	}
+	return &ExecutionReader{r, executionAccess}, nil
+}
+
+func (r *ExecutionReader) Next(ctx context.Context, caller session.Caller, id primitives.ID, after uint64) (Result, error) {
+	return r.reader.next(ctx, caller, id, after, r.access)
+}
+
 func (r *Reader) Next(ctx context.Context, caller session.Caller, id primitives.ID, after uint64) (Result, error) {
+	return r.next(ctx, caller, id, after, nil)
+}
+
+func (r *Reader) next(ctx context.Context, caller session.Caller, id primitives.ID, after uint64, executionAccess execution.ReadAccess) (Result, error) {
 	var out Result
 	if _, err := primitives.ParseID(string(caller.TenantID)); err != nil {
 		return out, ErrNotFound
@@ -61,6 +86,21 @@ func (r *Reader) Next(ctx context.Context, caller session.Caller, id primitives.
 		return out, ErrNotFound
 	}
 	err := r.store.WithinTransaction(ctx, caller.TenantID, func(ctx context.Context, repos persistence.Repositories) error {
+		id := id // Keep resource resolution local to this transaction callback.
+		var executionID primitives.ID
+		if executionAccess != nil {
+			e, err := repos.Executions().Get(ctx, id)
+			if err != nil {
+				return err
+			}
+			if e == nil || e.ID() != id || e.TenantID() != caller.TenantID {
+				return ErrNotFound
+			}
+			executionID, id = id, e.Binding().SessionID
+			if executionAccess(ctx, caller, id, executionID) != nil {
+				return ErrNotFound
+			}
+		}
 		s, err := repos.Sessions().Get(ctx, id)
 		if err != nil {
 			return err
@@ -91,6 +131,10 @@ func (r *Reader) Next(ctx context.Context, caller session.Caller, id primitives.
 		}
 		if until, ok := e.RetainUntil(); ok && !until.After(r.clock.Now()) {
 			return ErrGap
+		}
+		if executionID != "" && e.ExecutionID() != executionID {
+			out.Sequence = e.Sequence()
+			return nil
 		}
 		if r.access(ctx, caller, id, e) != nil {
 			return ErrNotFound

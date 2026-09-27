@@ -93,6 +93,27 @@ credential expiry/revocation on repeated calls; the mandatory event access hook
 must enforce current disclosure and registered payload policy. Stock executable
 composition remains fail-closed until these dependencies are wired.
 
+### Implemented Execution stream (EVT-002)
+
+`GET /v1/executions/{execution_id}/events/stream` uses the same envelope,
+resume header, heartbeat, deadlines and error behavior as the Session stream.
+Both routes share the per-replica connection quotas above. A mandatory trusted
+Execution disclosure callback is checked on every read, in addition to Session
+and matching-event disclosure checks. Historical reads do not validate or renew
+execution authority, and remain possible after grant cancellation or completion.
+
+Only events whose `execution_id` exactly matches the requested Execution are
+sent. IDs remain Session sequences, so visible IDs may be nonconsecutive.
+Session-only events and other Executions' events are scanned without disclosure;
+the internal scan position advances, but no frame or client cursor is emitted
+for them. Reconnect always resumes from the last received event ID. Retention
+checks apply to the underlying Session log, including filtered-out history:
+AR cannot silently assume missing events belonged to another Execution. Bounds
+in gap responses are Session bounds. Each read scans at most one stored event,
+keeping memory bounded; very large unrelated histories take additional reads.
+Executable authentication/disclosure wiring and live harness publication remain
+separate work, as for EVT-001.
+
 ## Security headers and caching
 
 Authenticated/resource/problem responses use `Cache-Control: no-store` unless a public immutable capability document explicitly says otherwise, `X-Content-Type-Options: nosniff`, and no reflective CORS by default. Browser CORS origins/methods/headers/credentials are an explicit deployment allowlist. Redirects are not used for mutation/auth flows; resource locations are same-origin relative references.

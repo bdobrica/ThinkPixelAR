@@ -36,7 +36,7 @@ New types require registry review for source, schema, classification, authorizat
 
 ## Ordering and delivery
 
-Sequence is allocated transactionally per Session, starts at 1, never repeats or decreases, and orders committed events for that Session. Gaps may occur only through documented retention and are represented to clients by a replay boundary/`stream.gap`, never silently. Cross-Session order and `occurred_at` order are undefined. `event_id` deduplicates delivery but sequence is the replay cursor.
+Sequence is allocated transactionally per Session, starts at 1, never repeats or decreases, and orders committed events for that Session. Gaps may occur only through documented retention and are represented to clients by a replay boundary/`stream.gap`, never silently. An Execution stream is a filtered view of this Session log: it emits only matching `execution_id` values and preserves the original sequence. Nonconsecutive visible IDs caused by filtering are not retention gaps; actual missing Session history still fails replay explicitly. Cross-Session order and `occurred_at` order are undefined. `event_id` deduplicates delivery but sequence is the replay cursor.
 
 State mutation and its event/outbox insertion occur in one PostgreSQL transaction. Delivery is at least once: reconnect, outbox retry, and failover may duplicate an event but cannot change it. Consumers deduplicate by event ID and tolerate replay. A stale Attempt candidate is rejected before allocation; it cannot publish output or terminal events.
 

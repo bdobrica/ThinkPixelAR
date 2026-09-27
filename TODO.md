@@ -253,7 +253,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [x] EXE-004 Implement Execution signal/input endpoint with legal-state validation. — completed 2026-09-27; local-authority durable acceptance, RUNNING/current-generation checks, private signal bodies, atomic event/outbox and authorized replay. Harness delivery and executable authentication/policy composition remain separate; [scope and verification](docs/evidence/exe-004-execution-signals.md).
 - [ ] EXE-005 Implement Execution cancellation and races with completion/failure.
 - [x] EVT-001 Implement Session SSE stream with ordered cursor resume, heartbeat, authorization, retention, and backpressure. Durable PostgreSQL replay/live polling, current disclosure checks, explicit gaps and bounded connections/writes are implemented; trusted executable authentication/event-disclosure composition and harness publication remain separate. See [evidence](docs/evidence/evt-001-session-stream.md).
-- [ ] EVT-002 Implement Execution SSE stream using the same event contract.
+- [x] EVT-002 Implement Execution SSE stream using the same event contract. Exact Execution filtering preserves Session sequence IDs; shared SSE limits, repeated disclosure checks and Session retention-gap handling are implemented. Executable authentication/disclosure wiring and harness publication remain pending.
 - [ ] WSP-001 Implement first production `WorkspaceProvider` using Kubernetes CSI/PVC semantics.
 - [ ] WSP-002 Implement empty Workspace creation and durable mount at the canonical Workspace path.
 - [ ] WSP-003 Implement Workspace generation advancement on successful durable checkpoint boundaries.

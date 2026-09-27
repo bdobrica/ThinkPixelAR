@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/bdobrica/ThinkPixelAR/internal/app/eventstream"
+	"github.com/bdobrica/ThinkPixelAR/internal/app/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
 
@@ -61,10 +62,25 @@ type streamTiming struct{ poll, heartbeat, write, lifetime time.Duration }
 
 var defaultStreamTiming = streamTiming{time.Second, 15 * time.Second, 5 * time.Second, 15 * time.Minute}
 
-func streamSessionEvents(reader *eventstream.Reader, authenticate SessionAuthentication) stdhttp.HandlerFunc {
-	return sessionStream(reader, authenticate, &streamLimits{}, defaultStreamTiming)
-}
 func sessionStream(reader *eventstream.Reader, authenticate SessionAuthentication, limits *streamLimits, timing streamTiming) stdhttp.HandlerFunc {
+	var next eventNext
+	if reader != nil {
+		next = reader.Next
+	}
+	return eventStream(next, "session_id", authenticate, limits, timing)
+}
+
+type eventNext func(context.Context, session.Caller, primitives.ID, uint64) (eventstream.Result, error)
+
+func executionStream(reader *eventstream.ExecutionReader, authenticate SessionAuthentication, limits *streamLimits, timing streamTiming) stdhttp.HandlerFunc {
+	var next eventNext
+	if reader != nil {
+		next = reader.Next
+	}
+	return eventStream(next, "execution_id", authenticate, limits, timing)
+}
+
+func eventStream(read eventNext, pathKey string, authenticate SessionAuthentication, limits *streamLimits, timing streamTiming) stdhttp.HandlerFunc {
 	return func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		if authenticate == nil {
 			writeProblem(w, r, 401, "unauthorized", "Unauthorized")
@@ -75,11 +91,11 @@ func sessionStream(reader *eventstream.Reader, authenticate SessionAuthenticatio
 			writeProblem(w, r, 401, "unauthorized", "Unauthorized")
 			return
 		}
-		if reader == nil {
+		if read == nil {
 			writeProblem(w, r, 503, "temporarily-unavailable", "Service Unavailable")
 			return
 		}
-		id, err := primitives.ParseID(r.PathValue("session_id"))
+		id, err := primitives.ParseID(r.PathValue(pathKey))
 		values := r.Header.Values("Last-Event-ID")
 		var after uint64
 		if len(values) == 1 {
@@ -110,7 +126,7 @@ func sessionStream(reader *eventstream.Reader, authenticate SessionAuthenticatio
 			}
 			queryCtx, done := context.WithTimeout(ctx, 5*time.Second)
 			defer done()
-			return reader.Next(queryCtx, caller, id, after)
+			return read(queryCtx, caller, id, after)
 		}
 		result, err := next()
 		if err != nil {
@@ -138,11 +154,11 @@ func sessionStream(reader *eventstream.Reader, authenticate SessionAuthenticatio
 				return false
 			}
 			if _, err := io.WriteString(w, frame); err != nil {
-				slog.WarnContext(ctx, "session event stream disconnected", "reason", "write-failed")
+				slog.WarnContext(ctx, "event stream disconnected", "reason", "write-failed")
 				return false
 			}
 			if control.Flush() != nil {
-				slog.WarnContext(ctx, "session event stream disconnected", "reason", "flush-failed")
+				slog.WarnContext(ctx, "event stream disconnected", "reason", "flush-failed")
 				return false
 			}
 			// Idle connections must not retain a write deadline: HTTP/2 would
@@ -158,7 +174,7 @@ func sessionStream(reader *eventstream.Reader, authenticate SessionAuthenticatio
 				return
 			}
 			if result.Sequence != 0 {
-				if !write(fmt.Sprintf("id: %d\nevent: %s\ndata: %s\n\n", result.Sequence, result.Type, result.Data)) {
+				if len(result.Data) != 0 && !write(fmt.Sprintf("id: %d\nevent: %s\ndata: %s\n\n", result.Sequence, result.Type, result.Data)) {
 					return
 				}
 				after = result.Sequence

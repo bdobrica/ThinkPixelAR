@@ -103,6 +103,15 @@ paths:
       tags: [Events]
       parameters: [{$ref: '#/components/parameters/LastEventId'}]
       responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '410': {$ref: '#/components/responses/Gone'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
+  /executions/{execution_id}/events/stream:
+    parameters: [{$ref: '#/components/parameters/ExecutionId'}]
+    get:
+      operationId: streamExecutionEvents
+      summary: Stream durable Execution events
+      description: Filters the parent Session log by exact execution_id, preserving Session sequence IDs and the RuntimeEvent envelope. Replays strictly after decimal Last-Event-ID (default 0). Requires current Session, Execution and event disclosure permission throughout. Other Executions and Session-only events are omitted; visible IDs may be nonconsecutive. Retention gaps anywhere in the underlying Session history fail explicitly with 410 before SSE or close an active stream with a comment. Heartbeats never advance the client cursor. Limits and quotas are shared with the Session stream.
+      tags: [Events]
+      parameters: [{$ref: '#/components/parameters/LastEventId'}]
+      responses: {'200': {description: Ordered SSE, content: {text/event-stream: {schema: {type: string}}}}, '400': {$ref: '#/components/responses/BadRequest'}, '401': {$ref: '#/components/responses/Unauthorized'}, '403': {$ref: '#/components/responses/Forbidden'}, '404': {$ref: '#/components/responses/NotFound'}, '410': {$ref: '#/components/responses/Gone'}, '429': {$ref: '#/components/responses/RateLimited'}, '503': {$ref: '#/components/responses/Unavailable'}, default: {$ref: '#/components/responses/Problem'}}
   /executions/{execution_id}:
     parameters: [{$ref: '#/components/parameters/ExecutionId'}]
     get:

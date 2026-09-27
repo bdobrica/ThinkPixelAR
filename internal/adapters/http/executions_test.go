@@ -518,4 +518,6 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		t.Fatal("later generation rewrote history")
 	}
 
+	t.Run("ExecutionSSE", func(t *testing.T) { testExecutionSSE(t, store, caller, other, sid, view.ID) })
+
 }
