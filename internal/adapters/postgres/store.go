@@ -190,6 +190,9 @@ func (r *attemptRepository) Add(ctx context.Context, value *attempt.Attempt) err
 		return err
 	}
 	b := value.Binding()
+	if err := r.lockParents(ctx, value.Binding().ExecutionID); err != nil {
+		return err
+	}
 	sr := nullableID(value.SandboxReference())
 	hr := nullableID(value.HarnessReference())
 	sh := nullableTime(value.SandboxHeartbeatAt())
@@ -226,6 +229,9 @@ func (r *attemptRepository) Update(ctx context.Context, value *attempt.Attempt, 
 		return errors.New("attempt is required")
 	}
 	if err := (*repositories)(r).owns(value.TenantID()); err != nil {
+		return err
+	}
+	if err := r.lockParents(ctx, value.Binding().ExecutionID); err != nil {
 		return err
 	}
 	sr := nullableID(value.SandboxReference())

@@ -270,7 +270,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [ ] REC-004 Recover after Sandbox deletion by creating a replacement Attempt/Sandbox. — Pre-execution loss recovery implemented: confirmed cleanup, policy-gated atomic Attempt replacement, fresh binding/operation, ordered events, durable queue handoff and restart-safe acquisition. Running-work checkpoint/outcome recovery and executable policy/materialization wiring remain; [scope and verification](docs/evidence/rec-004-sandbox-replacement.md).
 - [ ] REC-005 Handle node loss and Sandbox disappearance as recoverable infrastructure failure where checkpoint state permits.
 - [ ] REC-006 Reconcile orphaned SandboxBinding records and abandoned physical Sandboxes safely.
-- [ ] SEC-001 Enforce one mutable Execution per Session and reject/fence concurrent stale writers.
+- [x] SEC-001 Enforce one mutable Execution per Session and reject/fence concurrent stale writers. — Database uniqueness, serialized admission, and locked Attempt mutation predicates; PostgreSQL/HTTP concurrency and stale-write regression coverage. [Evidence and scope](docs/evidence/sec-001-single-writer.md).
 - [ ] E2E-001 Add standalone end-to-end: create Session → run Codex → checkpoint → suspend → delete Sandbox → resume → second Execution.
 - [ ] E2E-002 Verify Session, Workspace, and Codex conversation continuity across complete compute replacement.
 - [ ] E2E-003 Verify every resumed Execution receives fresh local authority rather than reusing previous Execution secrets.

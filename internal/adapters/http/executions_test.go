@@ -11,6 +11,7 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -111,6 +112,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(16)
 	caller, other := callerFixture(t), callerFixture(t)
 	for _, c := range []sessions.Caller{caller, other} {
 		tx, err := db.Begin()
@@ -378,10 +380,13 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	var wins atomic.Int32
-	conflicts := make(chan int, n)
-	for i := range n {
+	const contenders = 256
+	conflicts := make(chan int, contenders)
+	start := make(chan struct{})
+	for i := range contenders {
 		wg.Go(func() {
-			status, _, _, err := send(second, body, createKey+string(rune('a'+i)), "caller")
+			<-start
+			status, _, _, err := send(second, body, createKey+"-"+strconv.Itoa(i), "caller")
 			if err != nil {
 				conflicts <- 0
 				return
@@ -393,6 +398,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 			}
 		})
 	}
+	close(start)
 	wg.Wait()
 	close(conflicts)
 	if wins.Load() != 1 {

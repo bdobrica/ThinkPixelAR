@@ -55,6 +55,13 @@ The persistence design MUST use all of the following:
 5. A Session row lock or atomic conditional update when admitting/terminalizing an Execution or advancing generation.
 6. Check constraints preventing zero/negative generations and Attempt ordinals and preventing mutable/current combinations forbidden by the lifecycle contract.
 
+Attempt mutation checks must hold Session and Execution row locks through commit,
+so a concurrent lifecycle change cannot invalidate a successful snapshot check.
+Repository writes acquire locks in Session → Execution → Attempt order. The
+Attempt database trigger independently locks and rechecks the parent fence; a
+direct writer using a different lock order may be aborted by PostgreSQL deadlock
+detection and must retry the complete transaction with fresh state.
+
 Repository methods MUST tenant-scope every statement. Application-level “check then insert” without a database uniqueness constraint is invalid.
 
 ## Session execution generation

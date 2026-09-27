@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 32 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 33 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -30,7 +30,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[18].Version != 19 || got[18].Name != "agentd_credentials" ||
 		got[19].Version != 20 || got[19].Name != "agentd_bootstrap_delivery" ||
 		got[20].Version != 21 || got[20].Name != "agentd_admission_replay" ||
-		got[21].Version != 22 || got[21].Name != "local_authority_grants" || got[22].Version != 23 || got[22].Name != "session_creation_event" || got[23].Version != 24 || got[23].Name != "execution_creation" || got[24].Version != 25 || got[24].Name != "execution_signals" || got[25].Version != 26 || got[25].Name != "workspace_storage_operations" || got[26].Version != 27 || got[26].Name != "workspace_empty_initialization" || got[27].Version != 28 || got[27].Name != "workspace_checkpoint_operations" || got[28].Version != 29 || got[28].Name != "checkpoint_publication" || got[29].Version != 30 || got[29].Name != "session_suspend" || got[30].Version != 31 || got[30].Name != "session_resume" || got[31].Version != 32 || got[31].Name != "sandbox_replacements" {
+		got[21].Version != 22 || got[21].Name != "local_authority_grants" || got[22].Version != 23 || got[22].Name != "session_creation_event" || got[23].Version != 24 || got[23].Name != "execution_creation" || got[24].Version != 25 || got[24].Name != "execution_signals" || got[25].Version != 26 || got[25].Name != "workspace_storage_operations" || got[26].Version != 27 || got[26].Name != "workspace_empty_initialization" || got[27].Version != 28 || got[27].Name != "workspace_checkpoint_operations" || got[28].Version != 29 || got[28].Name != "checkpoint_publication" || got[29].Version != 30 || got[29].Name != "session_suspend" || got[30].Version != 31 || got[30].Name != "session_resume" || got[31].Version != 32 || got[31].Name != "sandbox_replacements" || got[32].Version != 33 || got[32].Name != "attempt_fence_serialization" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {
