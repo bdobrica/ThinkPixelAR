@@ -64,13 +64,15 @@ func id(last byte) primitives.ID {
 }
 func timePtr(value time.Time) *time.Time { return &value }
 
-func TestOnlyInitialSessionCreationMayHaveVersionZero(t *testing.T) {
+func TestOnlyInitialCreationMayHaveVersionZero(t *testing.T) {
 	for _, tc := range []struct {
 		typ       Type
 		sequence  uint64
 		execution primitives.ID
 		valid     bool
 	}{
+		{"execution.accepted", 3, id(4), true}, {"execution.accepted", 3, "", false},
+		{"execution.started", 3, id(4), false},
 		{"session.created", 1, "", true}, {"session.created", 2, "", false},
 		{"session.state_changed", 1, "", false}, {"session.created", 1, id(4), false},
 	} {

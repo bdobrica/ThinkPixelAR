@@ -24,6 +24,19 @@ func validID(v string) bool { _, e := primitives.ParseID(v); return e == nil }
 // not advance Session state or start compute. Execution admission must still
 // atomically compare Session version/generation and persist the returned grant.
 func (a *Authority) Admit(ctx context.Context, c authority.Caller, r authority.Request) (grant authority.Grant, resultErr error) {
+	return a.admit(ctx, c, r, func(f func(context.Context, persistence.Repositories) error) error {
+		return a.store.WithinTransaction(ctx, c.TenantID, f)
+	})
+}
+
+// AdmitInTransaction joins local issuance to Execution admission. The caller
+// owns the tenant-scoped transaction; errors must roll back the whole callback.
+// This is a local-only seam, not a protocol for remote authority calls.
+func (a *Authority) AdmitInTransaction(ctx context.Context, repos persistence.Repositories, c authority.Caller, r authority.Request) (authority.Grant, error) {
+	return a.admit(ctx, c, r, func(f func(context.Context, persistence.Repositories) error) error { return f(ctx, repos) })
+}
+
+func (a *Authority) admit(ctx context.Context, c authority.Caller, r authority.Request, transact func(func(context.Context, persistence.Repositories) error) error) (grant authority.Grant, resultErr error) {
 	ctx, finish := a.observe(ctx, "admit")
 	defer func() { finish(resultErr, "") }()
 	var g authority.Grant
@@ -54,7 +67,7 @@ func (a *Authority) Admit(ctx context.Context, c authority.Caller, r authority.R
 	if err != nil {
 		return g, authority.ErrUnavailable
 	}
-	err = a.store.WithinTransaction(ctx, c.TenantID, func(ctx context.Context, repos persistence.Repositories) error {
+	err = transact(func(ctx context.Context, repos persistence.Repositories) error {
 		record, created, err := repos.Idempotency().Reserve(ctx, candidate)
 		if err != nil {
 			return err

@@ -77,7 +77,7 @@ func New(eventID, tenantID, sessionID, executionID, attemptID primitives.ID, seq
 	typeName Type, occurredAt, recordedAt time.Time, source Source, classification Classification, payload []byte,
 	correlation Correlation, retentionPolicy string, retainUntil *time.Time) (*Event, error) {
 	if !validID(eventID) || !validID(tenantID) || !validID(sessionID) || (executionID != "" && !validID(executionID)) ||
-		(attemptID != "" && (!validID(attemptID) || executionID == "")) || sequence == 0 || (aggregateVersion == 0 && (typeName != "session.created" || executionID != "" || attemptID != "" || sequence != 1)) ||
+		(attemptID != "" && (!validID(attemptID) || executionID == "")) || sequence == 0 || (aggregateVersion == 0 && !((typeName == "session.created" && executionID == "" && attemptID == "" && sequence == 1) || (typeName == "execution.accepted" && executionID != "" && attemptID == ""))) ||
 		!enum(typeName, types) || !enum(source, sources) || !enum(classification, classifications) ||
 		occurredAt.IsZero() || recordedAt.IsZero() || !validCorrelation(correlation) ||
 		!bounded(retentionPolicy, 128) || (retainUntil != nil && !retainUntil.After(recordedAt)) || validatePayload(payload) != nil {

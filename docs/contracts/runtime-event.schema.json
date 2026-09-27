@@ -28,5 +28,5 @@
     "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
     "time": { "type": "string", "format": "date-time", "maxLength": 64 }
   },
-  "allOf": [{"if": {"properties": {"aggregate_version": {"const": 0}}, "required": ["aggregate_version"]}, "then": {"properties": {"type": {"const": "session.created"}, "sequence": {"const": 1}, "execution_id": false, "attempt_id": false}}}]
+  "allOf": [{"if": {"properties": {"aggregate_version": {"const": 0}}, "required": ["aggregate_version"]}, "then": {"oneOf": [{"properties": {"type": {"const": "session.created"}, "sequence": {"const": 1}, "execution_id": false, "attempt_id": false}}, {"required": ["execution_id"], "properties": {"type": {"const": "execution.accepted"}, "attempt_id": false}}]}}]
 }

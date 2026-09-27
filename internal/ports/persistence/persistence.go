@@ -59,12 +59,18 @@ type ReconciliationRepository interface {
 }
 
 type SessionRepository interface {
+	GetForUpdate(context.Context, primitives.ID) (*session.Session, error)
+	// Activate atomically sets the current Execution and advances the Session fence.
+	Activate(context.Context, *session.Session, uint64, primitives.ID) error
 	Add(context.Context, *session.Session) error
 	Get(context.Context, primitives.ID) (*session.Session, error)
 	Update(context.Context, *session.Session, uint64) error
 }
 
 type ExecutionRepository interface {
+	// Input is Confidential tenant content, excluded from events and outbox payloads.
+	AddInput(context.Context, primitives.ID, string, string) error
+	GetInput(context.Context, primitives.ID) (string, string, error)
 	Add(context.Context, *execution.Execution) error
 	Get(context.Context, primitives.ID) (*execution.Execution, error)
 	Update(context.Context, *execution.Execution, uint64) error
@@ -77,6 +83,8 @@ type AttemptRepository interface {
 }
 
 type RuntimeEventRepository interface {
+	// NextSequence locks the Session stream until this transaction ends.
+	NextSequence(context.Context, primitives.ID) (uint64, error)
 	Append(context.Context, *runtimeevent.Event) error
 }
 

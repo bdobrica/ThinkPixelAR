@@ -245,6 +245,7 @@
       "post": {
         "operationId": "createExecution",
         "summary": "Create a bounded Execution",
+        "description": "Local composition accepts input with no nonempty run_reference and an exact quoted Session state version in If-Match. Admission atomically persists a local grant, QUEUED Execution at version zero, Session generation/current writer, Confidential input, ordered events and materialization intent. Same-key replay returns the original response after current authorization; changed input or precondition conflicts. Keys are scoped to tenant, principal and Session. No compute starts in this request. The current HTTP body limit is 256 KiB including JSON encoding. Authentication and trusted Creator composition are required; the stock executable has neither.",
         "tags": [
           "Executions"
         ],
@@ -1539,10 +1540,11 @@
           },
           "state": {
             "enum": [
-              "ACCEPTED",
-              "STARTING",
+              "QUEUED",
+              "MATERIALIZING",
               "RUNNING",
               "CANCELLING",
+              "TIMING_OUT",
               "SUCCEEDED",
               "FAILED",
               "CANCELLED",
@@ -1551,11 +1553,21 @@
           },
           "state_version": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 0
           },
           "generation": {
             "type": "integer",
             "minimum": 1
+          },
+          "authority_mode": {
+            "enum": [
+              "local",
+              "thinkpixelag"
+            ]
+          },
+          "authority_issuer": {
+            "type": "string",
+            "maxLength": 128
           },
           "run_reference": {
             "type": "string",

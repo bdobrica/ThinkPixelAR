@@ -31,6 +31,9 @@ func TestRuntimeEventSchemaInitialVersion(t *testing.T) {
 		old, new string
 		valid    bool
 	}{
+		{`"type":"session.created"`, `"type":"execution.accepted","execution_id":"execution"`, true},
+		{`"type":"session.created"`, `"type":"execution.accepted"`, false},
+		{`"type":"session.created"`, `"type":"execution.accepted","execution_id":"execution","attempt_id":"attempt"`, false},
 		{"", "", true}, {`"sequence":1`, `"sequence":2`, false},
 		{`"session.created"`, `"session.closed"`, false},
 		{`"session_id":"session"`, `"session_id":"session","execution_id":"execution"`, false},

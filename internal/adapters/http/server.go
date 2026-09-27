@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	executions "github.com/bdobrica/ThinkPixelAR/internal/app/execution"
 	sessions "github.com/bdobrica/ThinkPixelAR/internal/app/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/authority"
@@ -51,6 +52,7 @@ type Options struct {
 	// Authority is the actual attached adapter, not a caller-selected mode.
 	Authority           authority.IdentityProvider
 	Sessions            *sessions.Creator
+	Executions          *executions.Creator
 	AuthenticateSession SessionAuthentication
 }
 
@@ -84,6 +86,7 @@ func NewServer(o Options) (*Server, error) {
 		_ = o.Metrics.SetAuthorityMode(identity.Mode)
 	}
 	mux := stdhttp.NewServeMux()
+	mux.HandleFunc("POST /v1/sessions/{session_id}/executions", createExecution(o.Executions, o.AuthenticateSession))
 	mux.HandleFunc("POST /v1/sessions", createSession(o.Sessions, o.AuthenticateSession))
 	mux.HandleFunc("GET /authorityz", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		writeJSON(w, stdhttp.StatusOK, diagnostic)

@@ -65,7 +65,8 @@ Deleting a principal/tenant follows governing erasure policy while retaining the
 
 Required tests cover concurrent identical/conflicting requests, JSON normalization, response loss at every boundary, lease takeover, stale Attempt/generation, AG claim ambiguity, provider APIs with/without native idempotency, terminal/nonterminal failure replay, retention/expiry, cross-tenant/principal/action substitution, credential redaction, and all operations in the table.
 
-The initial Session creation implementation retains `sessions.create.v1` records
+Session and Execution creation retain `sessions.create.v1` and
+`executions.create.v1` records
 when generic expiry cleanup runs. Resource/tombstone-aware erasure is required
 before these records may be removed; a timestamp alone cannot permit a second
-Session or Workspace. See [SES-001 evidence](../evidence/ses-001-session-creation.md).
+Session, Workspace or Execution. See [SES-001 evidence](../evidence/ses-001-session-creation.md).

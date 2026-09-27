@@ -67,4 +67,6 @@ Required tests cover schema/type registry, sequence concurrency and rollback, st
 
 The initial `session.created` event has sequence 1 and aggregate version 0,
 matching the durable Session at creation. It has no Execution/Attempt lineage.
+The initial `execution.accepted` event likewise uses aggregate version 0 with
+Execution identity and no Attempt; its sequence follows the Session stream.
 All other events require a positive aggregate version.
