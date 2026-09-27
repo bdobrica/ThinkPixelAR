@@ -192,6 +192,9 @@ func (c *Creator) Create(ctx context.Context, caller Caller, sid primitives.ID, 
 		if err != nil {
 			return err
 		}
+		if _, err = verifyLocalBinding(e, s, stored); err != nil {
+			return ErrDenied
+		}
 		if err = repos.Executions().Add(ctx, e); err != nil {
 			return err
 		}

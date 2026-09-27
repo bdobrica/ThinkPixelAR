@@ -248,7 +248,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 - [ ] SES-002 Implement `GET /v1/sessions` and `GET /v1/sessions/{id}` with cursor pagination and enumeration-safe authorization.
 - [ ] SES-003 Implement Session close/delete semantics with active-Execution checks and idempotent cleanup.
 - [x] EXE-001 Implement `POST /v1/sessions/{id}/executions`. — completed 2026-09-27; atomic local grant/Execution admission, Session writer/generation fencing, scoped replay, Confidential input and durable materialization intent; [scope and verification](docs/evidence/exe-001-execution-creation.md). Trusted authentication composition, AG admission and compute materialization remain separate work.
-- [ ] EXE-002 Bind every Execution to an immutable ExecutionGrant and resolved agent/runtime version.
+- [x] EXE-002 Bind every Execution to an immutable ExecutionGrant and resolved agent/runtime version. — completed 2026-09-27 for the implemented local admission path; shared admission/reconstruction integrity checks, exact durable grant loading, and PostgreSQL restart/history verification. AG binding awaits its authority adapter; [scope and verification](docs/evidence/exe-002-execution-binding.md).
 - [ ] EXE-003 Implement Execution status retrieval.
 - [ ] EXE-004 Implement Execution signal/input endpoint with legal-state validation.
 - [ ] EXE-005 Implement Execution cancellation and races with completion/failure.

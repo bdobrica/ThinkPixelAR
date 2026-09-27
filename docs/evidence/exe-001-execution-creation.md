@@ -61,5 +61,6 @@ test database, which was removed afterward.
 
 No Workspace, Attempt, sandbox or harness is started by this endpoint. Authentication
 wiring, materialization consumer, status/input/cancel APIs, SSE, and AG authority
-remain separate work. EXE-002 still owns broader Execution binding/lifecycle
-composition beyond this local creation path.
+remain separate work. [EXE-002](exe-002-execution-binding.md) adds shared
+binding verification and durable local-grant reconstruction; lifecycle consumer
+composition remains separate.

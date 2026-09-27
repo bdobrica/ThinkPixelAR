@@ -267,7 +267,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		if s.State() != session.Ready || s.ExecutionGeneration() != 0 {
 			return errors.New("rollback changed Session")
 		}
-		ex, e := r.Executions().Get(ctx, view.ID)
+		ex, bound, e := executions.LoadLocalBinding(ctx, r, view.ID)
 		if e != nil {
 			return e
 		}
@@ -275,7 +275,7 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		if e != nil {
 			return e
 		}
-		if grant.Digest != ex.Binding().GrantDigest || grant.SessionID != sid {
+		if grant.Digest != ex.Binding().GrantDigest || grant.SessionID != sid || bound.ID != grant.ID || bound.Runtime.AgentVersionID != resolution.Binding.AgentVersionID {
 			return errors.New("grant binding mismatch")
 		}
 		input, digest, e := r.Executions().GetInput(ctx, view.ID)
@@ -370,6 +370,102 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+
+	// Reconstruct using a new store as after process replacement. No catalog or
+	// admission participates; cancellation changes status, never bound history.
+	reopened, _ := postgres.NewStore(db)
+	load := func() authority.Grant {
+		t.Helper()
+		var grant authority.Grant
+		if err := reopened.WithinTransaction(context.Background(), caller.TenantID, func(ctx context.Context, r persistence.Repositories) error {
+			_, g, err := executions.LoadLocalBinding(ctx, r, view.ID)
+			grant = g
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return grant
+	}
+	originalGrant := load()
+	originalSnapshot, _ := json.Marshal(originalGrant)
+	changed := load()
+	changed.Runtime.RuntimeSpec[0] = '!'
+	changed.Profile.Resources.CPU.Limit++
+	unchanged, _ := json.Marshal(load())
+	if !bytes.Equal(originalSnapshot, unchanged) {
+		t.Fatal("reader mutated durable grant")
+	}
+	ac := authority.Caller{TenantID: caller.TenantID, PrincipalDigest: caller.PrincipalDigest}
+	if status, err := a.Validate(context.Background(), ac, originalGrant); err != nil || status.State != authority.Active {
+		t.Fatal(status, err)
+	}
+	if err := a.Cancel(context.Background(), ac, originalGrant); err != nil {
+		t.Fatal(err)
+	}
+	unchanged, _ = json.Marshal(load())
+	if !bytes.Equal(originalSnapshot, unchanged) {
+		t.Fatal("cancellation rewrote binding")
+	}
+	if status, err := a.Validate(context.Background(), ac, load()); err != nil || status.State != authority.Cancelled {
+		t.Fatal(status, err)
+	}
+	if err := reopened.WithinTransaction(context.Background(), other.TenantID, func(ctx context.Context, r persistence.Repositories) error {
+		_, _, err := executions.LoadLocalBinding(ctx, r, view.ID)
+		if !errors.Is(err, persistence.ErrNotFound) {
+			return errors.New("cross-tenant binding disclosure")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Existing database invariants prevent in-place grant/runtime/deadline edits.
+	for _, mutation := range []string{
+		"grant_digest='sha256:' || repeat('0',64)",
+		"agent_version_id='replacement'",
+		"agent_evidence='{}'::jsonb",
+		"deadline=deadline+interval '1 second'",
+	} {
+		tx, err := db.Begin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(`SELECT set_config('thinkpixelar.tenant_id',$1,true)`, caller.TenantID); err != nil {
+			t.Fatal(err)
+		}
+		_, err = tx.Exec(`UPDATE executions SET `+mutation+` WHERE tenant_id=$1 AND execution_id=$2`, caller.TenantID, view.ID)
+		_ = tx.Rollback()
+		if err == nil {
+			t.Fatal("database allowed immutable binding edit", mutation)
+		}
+	}
+	// Finish the seeded operation and admit a later generation. Historical
+	// evidence must still load without pretending its old grant authorizes work.
+	// Terminal service composition is separate work; seed its durable result.
+	finished, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer finished.Rollback()
+	if _, err = finished.Exec(`SELECT set_config('thinkpixelar.tenant_id',$1,true)`, caller.TenantID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = finished.Exec(`UPDATE executions SET state='FAILED',state_version=state_version+1,terminal_result_reference='test:finished',terminal_result_digest=$3,terminal_at=now(),updated_at=now() WHERE tenant_id=$1 AND execution_id=$2`, caller.TenantID, view.ID, sandbox.Digest([]byte("finished"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = finished.Exec(`UPDATE sessions SET state='IDLE',state_version=state_version+1,current_execution_id=NULL,updated_at=now() WHERE tenant_id=$1 AND session_id=$2`, caller.TenantID, sid); err != nil {
+		t.Fatal(err)
+	}
+	if err = finished.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	later, err := creator.Create(context.Background(), caller, sid, 3, createKey+"-later", executions.CreateRequest{Input: "next operation"})
+	if err != nil || later.View.Generation != 2 {
+		t.Fatal("later admission", err)
+	}
+	unchanged, _ = json.Marshal(load())
+	if !bytes.Equal(originalSnapshot, unchanged) {
+		t.Fatal("later generation rewrote history")
 	}
 
 }
