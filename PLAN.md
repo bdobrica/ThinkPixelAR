@@ -1663,7 +1663,7 @@ Implement:
 - durable Workspace;
 - checkpoint;
 - suspend (SES-004 atomic READY/IDLE boundary, checkpoint validation, replay and fenced cleanup intents implemented; detached standalone Workspace required; HTTP/worker and concrete verification composition remain);
-- cold resume (SES-005 durable replacement coordinator implemented; concrete infrastructure materializer/readiness adapters and executable wiring remain, with harness restoration in SES-006);
+- cold resume (SES-005 durable replacement coordinator and SES-006 supervised Codex restoration implemented; concrete infrastructure materializer/readiness adapters, validated checkpoint delivery and executable wiring remain);
 - replacement Sandbox recovery;
 - single-writer Session fencing.
 

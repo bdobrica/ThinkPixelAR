@@ -53,22 +53,39 @@ func TestCodexChild(t *testing.T) {
 	if !s.Scan() || string(s.Bytes()) != `{"method":"initialized","params":{}}` {
 		syscall.Exit(74)
 	}
-	if mode == "thread" || strings.HasPrefix(mode, "turn") {
+	if mode == "thread" || strings.HasPrefix(mode, "turn") || strings.HasPrefix(mode, "resume") {
 		if !s.Scan() {
 			syscall.Exit(75)
 		}
 		var start struct {
 			Method string `json:"method"`
 			Params struct {
-				CWD string `json:"cwd"`
+				CWD      string `json:"cwd"`
+				ThreadID string `json:"threadId"`
 			} `json:"params"`
 		}
-		if json.Unmarshal(s.Bytes(), &start) != nil || start.Method != "thread/start" {
+		method := "thread/start"
+		if strings.HasPrefix(mode, "resume") {
+			method = "thread/resume"
+		}
+		if json.Unmarshal(s.Bytes(), &start) != nil || start.Method != method {
 			syscall.Exit(76)
 		}
 		thread := map[string]any{"id": "01950000-0000-7000-8000-000000000099", "cwd": start.Params.CWD, "cliVersion": codex.Version, "ephemeral": false}
+		if strings.HasPrefix(mode, "resume") {
+			files, _ := filepath.Glob(filepath.Join(os.Getenv("CODEX_HOME"), "sessions/*/*/*/*.jsonl"))
+			if len(files) != 1 || start.Params.ThreadID != thread["id"] {
+				syscall.Exit(80)
+			}
+			thread["status"] = map[string]any{"type": "idle"}
+			if mode == "resume-wrong" {
+				thread["id"] = "01950000-0000-7000-8000-000000000098"
+			}
+		}
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"id": 2, "result": map[string]any{"thread": thread, "cwd": start.Params.CWD, "approvalPolicy": "never", "sandbox": map[string]any{"type": "readOnly", "networkAccess": false}}})
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"method": "thread/started", "params": map[string]any{"thread": thread}})
+		if !strings.HasPrefix(mode, "resume") {
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"method": "thread/started", "params": map[string]any{"thread": thread}})
+		}
 	}
 	if strings.HasPrefix(mode, "turn") {
 		if !s.Scan() {

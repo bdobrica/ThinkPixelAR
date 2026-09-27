@@ -184,9 +184,43 @@ Workspace/checkpoint data. Only confirmed cleanup clears this exact attachment;
 recovery of a degraded Session/Workspace remains a separate operation.
 
 This coordinator does not yet have concrete infrastructure materializer/readiness
-adapters or executable HTTP/worker wiring. SES-006/007 must compose real harness
-restoration and credential isolation; subsequent Execution materialization must
+adapters or executable HTTP/worker wiring. SES-006 implements supervised harness
+restoration as described below; its delivery/composition and SES-007 credential
+revocation remain necessary. Subsequent Execution materialization must
 explicitly transfer or replace the infrastructure attachment under fresh
 Execution/Attempt authority. The existing Execution-only Agent Sandbox provider
 cannot be passed directly as a resume materializer. Therefore SES-005 remains
 open and this is not evidence of a live replacement Sandbox or full cold resume.
+
+## Supervised Codex restoration (SES-006)
+
+`NewProcessesWithCodexRestore` selects resume for a fresh agentd supervisor using
+trusted checkpoint-selected bytes. It is not an unauthenticated bootstrap field
+or a new command endpoint. The caller must first establish current admission,
+exact runtime/checkpoint compatibility, tenant/Session/thread ownership and
+credential exclusions. The expected SHA-256 comes from validated checkpoint
+metadata. Local checks do not replace CHK-002 or grant Execution authority.
+
+The current pinned lane imports a single Codex 0.155.0 rollout JSONL object,
+limited to 16 MiB and 1 MiB per record. It checks digest, complete JSONL records,
+matching session metadata (thread, version and canonical working directory), and
+derives the destination beneath the fresh `CODEX_HOME/sessions` directory.
+There is no archive extraction or caller-selected filesystem path. Old home,
+config/auth files, caches, databases, environment, descriptors and connections
+are not copied. Rollout content remains confidential and untrusted; upstream
+checkpoint publication must enforce content credential exclusions.
+
+Start launches fresh pipes/process/home with only HOME, CODEX_HOME, fixed PATH
+and LANG. After initialization it requests the exact thread with fixed read-only,
+no-approval policy and requires an idle response. Resume never sends a turn or
+creates a replacement conversation on failure. Failed children are reaped and
+their homes removed. Existing command replay returns the same observation;
+another Start/Restart cannot re-import the checkpoint after attempted startup.
+A new checkpoint selection needs a fresh supervisor under current admission.
+
+The real-binary test proves local process replacement and conversation continuity
+using a loopback model fixture. Durable export, authenticated delivery of selected
+checkpoint bytes, Session worker/infrastructure readiness composition, external
+credential revocation and live Sandbox reconstruction remain separate integration
+work. No new wire capability, authority, database transition or readiness claim
+is introduced by this local restoration component.

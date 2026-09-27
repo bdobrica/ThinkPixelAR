@@ -17,7 +17,8 @@ handshake is a local observation, not AR Session readiness or authority.
 The child receives private stdin/stdout pipes and a newly created ephemeral home.
 Its environment contains only that home, its fresh `CODEX_HOME`, a fixed PATH and
 LANG. Nothing is inherited from the supervisor. The home is removed after process
-reaping; qualified durable vendor state remains CDX-012. Stderr retains bounded
+reaping. SES-006 extends this startup path with the bounded restoration below;
+durable export/publication remains CDX-012. Stderr retains bounded
 suppressed capture. Raw protocol frames and initialization metadata do not enter
 diagnostics or runtime events.
 
@@ -28,6 +29,16 @@ must initialize again. No protocol fallback, remote listener or automatic retry
 is introduced.
 
 ## Scope and evidence
+
+SES-006 adds an explicit trusted constructor for a newly admitted supervisor.
+It imports only one validated, digest-bound Codex 0.155.0 rollout into a fresh
+home and selects exact `thread/resume` instead of `thread/start`. It does not
+import the previous home, configuration, databases, credentials or process state.
+Missing/incompatible state or failed resume stops the child; there is no creation
+fallback. Each supervisor imports at most once. Ordinary Restart remains rejected
+in thread mode: selecting another checkpoint requires fresh trusted composition,
+preventing an implicit rewind after accepted work. Existing admission and turn
+fences are unchanged. See [SES-006 evidence](../evidence/ses-006-harness-restoration.md).
 
 [CDX-003 evidence](../evidence/cdx-003-startup.md) covers the real pinned binary
 through the supervisor and focused failure/replay checks. Thread creation,

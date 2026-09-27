@@ -43,6 +43,8 @@ type Processes struct {
 	codex          bool
 	createThread   bool
 	executeTurn    bool
+	restore        *codex.RestoreState
+	restoreUsed    bool // One checkpoint import per supervisor; never rewind after work.
 	commandBytes   uint32
 	current        *child
 	captureLimits  *agentdv1.Limits
@@ -184,8 +186,8 @@ func (p *Processes) Stop(ctx context.Context, id primitives.ID) error {
 	return err
 }
 func (p *Processes) Restart(ctx context.Context, id primitives.ID) (primitives.ID, error) {
-	// A new thread would silently break Session continuity. The resume driver
-	// exists, but trusted vendor-state restoration is not wired here (CDX-012).
+	// Restart requires a newly selected checkpoint and fresh supervisor. Reusing
+	// this supervisor would silently create a thread or rewind accepted work.
 	if p.createThread {
 		return "", ErrControl
 	}
@@ -217,6 +219,12 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		default:
 			return "", ErrProcessBusy
 		}
+	}
+	if p.restore != nil {
+		if p.restoreUsed {
+			return "", ErrControl
+		}
+		p.restoreUsed = true
 	}
 	id, err := primitives.NewID(time.Now())
 	if err != nil {
@@ -278,7 +286,11 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 			return "", err
 		}
 		if p.createThread {
-			c.threadID, err = c.codex.StartThread(ctx, p.config.WorkingDirectory)
+			if p.restore != nil {
+				c.threadID, err = c.codex.ResumeThread(ctx, p.config.WorkingDirectory, p.restore.ThreadID)
+			} else {
+				c.threadID, err = c.codex.StartThread(ctx, p.config.WorkingDirectory)
+			}
 			if err != nil {
 				_ = p.stop(context.Background(), id, true)
 				return "", err

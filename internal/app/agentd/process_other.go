@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	agentdv1 "github.com/bdobrica/ThinkPixelAR/api/agentd/v1"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
 	"github.com/bdobrica/ThinkPixelAR/internal/primitives"
 )
 
@@ -26,7 +27,10 @@ func (*Processes) Restart(context.Context, primitives.ID) (primitives.ID, error)
 }
 
 func NewProcessesWithCapture(Config, OutputSanitizer) (*Processes, error) { return nil, ErrProcess }
-func (*Processes) Output(primitives.ID) (*Capture, error)                 { return nil, ErrProcess }
+func NewProcessesWithCodexRestore(Config, codex.RestoreState) (*Processes, error) {
+	return nil, ErrProcess
+}
+func (*Processes) Output(primitives.ID) (*Capture, error) { return nil, ErrProcess }
 
 func (*Processes) Status() ProcessStatus {
 	return ProcessStatus{State: agentdv1.Heartbeat_FAILED, Failure: ProcessLaunchFailed}
