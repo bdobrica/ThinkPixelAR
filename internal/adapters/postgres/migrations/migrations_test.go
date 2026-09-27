@@ -10,7 +10,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 25 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
+	if len(got) != 26 || got[0].Version != 1 || got[0].Name != "tenant_sessions" ||
 		got[1].Version != 2 || got[1].Name != "executions" || got[2].Version != 3 || got[2].Name != "attempts" ||
 		got[3].Version != 4 || got[3].Name != "one_mutable_execution_per_session" ||
 		got[4].Version != 5 || got[4].Name != "session_execution_fencing" ||
@@ -30,7 +30,7 @@ func TestLoadReturnsOrderedChecksummedMigrations(t *testing.T) {
 		got[18].Version != 19 || got[18].Name != "agentd_credentials" ||
 		got[19].Version != 20 || got[19].Name != "agentd_bootstrap_delivery" ||
 		got[20].Version != 21 || got[20].Name != "agentd_admission_replay" ||
-		got[21].Version != 22 || got[21].Name != "local_authority_grants" || got[22].Version != 23 || got[22].Name != "session_creation_event" || got[23].Version != 24 || got[23].Name != "execution_creation" || got[24].Version != 25 || got[24].Name != "execution_signals" {
+		got[21].Version != 22 || got[21].Name != "local_authority_grants" || got[22].Version != 23 || got[22].Name != "session_creation_event" || got[23].Version != 24 || got[23].Name != "execution_creation" || got[24].Version != 25 || got[24].Name != "execution_signals" || got[25].Version != 26 || got[25].Name != "workspace_storage_operations" {
 		t.Fatalf("Load() = %#v", got)
 	}
 	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(got[0].Checksum) {

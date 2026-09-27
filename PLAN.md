@@ -444,7 +444,12 @@ Conceptually:
         Delete(ctx context.Context, workspace WorkspaceHandle) error
     }
 
-The first production backend should target Kubernetes CSI/PVC semantics.
+The first backend now implements Kubernetes CSI/PVC create/get/delete semantics
+with a durable PostgreSQL operation journal (WSP-001). It does not publish
+Workspace generations or claim that PVC binding establishes a mounted writer.
+Application initialization/mount composition remains WSP-002; checkpoint support
+remains WSP-003–004. The current homelab lacks a CSI driver, so live CSI
+qualification remains pending.
 
 Exact storage class and snapshot implementation remain operator configuration.
 

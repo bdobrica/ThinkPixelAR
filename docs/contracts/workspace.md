@@ -244,3 +244,36 @@ Provider snapshot IDs/metadata alone are not cryptographic content integrity. Th
 - Secret-canary absence from snapshots, manifests, errors, events, logs, traces, and evidence.
 - Complete Sandbox/node replacement proving Workspace and committed generation continuity.
 
+
+## Implemented Kubernetes storage lifecycle
+
+The internal `workspace.Provider` currently exposes create/get/delete and explicit
+capabilities; the existing `Materializer`/`AttachmentReader` ports retain the
+separate attachment boundary. Snapshot, clone, attach and detach capabilities are
+not advertised by this storage lifecycle adapter.
+
+Creation reserves two independently UID-pinned filesystem PVCs, for `/workspace`
+and vendor state at `/state`. Names derive from the reserved Workspace ID;
+namespace and StorageClass come only from trusted operator configuration. Claims
+have no compute owner references or data sources. Requests pin capacities,
+single-writer access semantics, profile and configuration digest. Independent
+storage qualification is mandatory; `Bound` does not prove encryption, CSI
+behavior, portable topology, a mounted filesystem, or an authorized writer.
+
+The PostgreSQL operation journal commits intent before external work and each
+observed reference independently, preserving partial outcomes. It holds the
+Workspace row's lifecycle lock across a bounded provider operation, preventing
+concurrent lifecycle updates. Composition must budget two database connections
+per concurrent operation. Trusted admission/disclosure/retention policy remains
+mandatory. Create requires `PROVISIONING`; subsequent lifecycle states use Get.
+Delete requires `DELETING`, no current attachment, an authorized retention
+check, and AR-managed storage. ThinkPixelWS storage is excluded.
+
+Returned `PENDING`, `BOUND`, `DELETING` and `ABSENT` are provider observations,
+not aggregate transitions. A successful delete request is still `DELETING` until
+a later exact read confirms both claims absent. Deletion uses UID and resource
+version preconditions; it never deletes PVs, snapshots, namespaces or by label.
+Physical backend disposal follows the qualified StorageClass/PV reclaim policy;
+PVC absence is not a physical-erasure guarantee. WSP-002 initialization and
+mount orchestration must handle delayed binding without treating pending claims
+as ready; WSP-003–004 publish durable generations/checkpoints separately.
