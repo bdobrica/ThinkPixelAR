@@ -1643,7 +1643,7 @@ Implement:
 - public Session API;
 - Execution API;
 - SSE events;
-- LocalAuthority (AUT-001 bounded admission implemented; lifecycle validation and API composition remain);
+- LocalAuthority (AUT-001 bounded admission and AUT-002 immutable grants with cancellation/expiry validation implemented; terminal reporting and API/Execution composition remain);
 - durable Workspace;
 - checkpoint;
 - suspend;

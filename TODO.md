@@ -241,8 +241,8 @@ Items outside these paths remain valid backlog but should not preempt the curren
 
 - [ ] API-001 Implement OIDC/JWT verification, issuer/audience/algorithm/expiry validation, and claim-to-principal/tenant mapping.
 - [ ] API-002 Implement explicitly configured development/local authentication mode that cannot accidentally activate in production configuration.
-- [x] AUT-001 Implement bounded `LocalAuthority` using operator-defined Runtime Profile, duration, resource, and network constraints. — completed 2026-09-27; explicit local admission, operator-approved runtime/profile snapshots, finite deadlines, resource/network ceilings and transactional grant replay; [scope and verification](docs/evidence/aut-001-local-admission.md). Lifecycle validation remains AUT-002; API composition remains SES-001 / EXE-001–002.
-- [ ] AUT-002 Make local authority grants immutable after issuance except for cancellation/expiry state.
+- [x] AUT-001 Implement bounded `LocalAuthority` using operator-defined Runtime Profile, duration, resource, and network constraints. — completed 2026-09-27; explicit local admission, operator-approved runtime/profile snapshots, finite deadlines, resource/network ceilings and transactional grant replay; [scope and verification](docs/evidence/aut-001-local-admission.md). Integrity validation and cancellation/expiry are implemented in AUT-002; API composition remains SES-001 / EXE-001–002.
+- [x] AUT-002 Make local authority grants immutable after issuance except for cancellation/expiry state. — completed 2026-09-27; durable immutable snapshots, integrity validation and monotonic cancellation/expiry; [scope and verification](docs/evidence/aut-002-immutable-local-grants.md). Full terminal reporting and Execution/Attempt composition remain.
 - [ ] AUT-003 Clearly expose local-authority mode in telemetry/API so it cannot be mistaken for AG-governed execution.
 - [ ] SES-001 Implement `POST /v1/sessions` with idempotency, agent/runtime resolution, Runtime Profile validation, and tenant ownership.
 - [ ] SES-002 Implement `GET /v1/sessions` and `GET /v1/sessions/{id}` with cursor pagination and enumeration-safe authorization.

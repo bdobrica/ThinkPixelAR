@@ -30,6 +30,7 @@ type TransactionManager interface {
 
 // Repositories are valid only for the callback that received them.
 type Repositories interface {
+	LocalGrants() LocalGrantRepository
 	Sessions() SessionRepository
 	Executions() ExecutionRepository
 	Attempts() AttemptRepository

@@ -33,7 +33,9 @@ Concurrent requests elect one grant; a new adapter/store returns that same snaps
 even after its expiry or a policy change. Replay does not validate or renew authority.
 Denial rolls back the reservation. Retention is maximum duration plus 24 hours;
 Execution binding must persist the grant independently before replay records expire.
-No migration or process-local grant cache was added.
+No migration or process-local grant cache was added in AUT-001.
+[AUT-002](aut-002-immutable-local-grants.md) subsequently added independent durable
+grant snapshots and cancellation/expiry validation.
 
 ## Verification
 
@@ -50,8 +52,8 @@ THINKPIXELAR_TEST_DATABASE_URL='<test database URL>' \
 
 ## Remaining composition
 
-AUT-002 owns integrity-bound lifecycle validation, cancellation/expiry and terminal
-status. AUT-003 owns API/telemetry visibility. SES-001 and EXE-001–002 must authenticate
+AUT-002 now implements integrity validation and cancellation/expiry. Terminal
+reporting remains separate follow-up work; AUT-003 owns API/telemetry visibility. SES-001 and EXE-001–002 must authenticate
 and authorize callers, recheck Session version/generation atomically while binding
 the grant to one Execution, and supply its effective constraints to materialization.
 Issuance alone never permits compute or replaces Attempt fencing. Rate/concurrency

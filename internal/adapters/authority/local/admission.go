@@ -84,6 +84,9 @@ func (a *Authority) Admit(ctx context.Context, c authority.Caller, r authority.R
 		if err != nil || len(payload) > 65536 {
 			return authority.ErrDenied
 		}
+		if err = repos.LocalGrants().Add(ctx, persistence.LocalGrantRecord{ID: g.ID, SessionID: g.SessionID, Snapshot: payload, Digest: sandbox.Digest(payload)}); err != nil {
+			return err
+		}
 		if err = record.Succeed(idempotency.Response{HTTPStatus: 201, Payload: payload, Reference: string(g.ID)}, id, record.OwnerFence(), now); err != nil {
 			return err
 		}
