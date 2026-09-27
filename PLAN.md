@@ -1664,7 +1664,7 @@ Implement:
 - checkpoint;
 - suspend (SES-004 atomic READY/IDLE boundary, checkpoint validation, replay and fenced cleanup intents implemented; detached standalone Workspace required; HTTP/worker and concrete verification composition remain);
 - cold resume (SES-005 durable replacement coordinator and SES-006 supervised Codex restoration implemented; concrete infrastructure materializer/readiness adapters, validated checkpoint delivery and executable wiring remain; SES-007 now gates on AR transport credential retirement, with external revocation composition still required);
-- replacement Sandbox recovery;
+- replacement Sandbox recovery (REC-004 pre-execution replacement and acquisition implemented; running-work checkpoint/outcome recovery and executable policy/materialization composition remain);
 - single-writer Session fencing.
 
 Exit when the standalone MVP flow survives complete sandbox deletion between two user interactions.

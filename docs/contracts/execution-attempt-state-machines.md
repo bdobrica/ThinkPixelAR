@@ -156,6 +156,34 @@ AR classifies failure before creating another Attempt:
 
 Replacement is a physical recovery mechanism, not permission to repeat arbitrary model/tool actions. Before replacement, AR persists the old Attempt terminal state (`FAILED` or `REPLACED`), advances current Attempt identity/ordinal, and ensures any downstream operation uses stable logical call identity where retry is allowed.
 
+### Implemented pre-execution Sandbox replacement
+
+The PostgreSQL replacement store implements the pre-execution infrastructure-loss
+row above. It requires recorded `BOUND_COMPUTE_MISSING`, exact confirmed cleanup,
+`DEGRADED`/recovery-state `ACTIVE`, a current pre-running Attempt and a
+`MATERIALIZING` Execution within its unchanged deadline. Any harness binding or
+recorded command for that Execution blocks this lane, including acknowledged
+commands. Retained old transport connections and uncleaned, unexpired bootstrap
+deliveries also block admission.
+
+A mandatory trusted policy checks current authority/lease, retry budget, runtime
+eligibility, credential retirement and fresh attachment/bootstrap ownership.
+Distinct reference strings alone do not prove those properties. The transaction
+preserves the Session generation, Execution grant/deadline, Workspace generation
+and runtime; retires the old Attempt through `INTERRUPTING` to `REPLACED`; creates
+one fresh current Attempt and acquisition binding; and publishes ordered events,
+outbox messages and compute work. It claims/completes the loss job atomically,
+rejecting another worker's unexpired claim. `ACTIVE` here means the safe current
+Execution is materializing; it does not assert compute or harness readiness.
+
+The immutable lost-binding-to-candidate mapping makes concurrent and restarted
+calls reuse the same acquisition identity. Retries recheck current fences and
+policy; historical decisions cannot revive cancelled or superseded work. Provider
+calls occur after commit through the normal compute reconciler. This does not
+implement running-work checkpoint restoration or authorize automatic command
+replay. See [REC-004 evidence](../evidence/rec-004-sandbox-replacement.md) for the
+exercised boundary and remaining composition.
+
 ## Terminal-state race rules
 
 PostgreSQL serialization, not message timestamp from the sandbox, selects one winner.
