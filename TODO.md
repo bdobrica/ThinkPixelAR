@@ -241,7 +241,7 @@ Items outside these paths remain valid backlog but should not preempt the curren
 
 - [ ] API-001 Implement OIDC/JWT verification, issuer/audience/algorithm/expiry validation, and claim-to-principal/tenant mapping.
 - [ ] API-002 Implement explicitly configured development/local authentication mode that cannot accidentally activate in production configuration.
-- [ ] AUT-001 Implement bounded `LocalAuthority` using operator-defined Runtime Profile, duration, resource, and network constraints.
+- [x] AUT-001 Implement bounded `LocalAuthority` using operator-defined Runtime Profile, duration, resource, and network constraints. — completed 2026-09-27; explicit local admission, operator-approved runtime/profile snapshots, finite deadlines, resource/network ceilings and transactional grant replay; [scope and verification](docs/evidence/aut-001-local-admission.md). Lifecycle validation remains AUT-002; API composition remains SES-001 / EXE-001–002.
 - [ ] AUT-002 Make local authority grants immutable after issuance except for cancellation/expiry state.
 - [ ] AUT-003 Clearly expose local-authority mode in telemetry/API so it cannot be mistaken for AG-governed execution.
 - [ ] SES-001 Implement `POST /v1/sessions` with idempotency, agent/runtime resolution, Runtime Profile validation, and tenant ownership.
