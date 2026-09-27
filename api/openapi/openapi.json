@@ -646,6 +646,7 @@
       "get": {
         "operationId": "getExecution",
         "summary": "Get an Execution",
+        "description": "Returns persisted lifecycle metadata with historical authority labels. Current disclosure authorization is required on every read; absent and inaccessible Executions both return 404. Responses use Cache-Control no-store. Reads do not renew authority or infer lifecycle changes from grant expiry.",
         "tags": [
           "Executions"
         ],

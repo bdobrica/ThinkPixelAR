@@ -120,3 +120,44 @@ func createExecution(creator *executions.Creator, authenticate SessionAuthentica
 		writeJSON(w, 201, string(body))
 	}
 }
+
+func getExecution(reader *executions.Reader, authenticate SessionAuthentication) stdhttp.HandlerFunc {
+	return func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		// Status may change and disclosure policy must be checked on every request.
+		w.Header().Set("Cache-Control", "no-store")
+		if authenticate == nil {
+			writeProblem(w, r, 401, "unauthorized", "Unauthorized")
+			return
+		}
+		caller, err := authenticate(r)
+		if err != nil {
+			writeProblem(w, r, 401, "unauthorized", "Unauthorized")
+			return
+		}
+		if reader == nil {
+			writeProblem(w, r, 503, "temporarily-unavailable", "Service Unavailable")
+			return
+		}
+		id, err := primitives.ParseID(r.PathValue("execution_id"))
+		if err != nil || r.URL.RawQuery != "" {
+			writeProblem(w, r, 400, "invalid-request", "Invalid Request")
+			return
+		}
+		result, err := reader.Get(r.Context(), caller, id)
+		if err != nil {
+			switch {
+			case errors.Is(err, executions.ErrInvalid):
+				writeProblem(w, r, 400, "invalid-request", "Invalid Request")
+			case errors.Is(err, executions.ErrDenied):
+				writeProblem(w, r, 403, "forbidden", "Forbidden")
+			case errors.Is(err, executions.ErrNotFound):
+				writeProblem(w, r, 404, "not-found", "Not Found")
+			default:
+				writeProblem(w, r, 503, "temporarily-unavailable", "Service Unavailable")
+			}
+			return
+		}
+		body, _ := json.Marshal(result)
+		writeJSON(w, 200, string(body))
+	}
+}

@@ -37,9 +37,13 @@ func (unusedAdmission) AdmitInTransaction(context.Context, persistence.Repositor
 func allowExecution(context.Context, executions.Caller, primitives.ID, executions.CreateRequest) error {
 	return nil
 }
-func executionHandler(t *testing.T, c *executions.Creator, auth SessionAuthentication) stdhttp.Handler {
+func executionHandler(t *testing.T, c *executions.Creator, auth SessionAuthentication, readers ...*executions.Reader) stdhttp.Handler {
 	t.Helper()
-	s, err := NewServer(Options{Clock: clock.UTC{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Executions: c, AuthenticateSession: auth})
+	var reader *executions.Reader
+	if len(readers) > 0 {
+		reader = readers[0]
+	}
+	s, err := NewServer(Options{ExecutionReader: reader, Clock: clock.UTC{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), Executions: c, AuthenticateSession: auth})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +171,16 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 		}
 		return caller, nil
 	}
-	server := httptest.NewServer(executionHandler(t, creator, auth))
+	reader, err := executions.NewReader(store, func(ctx context.Context, c executions.Caller, sessionID, executionID primitives.ID) error {
+		if sessionID == "" || executionID == "" {
+			t.Fatal("missing disclosure identity")
+		}
+		return access(ctx, c, sessionID, executions.CreateRequest{})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(executionHandler(t, creator, auth, reader))
 	defer server.Close()
 	send := func(id primitives.ID, body, key, token string) (int, stdhttp.Header, []byte, error) {
 		r, _ := stdhttp.NewRequest("POST", server.URL+"/v1/sessions/"+string(id)+"/executions", strings.NewReader(body))
@@ -216,6 +229,37 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 	if json.Unmarshal(original, &view) != nil || view.State != "QUEUED" || view.StateVersion != 0 || view.Generation != 1 || view.AuthorityMode != "local" {
 		t.Fatal(string(original))
 	}
+	get := func(id primitives.ID, token string, want int, state string, generation uint64) {
+		t.Helper()
+		req, _ := stdhttp.NewRequest("GET", server.URL+"/v1/executions/"+string(id), nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		raw, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != want || resp.Header.Get("Cache-Control") != "no-store" {
+			t.Fatal(resp.StatusCode, string(raw))
+		}
+		if want == 200 {
+			var got executions.Status
+			if json.Unmarshal(raw, &got) != nil || got.ID != id || got.SessionID != sid || string(got.State) != state || got.Generation != generation || got.AuthorityMode != "local" || got.AuthorityIssuer != authority.LocalIssuer {
+				t.Fatal(string(raw))
+			}
+			var fields map[string]any
+			_ = json.Unmarshal(raw, &fields)
+			if len(fields) != 8 {
+				t.Fatal("unexpected public fields", string(raw))
+			}
+		}
+	}
+	get(view.ID, "caller", 200, "QUEUED", 1)
+	get(view.ID, "other", 404, "", 0)
+	get(caller.TenantID, "caller", 404, "", 0)
+	deny.Store(true)
+	get(view.ID, "caller", 404, "", 0)
+	deny.Store(false)
 	status, headers, raw, err := send(sid, `{ "input" : "confidential-execution-input", "run_reference":"" }`, createKey, "caller")
 	if err != nil || status != 201 || headers.Get("Idempotency-Replayed") != "true" || headers.Get("Location") != "/v1/executions/"+string(view.ID) || !bytes.Equal(raw, original) {
 		t.Fatal(status, string(raw), err)
@@ -463,6 +507,8 @@ func TestPostgresCreateExecutionHTTP(t *testing.T) {
 	if err != nil || later.View.Generation != 2 {
 		t.Fatal("later admission", err)
 	}
+	get(view.ID, "caller", 200, "FAILED", 1)
+	get(later.View.ID, "caller", 200, "QUEUED", 2)
 	unchanged, _ = json.Marshal(load())
 	if !bytes.Equal(originalSnapshot, unchanged) {
 		t.Fatal("later generation rewrote history")
