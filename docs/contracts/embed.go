@@ -7,3 +7,8 @@ import _ "embed"
 var runtimeProfileSchema string
 
 func RuntimeProfileSchema() string { return runtimeProfileSchema }
+
+//go:embed agent-runtime-spec.schema.json
+var agentRuntimeSpecSchema string
+
+func AgentRuntimeSpecSchema() string { return agentRuntimeSpecSchema }

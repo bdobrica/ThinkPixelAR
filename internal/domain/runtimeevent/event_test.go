@@ -63,3 +63,20 @@ func id(last byte) primitives.ID {
 	return primitives.ID("01890f3e-7b2d-7000-8000-00000000000" + string('0'+last))
 }
 func timePtr(value time.Time) *time.Time { return &value }
+
+func TestOnlyInitialSessionCreationMayHaveVersionZero(t *testing.T) {
+	for _, tc := range []struct {
+		typ       Type
+		sequence  uint64
+		execution primitives.ID
+		valid     bool
+	}{
+		{"session.created", 1, "", true}, {"session.created", 2, "", false},
+		{"session.state_changed", 1, "", false}, {"session.created", 1, id(4), false},
+	} {
+		_, err := New(id(1), id(2), id(3), tc.execution, "", tc.sequence, 0, tc.typ, time.Unix(1, 0), time.Unix(1, 0), SourceAgentRuntime, Internal, []byte(`{}`), Correlation{}, "default", nil)
+		if (err == nil) != tc.valid {
+			t.Errorf("%+v: %v", tc, err)
+		}
+	}
+}

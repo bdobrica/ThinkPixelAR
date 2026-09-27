@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"time"
 
+	sessions "github.com/bdobrica/ThinkPixelAR/internal/app/session"
 	"github.com/bdobrica/ThinkPixelAR/internal/config"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/authority"
 	"github.com/bdobrica/ThinkPixelAR/internal/ports/clock"
@@ -48,7 +49,9 @@ type Options struct {
 	Ready   Readiness
 	Handler stdhttp.Handler
 	// Authority is the actual attached adapter, not a caller-selected mode.
-	Authority authority.IdentityProvider
+	Authority           authority.IdentityProvider
+	Sessions            *sessions.Creator
+	AuthenticateSession SessionAuthentication
 }
 
 // Server owns the hardened HTTP server and graceful shutdown lifecycle.
@@ -81,6 +84,7 @@ func NewServer(o Options) (*Server, error) {
 		_ = o.Metrics.SetAuthorityMode(identity.Mode)
 	}
 	mux := stdhttp.NewServeMux()
+	mux.HandleFunc("POST /v1/sessions", createSession(o.Sessions, o.AuthenticateSession))
 	mux.HandleFunc("GET /authorityz", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		writeJSON(w, stdhttp.StatusOK, diagnostic)
 	})
@@ -220,7 +224,7 @@ func RequestIDFromContext(ctx context.Context) string {
 
 func routeName(path string) string {
 	switch path {
-	case "/livez", "/readyz", "/metrics", "/authorityz":
+	case "/v1/sessions", "/livez", "/readyz", "/metrics", "/authorityz":
 		return path
 	default:
 		return "unmatched"

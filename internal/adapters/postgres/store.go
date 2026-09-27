@@ -344,11 +344,13 @@ func (r *idempotencyRepository) Update(ctx context.Context, value *idempotency.R
 	return affected("update idempotency record", result, err)
 }
 
+// Session creation identities remain pinned until resource/tombstone-aware
+// retention is implemented. Time alone must never permit a second Workspace.
 func (r *idempotencyRepository) DeleteExpired(ctx context.Context, before time.Time, limit int) (int64, error) {
 	if before.IsZero() || limit < 1 || limit > 1000 {
 		return 0, errors.New("invalid idempotency expiry request")
 	}
-	result, err := r.tx.ExecContext(ctx, `DELETE FROM idempotency_records WHERE (tenant_id,idempotency_record_id) IN (SELECT tenant_id,idempotency_record_id FROM idempotency_records WHERE tenant_id=$1 AND state<>'IN_PROGRESS' AND expires_at<=$2 ORDER BY expires_at,idempotency_record_id LIMIT $3 FOR UPDATE SKIP LOCKED)`, r.tenantID, before.UTC(), limit)
+	result, err := r.tx.ExecContext(ctx, `DELETE FROM idempotency_records WHERE (tenant_id,idempotency_record_id) IN (SELECT tenant_id,idempotency_record_id FROM idempotency_records WHERE tenant_id=$1 AND state<>'IN_PROGRESS' AND action<>'sessions.create.v1' AND expires_at<=$2 ORDER BY expires_at,idempotency_record_id LIMIT $3 FOR UPDATE SKIP LOCKED)`, r.tenantID, before.UTC(), limit)
 	if err != nil {
 		return 0, wrap("delete expired idempotency records", err)
 	}

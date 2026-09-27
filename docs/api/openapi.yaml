@@ -16,6 +16,7 @@ paths:
     post:
       operationId: createSession
       summary: Create a durable Session
+      description: Creates a PROVISIONING Session with an immutable operator-approved runtime binding. The current local implementation accepts only an empty source and reserves Workspace/source operation identities; materialization is separate. Authentication and current tenant authorization are required on creation and replay.
       tags: [Sessions]
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateSession'}}}}
@@ -208,7 +209,7 @@ components:
       type: object
       additionalProperties: false
       required: [id, state, state_version, execution_generation, agent_runtime_spec_id, runtime_profile_id, workspace_id, created_at, updated_at]
-      properties: {id: {$ref: '#/components/schemas/Id'}, state: {enum: [CREATING, READY, ACTIVE, IDLE, SUSPENDING, SUSPENDED, RESUMING, DEGRADED, CLOSING, CLOSED]}, state_version: {type: integer, minimum: 1}, execution_generation: {type: integer, minimum: 0}, agent_runtime_spec_id: {$ref: '#/components/schemas/Id'}, runtime_profile_id: {$ref: '#/components/schemas/Id'}, workspace_id: {$ref: '#/components/schemas/Id'}, current_checkpoint_id: {type: [string, 'null']}, created_at: {$ref: '#/components/schemas/Time'}, updated_at: {$ref: '#/components/schemas/Time'}}
+      properties: {id: {$ref: '#/components/schemas/Id'}, state: {enum: [PROVISIONING, READY, ACTIVE, IDLE, SUSPENDED, DEGRADED, CLOSING, CLOSED]}, state_version: {type: integer, minimum: 0}, execution_generation: {type: integer, minimum: 0}, agent_runtime_spec_id: {$ref: '#/components/schemas/Id'}, runtime_profile_id: {$ref: '#/components/schemas/Id'}, workspace_id: {$ref: '#/components/schemas/Id'}, authority_mode: {enum: [local, thinkpixelag]}, authority_issuer: {type: string, maxLength: 128}, current_checkpoint_id: {type: [string, 'null']}, created_at: {$ref: '#/components/schemas/Time'}, updated_at: {$ref: '#/components/schemas/Time'}}
     CreateSession: {type: object, additionalProperties: false, required: [agent_runtime_spec_id, runtime_profile_id, source], properties: {agent_runtime_spec_id: {$ref: '#/components/schemas/Id'}, runtime_profile_id: {$ref: '#/components/schemas/Id'}, source: {type: object, additionalProperties: false, required: [kind], properties: {kind: {enum: [empty, artifact, repository_bundle, thinkpixel_tg]}, reference: {type: string, maxLength: 512}, digest: {type: string, maxLength: 256}}}}}
     SessionPage: {type: object, required: [items], properties: {items: {type: array, items: {$ref: '#/components/schemas/Session'}}, next_cursor: {type: [string, 'null']}}}
     Execution: {type: object, additionalProperties: false, required: [id, session_id, state, state_version, generation, created_at], properties: {id: {$ref: '#/components/schemas/Id'}, session_id: {$ref: '#/components/schemas/Id'}, state: {enum: [ACCEPTED, STARTING, RUNNING, CANCELLING, SUCCEEDED, FAILED, CANCELLED, TIMED_OUT]}, state_version: {type: integer, minimum: 1}, generation: {type: integer, minimum: 1}, run_reference: {type: string, maxLength: 256}, created_at: {$ref: '#/components/schemas/Time'}}}

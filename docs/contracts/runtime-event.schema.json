@@ -9,7 +9,7 @@
     "schema_version": { "const": "thinkpixel.runtime-event/v1" },
     "event_id": { "$ref": "#/$defs/id" }, "tenant_id": { "$ref": "#/$defs/id" }, "session_id": { "$ref": "#/$defs/id" },
     "execution_id": { "$ref": "#/$defs/id" }, "attempt_id": { "$ref": "#/$defs/id" },
-    "sequence": { "type": "integer", "minimum": 1 }, "aggregate_version": { "type": "integer", "minimum": 1 },
+    "sequence": { "type": "integer", "minimum": 1 }, "aggregate_version": { "type": "integer", "minimum": 0 },
     "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$", "maxLength": 80 },
     "occurred_at": { "$ref": "#/$defs/time" }, "recorded_at": { "$ref": "#/$defs/time" },
     "source": { "enum": ["agent-runtime", "agentd", "harness-adapter", "sandbox-provider", "workspace-provider", "run-authority", "gateway"] },
@@ -27,5 +27,6 @@
   "$defs": {
     "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
     "time": { "type": "string", "format": "date-time", "maxLength": 64 }
-  }
+  },
+  "allOf": [{"if": {"properties": {"aggregate_version": {"const": 0}}, "required": ["aggregate_version"]}, "then": {"properties": {"type": {"const": "session.created"}, "sequence": {"const": 1}, "execution_id": false, "attempt_id": false}}}]
 }

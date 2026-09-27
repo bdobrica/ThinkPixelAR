@@ -1640,7 +1640,7 @@ Exit when Codex passes the defined adapter conformance suite inside the Kubernet
 
 Implement:
 
-- public Session API;
+- public Session API (SES-001 durable creation and local runtime resolution implemented; authentication composition, retrieval, close and Workspace materialization remain);
 - Execution API;
 - SSE events;
 - LocalAuthority (AUT-001 bounded admission, AUT-002 immutable grants with cancellation/expiry validation, and AUT-003 mode telemetry/deployment diagnostics implemented; terminal reporting and API/Execution composition remain);

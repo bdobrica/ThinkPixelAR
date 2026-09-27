@@ -64,3 +64,7 @@ Reads require tenant/Session authorization and are cursor-paginated. A cursor au
 - Storage pressure applies admission/backpressure and lifecycle policy; it never silently drops required terminal/audit events.
 
 Required tests cover schema/type registry, sequence concurrency and rollback, stale Attempt rejection, duplicate delivery, resume after disconnect, retention gaps, tenant/cursor substitution, terminal races, delta ordering, bounds/redaction, credential canaries, and hidden-reasoning fixtures from every adapter.
+
+The initial `session.created` event has sequence 1 and aggregate version 0,
+matching the durable Session at creation. It has no Execution/Attempt lineage.
+All other events require a positive aggregate version.
