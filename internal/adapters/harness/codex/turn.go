@@ -20,7 +20,7 @@ func (c *Client) StartTurn(ctx context.Context, operation, inputID primitives.ID
 		return "", harness.ErrConflict
 	}
 	defer c.gate.Unlock()
-	if c.threadID == "" || len(text) == 0 || len(text) > 16<<10 || !utf8.ValidString(text) {
+	if c.threadInfrastructure || c.threadID == "" || len(text) == 0 || len(text) > 16<<10 || !utf8.ValidString(text) {
 		return "", harness.ErrInvalid
 	}
 	if _, err := primitives.ParseID(string(operation)); err != nil {

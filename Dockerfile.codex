@@ -20,7 +20,9 @@ ARG TARGETARCH
 RUN case "${TARGETARCH}" in amd64|arm64) ;; *) echo 'unsupported Codex architecture' >&2; exit 1 ;; esac \
     && mkdir -p "/out/${TARGETARCH}" \
     && CGO_ENABLED=0 GOOS=linux GOARCH="${TARGETARCH}" \
-    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/${TARGETARCH}/thinkpixel-agentd ./cmd/thinkpixel-agentd
+    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/${TARGETARCH}/thinkpixel-agentd ./cmd/thinkpixel-agentd \
+    && CGO_ENABLED=0 GOOS=linux GOARCH="${TARGETARCH}" \
+    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/${TARGETARCH}/thinkpixel-resume-probe ./cmd/thinkpixel-resume-probe
 
 FROM --platform=$BUILDPLATFORM alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 AS codex-unpack
 ARG TARGETARCH
@@ -47,6 +49,7 @@ RUN apk add --no-cache bash=5.3.3-r1 git=2.52.0-r0 ca-certificates=20260909-r0 r
     && cp /lib/apk/db/installed /usr/share/thinkpixel/apk-installed.txt
 ARG TARGETARCH
 COPY --from=build --chmod=0755 /out/${TARGETARCH}/thinkpixel-agentd /usr/local/bin/thinkpixel-agentd
+COPY --from=build --chmod=0755 /out/${TARGETARCH}/thinkpixel-resume-probe /usr/local/bin/thinkpixel-resume-probe
 COPY --from=codex-unpack --chmod=0755 /out/codex/codex /usr/local/bin/codex
 COPY --from=codex-unpack /out/licenses /usr/share/licenses
 LABEL org.opencontainers.image.source="https://github.com/bdobrica/ThinkPixelAR" \

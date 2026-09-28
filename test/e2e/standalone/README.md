@@ -4,12 +4,15 @@ This operator-run E2E-001/E2E-002/E2E-003 integration scenario joins real HTTP S
 admission, PostgreSQL LocalAuthority, signed checkpoint publication, suspend and
 resume coordination to two real Codex processes on separate Kubernetes Agent
 Sandboxes. It uses the existing ARM64 `k3spi-02` homelab worker and
-`kata-qemu-runtime-rs-ar331` runtime. Both Pods require independent trusted-worker
+`kata-qemu-runtime-rs-ar331` initial fixture and bounded replacement runtime. Both
+Pods require independent trusted-worker
 QEMU/KVM and artifact-pin verification, not just Kubernetes readiness.
 
 The model is a deterministic loopback SSE fixture. Authentication, runtime
-qualification, lifecycle worker dispatch, file export, readiness and Kubernetes
-exec transport are **test composition**. This does not enable the production
+qualification, ordinary Execution dispatch, file export and the model remain
+**test composition**. SES-005 replacement allocation, restoration and readiness
+use the real [operator resume executable](../../../cmd/thinkpixel-session-resume/README.md)
+and its guest probe. Kubernetes exec is the operator transport. This does not enable the production
 `thinkpixelar` executable's API/worker wiring or authenticated agentd transport.
 It is not the standalone MVP gate or an AG/LLMGW/TG demonstration.
 
@@ -30,6 +33,10 @@ SSH access. The guest verifies the pinned ARM64 Codex executable itself.
 export GO="$HOME/.local/go/bin/go"
 export GOCACHE=/tmp/thinkpixelar-go-cache
 probe_dir=$(mktemp -d /tmp/ar-e2e001-build.XXXXXX)
+"$GO" build -o /tmp/thinkpixel-session-resume ./cmd/thinkpixel-session-resume
+export THINKPIXELAR_E2E_RESUME_BIN=/tmp/thinkpixel-session-resume
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 "$GO" build \
+  -o "$probe_dir/thinkpixel-resume-probe" ./cmd/thinkpixel-resume-probe
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 "$GO" test -c \
   -o "$probe_dir/agentd.test" ./internal/app/agentd
 cp deploy/agentd/config.example.json "$probe_dir/config.example.json"
@@ -53,6 +60,13 @@ ssh -F "$HOME/.ssh/config" -i "$HOME/.ssh/id_k3spi" pi@10.10.10.12 \
 ```
 
 ## Run
+
+Prepare one fresh 32 MiB `ar-bounded-scratch-v1` slot using the
+[existing procedure](../../../docs/operations/bounded-scratch.md). The replacement
+uses `kata-qemu-runtime-rs-ar331-bounded`; the initial Execution remains the earlier
+fixture lane. A consumed slot is retained and must not be reset or reused between
+runs. The replacement verifies the saved CPU/memory limits, scratch backing,
+independent KVM proof and fixed restored files.
 
 Create a disposable database using the repository's development PostgreSQL
 instance, then set its URL. Never point this test at retained application data.
@@ -86,7 +100,7 @@ and `E2E-003 LIVE PASS`. The scenario checks:
 5. After durable release authorization, the exact first Sandbox is deleted and
    both Sandbox and Pod absence are confirmed. The exact old fixture PVCs are
    then deleted and their absence confirmed before replacement starts.
-6. The resume coordinator reserves fresh identities. New Sandbox/Pod/PVC UIDs
+6. The resume executable reserves fresh identities. New Sandbox/Pod/PVC UIDs
    are required; only the checkpoint export is copied into the new volumes.
    Exact Codex thread restoration must produce no model request before admission.
 7. A second HTTP Execution receives a distinct local grant and generation 2.
@@ -94,7 +108,9 @@ and `E2E-003 LIVE PASS`. The scenario checks:
    first Execution’s Workspace edit byte-for-byte, and finish with HTTP-visible
    `SUCCEEDED` status. A unique marker must appear in structured assistant history
    in the second model request; a marker in user or tool input does not count.
-   Resume replay must return the same result without creating another candidate.
+   A second invocation of the resume executable must return the same result
+   without creating another candidate. Fresh Execution reservation explicitly
+   claims the exact restored attachment and checks its active local grant.
    Persisted Session,
    Workspace, checkpoint and Workspace-generation identities must remain stable;
    Execution generation advances from 1 to 2 with fresh Attempt/Sandbox identities.

@@ -364,3 +364,70 @@ func TestSessionResumeWorkerRejectsRevokedCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSessionResumeCandidateMutationFence(t *testing.T) {
+	db, r, v, _ := resumeFixture(t, false)
+	s := resumeStore(t, db, v)
+	ctx := context.Background()
+	i, _, err := s.Prepare(ctx, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	mutation := make(chan error, 1)
+	go func() {
+		mutation <- s.WithResumeCandidate(ctx, i, false, func(context.Context) error { close(entered); <-release; return nil })
+	}()
+	<-entered
+	// Failure must not pass the provider mutation. It owns the same Session lock.
+	failctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	_, err = s.Fail(failctx, r)
+	cancel()
+	if err == nil {
+		t.Fatal("failure overtook candidate creation")
+	}
+	close(release)
+	if err = <-mutation; err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Fail(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	if err = s.WithResumeCandidate(ctx, i, false, func(context.Context) error { called = true; return nil }); err == nil || called {
+		t.Fatal("abandoned candidate recreated")
+	}
+	if err = s.WithResumeCandidate(ctx, i, true, func(context.Context) error { called = true; return nil }); err != nil || !called {
+		t.Fatal("cleanup denied", err)
+	}
+	changed := i
+	changed.Manifest = []byte("changed")
+	if err = s.WithResumeCandidate(ctx, changed, true, func(context.Context) error { t.Fatal("changed cleanup intent accepted"); return nil }); err == nil {
+		t.Fatal("changed intent accepted")
+	}
+}
+
+func TestSessionResumeTransientReadinessRetainsCandidate(t *testing.T) {
+	db, r, v, _ := resumeFixture(t, false)
+	unavailable := true
+	s, err := postgres.NewSessionResumes(db, resumeAccess, resumePolicy, func(ctx context.Context, i app.ResumeIntent, o app.ResumeObservation) error {
+		if unavailable {
+			return workspace.ErrUnavailable
+		}
+		return resumeReady(ctx, i, o)
+	}, v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &resumeProvider{}
+	worker, _ := app.NewResumer(s, provider)
+	first, err := worker.Resume(context.Background(), r)
+	if !errors.Is(err, workspace.ErrUnavailable) || first.State != "RESUMING" {
+		t.Fatal(first, err)
+	}
+	unavailable = false
+	second, err := worker.Resume(context.Background(), r)
+	if err != nil || second.State != "READY" || first.SandboxID != second.SandboxID || provider.creates != 1 {
+		t.Fatal(second, err, provider.creates)
+	}
+}

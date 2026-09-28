@@ -279,7 +279,12 @@ func (s *SessionResumes) Complete(ctx context.Context, r app.ResumeRequest, o ap
 		if reused {
 			return workspace.ErrIntegrity
 		}
-		if s.ready(ctx, cloneResume(i), o) != nil {
+		if err = s.ready(ctx, cloneResume(i), o); err != nil {
+			// A bounded provider/readiness outage is not evidence of corrupt
+			// restored state. Retain this candidate for exact reconciliation.
+			if errors.Is(err, workspace.ErrUnavailable) {
+				return workspace.ErrUnavailable
+			}
 			return workspace.ErrIntegrity
 		}
 		result = resumeResult(i, i.TargetState, v.version+1)

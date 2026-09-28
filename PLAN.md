@@ -459,8 +459,9 @@ atomic Checkpoint/Session-head/event/outbox publication from committed WSP-003
 boundaries. Concrete object verification/retention pins, signer configuration and
 worker composition remain required. CHK-002 adds strict restore integrity and
 compatibility validation with authorized, locked PostgreSQL selection and streamed
-vendor digest/size checks. Concrete storage/key-policy/compatibility adapters and
-Session resume composition (including degradation on failure) remain required.
+vendor digest/size checks. SES-005 now composes these checks with a bounded
+standalone file export and replacement resume executable; general storage/export
+and HTTP wiring remain.
 
 Exact storage class and snapshot implementation remain operator configuration.
 
@@ -1663,11 +1664,11 @@ Implement:
 - durable Workspace;
 - checkpoint;
 - suspend (SES-004 atomic READY/IDLE boundary, checkpoint validation, replay and fenced cleanup intents implemented; detached standalone Workspace required; HTTP/worker and concrete verification composition remain);
-- cold resume (SES-005 durable replacement coordinator and SES-006 supervised Codex restoration implemented; concrete infrastructure materializer/readiness adapters, validated checkpoint delivery and executable wiring remain; SES-007 now gates on AR transport credential retirement, with external revocation composition still required);
+- cold resume (SES-005 now supplies a bounded standalone operator executable, concrete Kubernetes materialization/readiness, validated file export delivery, supervised Codex restoration, fresh-grant attachment handoff and cleanup; general HTTP/export lanes and SES-007 external revocation composition remain);
 - replacement Sandbox recovery (REC-004 pre-execution replacement and acquisition implemented; running-work checkpoint/outcome recovery and executable policy/materialization composition remain);
 - single-writer Session fencing (SEC-001 database uniqueness, serialized admission and Attempt parent-lock fencing implemented; PostgreSQL/HTTP race coverage).
 
-E2E-001 now joins these services in an operator-run live Kubernetes integration test: two Kata Sandboxes, fresh PVCs, signed checkpoint restoration and two locally admitted Executions. [Reproduction and fixture boundaries](test/e2e/standalone/README.md). Authentication, lifecycle worker dispatch, bounded file export and command transport remain test composition, so this evidence does not satisfy the executable MVP exit gate.
+E2E-001 now joins these services in an operator-run live Kubernetes integration test: two Kata Sandboxes, fresh PVCs, signed checkpoint restoration and two locally admitted Executions. [Reproduction and fixture boundaries](test/e2e/standalone/README.md). Replacement resume now uses the real SES-005 operator executable and guest probe, including restart replay. Authentication, ordinary Execution dispatch, checkpoint preparation and the loopback model remain fixtures, so this evidence does not satisfy the full executable MVP exit gate.
 
 Exit when the standalone MVP flow survives complete sandbox deletion between two user interactions.
 

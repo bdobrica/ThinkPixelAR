@@ -1,3 +1,5 @@
+//go:build linux
+
 package http
 
 import (
@@ -14,6 +16,7 @@ import (
 	stdhttp "net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,6 +26,7 @@ import (
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/authority/local"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/harness/codex"
 	"github.com/bdobrica/ThinkPixelAR/internal/adapters/postgres"
+	"github.com/bdobrica/ThinkPixelAR/internal/adapters/sessionresume"
 	"github.com/bdobrica/ThinkPixelAR/internal/app/agentdidentity"
 	checkpoints "github.com/bdobrica/ThinkPixelAR/internal/app/checkpoint"
 	executions "github.com/bdobrica/ThinkPixelAR/internal/app/execution"
@@ -51,20 +55,9 @@ func (s e2eSigner) Sign(_ context.Context, b []byte) ([]byte, error) {
 	return ed25519.Sign(s.key, b), nil
 }
 
-type e2eMaterializer struct {
-	reconcile func(sessions.ResumeIntent) (sessions.ResumeObservation, error)
-}
-
-func (m e2eMaterializer) Reconcile(_ context.Context, i sessions.ResumeIntent) (sessions.ResumeObservation, error) {
-	return m.reconcile(i)
-}
-func (m e2eMaterializer) Cleanup(context.Context, sessions.ResumeIntent) error {
-	return workspace.ErrUnavailable
-} // Retain failed candidates for diagnosis.
-
 // The same Session and actual checkpoint flow through the production services.
-// Operator authentication, qualification, lifecycle worker and infrastructure
-// composition below are explicit test fixtures, not executable server wiring.
+// Operator authentication, qualification, checkpoint preparation and ordinary
+// Execution dispatch remain fixtures; replacement resume uses its real executable.
 func TestStandaloneKubernetesContinuation(t *testing.T) {
 	if os.Getenv("THINKPIXELAR_E2E_KUBERNETES") != "1" {
 		t.Skip("set THINKPIXELAR_E2E_KUBERNETES=1 for the live scenario")
@@ -203,8 +196,21 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 		e2eCheck(t, json.Unmarshal(raw, &r.Profile))
 		r.Operation.Digest, e = sandbox.RequestDigest(r)
 		e2eCheck(t, e)
-		_, e = bindings.Reserve(ctx, r)
+		if strings.HasPrefix(c.name, "resume-") {
+			wrong := r
+			wrong.Workspace.Reference = "different-pvc"
+			wrong.Operation.Digest, e = sandbox.RequestDigest(wrong)
+			e2eCheck(t, e)
+			if _, e = bindings.Reserve(ctx, wrong); !errors.Is(e, sandbox.ErrIntegrity) {
+				t.Fatal("resume handoff accepted different PVC", e)
+			}
+		}
+		reserved, e := bindings.Reserve(ctx, r)
 		e2eCheck(t, e)
+		if strings.HasPrefix(c.name, "resume-") && reserved.ProviderReference != k.namespace+"/"+c.name+"/"+c.sandboxUID {
+			t.Fatal("resume handoff did not retain exact provider UID")
+		}
+
 		e2eCheck(t, bindings.BindReference(ctx, caller.TenantID, sandboxID, k.namespace+"/"+c.name+"/"+c.sandboxUID))
 		e2eSQL(t, db, `UPDATE executions SET state='RUNNING',state_version=state_version+1,updated_at=clock_timestamp() WHERE tenant_id=$1 AND execution_id=$2`, caller.TenantID, v.ID)
 		e2eSQL(t, db, `UPDATE attempts SET state='RUNNING',state_version=state_version+1,updated_at=clock_timestamp() WHERE tenant_id=$1 AND attempt_id=$2`, caller.TenantID, aid)
@@ -391,59 +397,50 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	rr := sessions.ResumeRequest(suspendRequest)
 	rr.OperationID = e2eID(t)
 	rr.ExpectedVersion = version()
-	var secondCompute e2eCompute
-	var readyResult e2eGuestResult
-	var candidate sessions.ResumeIntent
-	resumeStore, err := postgres.NewSessionResumes(db, func(_ context.Context, r sessions.ResumeRequest) error {
-		if r != rr {
-			return workspace.ErrInvalid
-		}
-		return nil
-	}, func(_ context.Context, i sessions.ResumeIntent) error {
-		if i.Runtime.RuntimeSpecDigest != resolution.Binding.RuntimeSpecDigest || !bytes.Equal(i.Manifest, published.Manifest) {
-			return workspace.ErrIntegrity
-		}
-		return verifyObjects()
-	}, func(_ context.Context, i sessions.ResumeIntent, o sessions.ResumeObservation) error {
-		if i.SandboxID != candidate.SandboxID || o.SandboxReference != k.namespace+"/"+secondCompute.name+"/"+secondCompute.sandboxUID || readyResult.Thread != firstResult.Thread || readyResult.Calls != 0 {
-			return workspace.ErrIntegrity
-		}
-		return verifyObjects()
-	}, validator)
+	// The replacement path is an actual operator executable, not a provider or
+	// readiness fixture. It reloads durable state and protected exports on restart.
+	script, err := os.ReadFile("../../../test/security/kata-host-proof.py")
 	e2eCheck(t, err)
-	worker, err := sessions.NewResumer(resumeStore, e2eMaterializer{func(i sessions.ResumeIntent) (sessions.ResumeObservation, error) {
-		if i.Request.SessionID != sid || i.WorkspaceID != wid || i.WorkspaceGenerationID != w.Operation.ID || i.WorkspaceGeneration != 1 || i.ExecutionGeneration != 1 {
-			return sessions.ResumeObservation{}, workspace.ErrIntegrity
-		}
-		candidate = i
-		secondCompute = k.acquire("resume-" + string(i.SandboxID))
-		if secondCompute.sandboxUID == firstCompute.sandboxUID || secondCompute.podUID == firstCompute.podUID || secondCompute.workspaceUID == firstCompute.workspaceUID || secondCompute.stateUID == firstCompute.stateUID {
-			return sessions.ResumeObservation{}, workspace.ErrIntegrity
-		}
-		for name, path := range map[string]string{"workspace": "/workspace/context.txt", "rollout": "/state/rollout.jsonl", "restore": "/state/restore.json"} {
-			raw, e := readObject(name)
-			if e != nil {
-				return sessions.ResumeObservation{}, e
-			}
-			k.write(secondCompute, path, raw)
-		}
-		// No Execution is fabricated for readiness. These are synthetic guest-test
-		// correlation IDs; this bootstrap never receives an ExecutionGrant.
-		b := &agentdv1.Binding{TenantId: string(caller.TenantID), SessionId: string(sid), ExecutionId: string(i.BootstrapID), AttemptId: string(i.BootstrapID), SandboxBindingId: string(i.SandboxID), SessionGeneration: 1}
-		readyResult = k.guest(secondCompute, "ready", b)
-		return sessions.ResumeObservation{SandboxReference: k.namespace + "/" + secondCompute.name + "/" + secondCompute.sandboxUID, AttachmentReference: string(i.AttachmentID), EvidenceDigest: sandbox.Digest([]byte(secondCompute.podUID))}, nil
-	}})
+	scriptPath := filepath.Join(archive, "host-proof.py")
+	e2eCheck(t, os.WriteFile(scriptPath, script, 0600))
+	approval := sessionresume.Config{Version: 1, Enabled: true, ExpiresAt: time.Now().Add(15 * time.Minute), Request: rr, Binding: resolution.Binding, Manifest: published.Manifest, PublicKey: private.Public().(ed25519.PublicKey), Issuer: "e2e001", KeyID: "ephemeral-test-key", Directory: archive, SSH: k.host, Namespace: k.namespace, NamespaceUID: e2eUID(k.object("namespace", k.namespace)), Image: k.image, ProofScript: scriptPath, ProofScriptDigest: sandbox.Digest(script)}
+	configPath := filepath.Join(archive, "resume.json")
+	configRaw, err := json.Marshal(approval)
 	e2eCheck(t, err)
-	resumed, err := worker.Resume(ctx, rr)
-	e2eCheck(t, err)
-	if resumed.State != "IDLE" || resumed.Generation != 1 || resumed.SessionID != sid || resumed.CheckpointID != id || readyResult.WorkspaceSHA256 != firstResult.WorkspaceSHA256 || readyResult.SHA256 != firstResult.SHA256 {
+	e2eCheck(t, os.WriteFile(configPath, configRaw, 0600))
+	resume := func() sessions.ResumeResult {
+		t.Helper()
+		binary := os.Getenv("THINKPIXELAR_E2E_RESUME_BIN")
+		if !filepath.IsAbs(binary) {
+			t.Fatal("build cmd/thinkpixel-session-resume and set THINKPIXELAR_E2E_RESUME_BIN")
+		}
+		cmd := exec.CommandContext(ctx, binary, "-config", configPath)
+		cmd.Env = append(os.Environ(), "THINKPIXELAR_DATABASE_URL="+url)
+		out, e := cmd.CombinedOutput()
+		if e != nil {
+			t.Fatalf("resume executable failed: %v %.1024s", e, out)
+		}
+		var result sessions.ResumeResult
+		e2eCheck(t, json.Unmarshal(out, &result))
+		return result
+	}
+	resumed := resume()
+	if resumed.State != "IDLE" || resumed.Generation != 1 || resumed.SessionID != sid || resumed.CheckpointID != id {
 		t.Fatal("resume publication", resumed.State)
 	}
-	replayed, err := worker.Resume(ctx, rr)
-	e2eCheck(t, err)
+	name := "resume-" + string(resumed.SandboxID)
+	secondCompute := e2eCompute{name, e2eUID(k.object("sandbox", name)), e2eUID(k.object("pod", name)), e2eUID(k.object("pvc", name+"-workspace")), e2eUID(k.object("pvc", name+"-state"))}
+	if secondCompute.sandboxUID == firstCompute.sandboxUID || secondCompute.podUID == firstCompute.podUID || secondCompute.workspaceUID == firstCompute.workspaceUID || secondCompute.stateUID == firstCompute.stateUID {
+		t.Fatal("reused compute")
+	}
+	if !bytes.Equal(k.read(secondCompute, "/workspace/context.txt"), objects["workspace"]) || !bytes.Equal(k.read(secondCompute, "/state/rollout.jsonl"), objects["rollout"]) {
+		t.Fatal("restored bytes changed")
+	}
+	replayed := resume()
 	if replayed != resumed {
 		t.Fatal("resume replay changed")
 	}
+	t.Logf("SES-005 executable resume PASS Session=%s Sandbox=%s Pod=%s; restart replay preserved candidate", sid, secondCompute.sandboxUID, secondCompute.podUID)
 	// Readiness and resume replay must not mint Execution authority or secrets.
 	for _, table := range []string{"executions", "local_authority_grants", "agentd_credentials"} {
 		var count int
@@ -552,7 +549,7 @@ func TestStandaloneKubernetesContinuation(t *testing.T) {
 	}
 	t.Logf("E2E-003 LIVE PASS grants=%s,%s credentials=%s,%s; fresh keys/proofs, retired authority denied before expiry, no issuance during resume; controller-side credential composition", firstGrant.ID, secondGrant.ID, firstCredential.Record.CredentialID, secondCredential.Record.CredentialID)
 	t.Logf("E2E-002 LIVE PASS Session=%s Workspace=%s WorkspaceGeneration=%s workspaceSHA256=%s thread=%s; first-execution edit and unique assistant history survived deletion of old Sandbox, Pod and PVCs", sid, wid, w.Operation.ID, root, firstResult.Thread)
-	t.Logf("E2E-001 LIVE PASS Session=%s Checkpoint=%s Executions=%s,%s generations=1,2 thread=%s; real Kata compute replacement, fresh PVCs, loopback model, test-only worker/auth/transport", sid, id, first.ID, second.ID, firstResult.Thread)
+	t.Logf("E2E-001 LIVE PASS Session=%s Checkpoint=%s Executions=%s,%s generations=1,2 thread=%s; real Kata compute replacement, fresh PVCs, executable resume; fixture Execution dispatch/auth/model", sid, id, first.ID, second.ID, firstResult.Thread)
 }
 
 func e2eCheck(t *testing.T, err error) {

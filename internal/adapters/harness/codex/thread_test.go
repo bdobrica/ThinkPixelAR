@@ -220,3 +220,16 @@ func TestResumeValidationAndReplay(t *testing.T) {
 		t.Fatal("changed resume target accepted")
 	}
 }
+
+func TestInfrastructureThreadRejectsForwardWorkAndModeChange(t *testing.T) {
+	c := &Client{initialized: true, threadAttempted: true, threadInfrastructure: true, threadID: testThreadID, threadResumeID: testThreadID, threadCWD: "/workspace"}
+	if _, err := c.StartTurn(t.Context(), turnOperation, turnInput, "must not execute"); err != harness.ErrInvalid {
+		t.Fatal("infrastructure probe accepted a turn", err)
+	}
+	if _, err := c.ResumeThread(t.Context(), "/workspace", testThreadID); err != harness.ErrConflict {
+		t.Fatal("probe changed to executable thread", err)
+	}
+	if id, err := c.ResumeThreadForInfrastructure(t.Context(), "/workspace", testThreadID); err != nil || id != testThreadID {
+		t.Fatal("probe replay", err)
+	}
+}

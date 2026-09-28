@@ -102,7 +102,9 @@ func NewResumer(store ResumeStore, materializer ResumeMaterializer) (*Resumer, e
 // Resume performs one bounded reconciliation. A lost response is retried with
 // the identical request, never a new candidate. Provider calls occur after commit.
 func (s *Resumer) Resume(ctx context.Context, r ResumeRequest) (ResumeResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	// Materialization and independent readiness each have a one-minute budget.
+	// Retain a finite outer budget that permits both on the live homelab lane.
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	i, result, err := s.store.Prepare(ctx, r)
 	if err != nil {

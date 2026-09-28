@@ -44,6 +44,7 @@ type Processes struct {
 	createThread   bool
 	executeTurn    bool
 	restore        *codex.RestoreState
+	resumeProbe    bool // Infrastructure-only supervisor; no execution-local provider route.
 	restoreUsed    bool // One checkpoint import per supervisor; never rewind after work.
 	commandBytes   uint32
 	current        *child
@@ -287,7 +288,11 @@ func (p *Processes) start(ctx context.Context) (primitives.ID, error) {
 		}
 		if p.createThread {
 			if p.restore != nil {
-				c.threadID, err = c.codex.ResumeThread(ctx, p.config.WorkingDirectory, p.restore.ThreadID)
+				if p.resumeProbe {
+					c.threadID, err = c.codex.ResumeThreadForInfrastructure(ctx, p.config.WorkingDirectory, p.restore.ThreadID)
+				} else {
+					c.threadID, err = c.codex.ResumeThread(ctx, p.config.WorkingDirectory, p.restore.ThreadID)
+				}
 			} else {
 				c.threadID, err = c.codex.StartThread(ctx, p.config.WorkingDirectory)
 			}

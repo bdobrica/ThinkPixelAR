@@ -143,7 +143,7 @@ compute release. HTTP/authentication composition, the preparation worker, and co
 storage/quiescence/revocation adapters remain separate work. Replacement resume
 coordination is described below. This is not evidence of a live CSI or full cold-resume demo.
 
-## Replacement resume coordinator (SES-005, infrastructure composition pending)
+## Replacement resume coordinator (SES-005)
 
 `SessionResumes` and the application `Resumer` implement the durable standalone
 coordination boundary. Preparation requires the exact SES-004 suspend result,
@@ -160,7 +160,7 @@ Execution admission remains blocked by `SUSPENDED`. Infrastructure candidates li
 in the resume operation journal, separate from authority-bearing Execution
 Attempt/binding tables. Their IDs do not authorize agentd execution admission.
 
-The application calls the mandatory `ResumeMaterializer` outside transactions.
+The application calls the mandatory `ResumeMaterializer` after preparation commits.
 That adapter must reconcile the exact saved candidate across concurrency,
 timeouts and restart; check current fences before mutations; retain storage pins;
 and reconstruct fresh compute, storage attachment and vendor state without
@@ -183,14 +183,29 @@ fence further creation and prove candidate absence, and never deletes durable
 Workspace/checkpoint data. Only confirmed cleanup clears this exact attachment;
 recovery of a degraded Session/Workspace remains a separate operation.
 
-This coordinator does not yet have concrete infrastructure materializer/readiness
-adapters or executable HTTP/worker wiring. SES-006 implements supervised harness
-restoration as described below; its delivery/composition and external credential
-revocation remain necessary. SES-007 adds the local retirement gate below. Subsequent Execution materialization must
-explicitly transfer or replace the infrastructure attachment under fresh
-Execution/Attempt authority. The existing Execution-only Agent Sandbox provider
-cannot be passed directly as a resume materializer. Therefore SES-005 remains
-open and this is not evidence of a live replacement Sandbox or full cold resume.
+The bounded standalone composition is now executable through
+[`thinkpixel-session-resume`](../../cmd/thinkpixel-session-resume/README.md).
+It supplies protected current operator approval, signed export/key/compatibility
+checks, a concrete Kubernetes materializer and independent readiness. The initial
+format restores one Workspace file and two Codex export objects on the exact
+homelab profile. Candidate mutations hold a separate bounded Session-fence
+transaction to prevent cleanup or close overtaking creation; the preparation
+journal is already committed before these calls. The coordinator permits two
+minutes for materialization and independent readiness, each bounded to one minute.
+Transient readiness unavailability keeps the exact candidate pending.
+
+The infrastructure probe imports no execution-local provider configuration. It
+uses the built-in provider only for no-turn semantic restoration; its client
+rejects forward work and changing to execution mode. A later admitted Execution
+restores separately with its freshly authorized model route. `SandboxBindings`
+explicitly claims the exact committed provider/PVC attachment under its current
+Execution/Attempt fence and active local grant. Historical resume replay never
+repeats restoration or this handoff.
+
+General HTTP lifecycle wiring, arbitrary repository export, other storage/provider
+lanes and external AG/gateway credential integration remain separate. The existing
+Execution-only Agent Sandbox provider is not used as a replacement materializer.
+See [scope and live verification](../evidence/ses-005-session-resume.md).
 
 ## Supervised Codex restoration (SES-006)
 
@@ -219,11 +234,10 @@ another Start/Restart cannot re-import the checkpoint after attempted startup.
 A new checkpoint selection needs a fresh supervisor under current admission.
 
 The real-binary test proves local process replacement and conversation continuity
-using a loopback model fixture. Durable export, authenticated delivery of selected
-checkpoint bytes, Session worker/infrastructure readiness composition, external
-credential revocation and live Sandbox reconstruction remain separate integration
-work. No new wire capability, authority, database transition or readiness claim
-is introduced by this local restoration component.
+using a loopback model fixture. SES-005 now composes bounded checkpoint delivery,
+real Kubernetes reconstruction and independent infrastructure readiness. General
+transport delivery and external credential revocation remain separate. The local
+restoration component itself introduces no wire capability or execution authority.
 
 
 ## AR credential retirement gate (SES-007)
@@ -244,8 +258,7 @@ authority. Resume itself issues no Execution credential.
 
 These checks cover AR's transport registry. Trusted policy/readiness composition
 must still prove AG/gateway revocation and credential exclusion from restored
-content. There is no implemented gateway credential issuer/revocation integration
-or complete Session resume worker yet; SES-007 remains open for that integrated
-proof. The real Codex restoration test verifies a fresh environment and absence
+content. Gateway credential issuance/revocation remains unimplemented; the
+bounded standalone SES-005 worker does not close SES-007’s integrated proof. The real Codex restoration test verifies a fresh environment and absence
 of old credential files, not arbitrary secret detection inside rollout content.
 See [verification](../evidence/ses-007-credential-retirement.md).

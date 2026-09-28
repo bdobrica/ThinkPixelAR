@@ -35,6 +35,7 @@ type Client struct {
 	attempted                         bool
 	initialized                       bool
 	threadAttempted                   bool
+	threadInfrastructure              bool
 	threadID, threadCWD               string
 	threadResumeID                    string
 	turnOperation, turnDigest, turnID string

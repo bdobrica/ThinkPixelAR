@@ -210,6 +210,28 @@ func TestPinnedCodexRestoredSupervisor(t *testing.T) {
 		t.Fatal("old home retained")
 	}
 	state := codex.RestoreState{ThreadID: thread, Protocol: codex.Version, Rollout: rollout, SHA256: fmt.Sprintf("%x", sha256.Sum256(rollout))}
+	// Infrastructure restoration must work without restoring the previous
+	// execution's custom model provider or configuring any new model endpoint.
+	probe, err := NewProcessesWithCapture(restoreConfig(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	probe.config.WorkingDirectory = workspace
+	probe.config.Argv = append([]string{binary}, codex.Command()[1:]...)
+	probe.restore = &state
+	probe.resumeProbe = true
+	probe.executeTurn = false
+	t.Cleanup(func() { _ = probe.Shutdown(context.Background(), nil) })
+	probeID, err := probe.Start(ctx)
+	if err != nil {
+		t.Fatal("infrastructure restoration", err)
+	}
+	if probe.current.threadID != thread || calls.Load() != 1 {
+		t.Fatal("infrastructure changed thread or called model")
+	}
+	if err = probe.Stop(ctx, probeID); err != nil {
+		t.Fatal(err)
+	}
 	// Production constructor requires canonical /workspace; this local test uses
 	// the same validated restore path with a temporary workspace and real binary.
 	second, err := NewProcessesWithCapture(restoreConfig(t), nil)

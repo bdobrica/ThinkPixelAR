@@ -169,6 +169,10 @@ func (s *SandboxBindings) Reserve(ctx context.Context, r sandbox.AcquireRequest)
 		if !errors.Is(e, sql.ErrNoRows) {
 			return e
 		}
+		resumeReference, e := resumeHandoff(ctx, tx, r)
+		if e != nil {
+			return e
+		}
 		_, e = tx.ExecContext(ctx, `INSERT INTO sandbox_bindings(tenant_id,sandbox_binding_id,session_id,execution_id,execution_generation,attempt_id,attempt_no,provider_kind,resolution_digest,acquire_operation_id,acquire_request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, r.Scope.TenantID, r.Scope.SandboxID, r.Scope.SessionID, r.Scope.ExecutionID, r.Scope.Generation, r.Scope.AttemptID, r.Scope.AttemptOrdinal, r.Profile.Implementation.ProviderKind, r.ProfileDigest, r.Operation.ID, r.Operation.Digest)
 		if e != nil {
 			return e
@@ -177,9 +181,14 @@ func (s *SandboxBindings) Reserve(ctx context.Context, r sandbox.AcquireRequest)
 		if e != nil {
 			return e
 		}
+		if resumeReference != "" {
+			if _, e = tx.ExecContext(ctx, `UPDATE sandbox_bindings SET provider_reference=$3 WHERE tenant_id=$1 AND sandbox_binding_id=$2`, r.Scope.TenantID, r.Scope.SandboxID, resumeReference); e != nil {
+				return e
+			}
+		}
 		_, e = tx.ExecContext(ctx, `UPDATE attempts SET sandbox_binding_reference=$3,state_version=state_version+1,updated_at=CURRENT_TIMESTAMP WHERE tenant_id=$1 AND attempt_id=$2`, r.Scope.TenantID, r.Scope.AttemptID, r.Scope.SandboxID)
 		if e == nil {
-			result = sandbox.Binding{Request: r}
+			result = sandbox.Binding{Request: r, ProviderReference: resumeReference}
 			return queueCompute(ctx, tx, r.Scope.TenantID, r.Scope.SandboxID)
 		}
 		return e

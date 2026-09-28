@@ -34,7 +34,7 @@ func ValidThreadID(id string) bool {
 // no-approval policy grants no extra permissions.
 // A failed request is never retried because its vendor outcome may be unknown.
 func (c *Client) StartThread(ctx context.Context, cwd string) (string, error) {
-	return c.openThread(ctx, cwd, "")
+	return c.openThread(ctx, cwd, "", false)
 }
 
 // ResumeThread resumes the exact vendor identity from state already restored by
@@ -46,10 +46,21 @@ func (c *Client) ResumeThread(ctx context.Context, cwd, threadID string) (string
 	if !ValidThreadID(threadID) {
 		return "", harness.ErrInvalid
 	}
-	return c.openThread(ctx, cwd, threadID)
+	return c.openThread(ctx, cwd, threadID, false)
 }
 
-func (c *Client) openThread(ctx context.Context, cwd, resumeID string) (id string, err error) {
+// ResumeThreadForInfrastructure uses the built-in provider while validating
+// conversation continuity without execution-local provider configuration. The
+// caller must prohibit turns and network access and stop this probe process;
+// an admitted Execution restores again with its freshly authorized model route.
+func (c *Client) ResumeThreadForInfrastructure(ctx context.Context, cwd, threadID string) (string, error) {
+	if !ValidThreadID(threadID) {
+		return "", harness.ErrInvalid
+	}
+	return c.openThread(ctx, cwd, threadID, true)
+}
+
+func (c *Client) openThread(ctx context.Context, cwd, resumeID string, infrastructure bool) (id string, err error) {
 	if !c.gate.TryLock() {
 		return "", harness.ErrConflict
 	}
@@ -58,7 +69,7 @@ func (c *Client) openThread(ctx context.Context, cwd, resumeID string) (id strin
 		return "", harness.ErrInvalid
 	}
 	if c.threadAttempted {
-		if c.threadCWD != cwd || c.threadResumeID != resumeID {
+		if c.threadCWD != cwd || c.threadResumeID != resumeID || c.threadInfrastructure != infrastructure {
 			return "", harness.ErrConflict
 		}
 		if c.threadID == "" {
@@ -70,6 +81,7 @@ func (c *Client) openThread(ctx context.Context, cwd, resumeID string) (id strin
 		return "", harness.ErrOutcomeUnknown
 	}
 	c.threadAttempted, c.threadCWD, c.threadResumeID = true, cwd, resumeID
+	c.threadInfrastructure = infrastructure
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(ctx, c.Close)
@@ -89,6 +101,9 @@ func (c *Client) openThread(ctx context.Context, cwd, resumeID string) (id strin
 	} else {
 		method = "thread/resume"
 		params["threadId"] = resumeID
+		if infrastructure {
+			params["modelProvider"] = "openai"
+		}
 		// Do not hydrate old messages/reasoning into the protocol response.
 		params["excludeTurns"] = true
 	}

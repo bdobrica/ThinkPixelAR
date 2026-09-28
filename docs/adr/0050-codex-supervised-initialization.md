@@ -40,6 +40,14 @@ in thread mode: selecting another checkpoint requires fresh trusted composition,
 preventing an implicit rewind after accepted work. Existing admission and turn
 fences are unchanged. See [SES-006 evidence](../evidence/ses-006-harness-restoration.md).
 
+SES-005 adds a distinct infrastructure-only probe on quiescent, offline candidate
+compute. It resumes with the built-in provider instead of importing an old
+Execution's custom provider configuration. This probe client rejects every turn
+and rejects changing to ordinary execution mode. The process is stopped after
+semantic validation; an admitted Execution restores separately with its own model
+route. This changes neither the normal `ResumeThread` parameters nor authority
+admission. The candidate's init process reaps adopted descendants between probes.
+
 [CDX-003 evidence](../evidence/cdx-003-startup.md) covers the real pinned binary
 through the supervisor and focused failure/replay checks. Thread creation,
 normalized events, full HarnessAdapter conformance and live Kata qualification

@@ -1,3 +1,5 @@
+//go:build linux
+
 package http
 
 // Test-only credential composition for the standalone scenario. The production

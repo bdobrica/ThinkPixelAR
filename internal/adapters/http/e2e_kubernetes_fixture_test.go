@@ -1,3 +1,5 @@
+//go:build linux
+
 package http
 
 // Test-only infrastructure composition. It uses the operator's SSH/Kubernetes
